@@ -35,6 +35,7 @@ Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.m
 - Added pure product-variant resolution and LKR minor-unit formatting rules, plus an accessible variant picker component. The component is ready for product pages but is not exposed on the empty catalogue routes.
 - Created only local ignored `.dev.vars` and `.wrangler/state` fixture data. No remote service/resource, GitHub mutation, deployment, production credential or billing change was used.
 - Documented local/UAT/live Supabase separation and Worker/R2 isolation in `docs/ENVIRONMENTS.md`, and added UAT-only synthetic catalogue SQL under `supabase/seeds/` (outside the automatic seed path). No hosted database or deployment resources were provisioned; fixture SQL has not been executed.
+- The owner created GitHub repository `DINO1527/lakh-ki-chudhiya`; pushed the project to `main`. Supabase remains at sign-in; no project credentials were read or database changes made.
 
 ## Toolchain and compatibility evidence
 
@@ -60,7 +61,7 @@ Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.m
 | `pnpm test:worker` while preview ran                                                | PASS for SSR 200, health 200/no-store, local R2 read 200/no-store, manifest and service worker availability, and exclusion of API/cookie-bearing routes. Supabase private no-store headers were checked, but actual backend behavior was **SKIPPED** because there is no local Supabase configuration; the smoke endpoint returned expected 503. |
 | `pnpm audit --prod`                                                                 | PASS, no known vulnerabilities found at audit time.                                                                                                                                                                                                                                                                                              |
 | `pnpm install --frozen-lockfile` after changing linker while `node_modules` existed | Did not complete: pnpm refused to replace `node_modules` without an interactive TTY (`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`). This is not a clean-install result; validate from a clean checkout/CI.                                                                                                                                       |
-| Git status | Root commit created locally on `master`; no remote is configured. GitHub destination is needed to push. |
+| Git status | Clean working tree on `main`, tracking `origin/main`; initial project commit pushed to `https://github.com/DINO1527/lakh-ki-chudhiya`. |
 
 ## Stage 1 checks
 
@@ -86,7 +87,7 @@ No GitHub Actions workflow was run remotely. These local checks do not close Sta
 - No remote R2 resource, deployment, custom domain, production secrets, SMTP or billing activation. R2 remote setup needs explicit approval.
 - No owner-provided logo, product photography/models, final palette confirmation, sizing, price/inventory/policy, WhatsApp number or domain is present. Stage 0 has no storefront catalogue or commercial flows.
 - The Worker smoke test is local and narrow. It is not production security, load, accessibility, disaster-recovery or end-to-end commerce verification.
-- A local Git repository has an initial commit on `master` and no remote. The requested GitHub push needs the destination repository URL (or an explicit instruction to create a repository, including its visibility/organization). No GitHub repository was identified from the connected account.
+- Supabase database-level verification and UAT fixture execution remain pending; the project reference and credentials are not available to this session.
 
 ## Stage 1 current limits
 
