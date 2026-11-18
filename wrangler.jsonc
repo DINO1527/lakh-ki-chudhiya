@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "lakh-ki-chudhiya-stage0",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-11-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "r2_buckets": [
+    {
+      "binding": "PRODUCT_MEDIA",
+      "bucket_name": "lakh-ki-chudhiya-stage0-local",
+      "preview_bucket_name": "lakh-ki-chudhiya-stage0-local",
+    },
+  ],
+}

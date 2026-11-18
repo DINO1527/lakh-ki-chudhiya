@@ -1,0 +1,16 @@
+# INERT EXAMPLE. Not auto-loaded. Review provenance and pin versions before activation.
+# Copy only reviewed blocks into .codex/config.toml if current Codex supports it.
+# Replace placeholders with audited actual versions. Do not put credentials here.
+# [mcp_servers.playwright]
+# command = "npx"
+# args = ["-y", "@playwright/mcp@REVIEWED_VERSION"]
+# [mcp_servers.chrome-devtools]
+# command = "npx"
+# args = ["-y", "chrome-devtools-mcp@REVIEWED_VERSION"]
+# [mcp_servers.context7]
+# command = "npx"
+# args = ["-y", "@upstash/context7-mcp@REVIEWED_VERSION"]
+# [mcp_servers.shadcn]
+# command = "npx"
+# args = ["-y", "shadcn@REVIEWED_VERSION", "mcp"]
+# Keep GitHub/Figma/Supabase disabled until authenticating per official docs and scoping access.
