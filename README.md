@@ -1,6 +1,6 @@
 # Lakh Ki Chudhiya | Stage 1 in progress
 
-This workspace began as a documentation and skill kit for a premium handcrafted lac bangle store. It now contains a Next.js App Router foundation, a local OpenNext/Cloudflare Workers proof of concept, and the first responsive storefront pages. The shop intentionally shows empty states until real product imagery, sizes, prices and inventory are supplied. It is **not a production storefront**. All 13 bundled project skills remain available as Markdown; no optional third-party skills or MCP servers were installed.
+This workspace began as a documentation and skill kit for a premium handcrafted lac bangle store. It now contains a Next.js App Router foundation, a local OpenNext/Cloudflare Workers proof of concept, and the first responsive storefront pages. The shop intentionally shows empty states until real product imagery, sizes, prices and inventory are supplied. It is **not a production storefront**. All 13 bundled project skills remain available as Markdown; no optional third-party skills were installed. Supabase MCP is configured and OAuth-authenticated in the owner's Codex user config, outside this repository.
 
 ## Start in Codex
 
@@ -12,7 +12,7 @@ This workspace began as a documentation and skill kit for a premium handcrafted 
 
 ## Database environments
 
-Use isolated local, UAT, and live Supabase projects. UAT and live must also have separate Worker secrets and R2 buckets. The synthetic catalogue fixture at `supabase/seeds/uat_catalogue.sql` is UAT-only and is deliberately not part of automatic database reset. Confirm the linked project reference before any hosted database write; never load UAT fixtures into live. Setup and release guidance is in [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). No hosted projects or deployment resources have been created.
+Use isolated local, UAT, and live Supabase projects. UAT and live must also have separate Worker secrets and R2 buckets. The synthetic catalogue fixture at `supabase/seeds/uat_catalogue.sql` is UAT-only and is deliberately not part of automatic database reset. Confirm the linked project reference and environment before any hosted database write; never load UAT fixtures into live. Setup and release guidance is in [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). The owner reports creating a Supabase project; whether it is UAT or live has not been confirmed. No hosted database changes or deployment resources have been made.
 
 ## Navigation
 

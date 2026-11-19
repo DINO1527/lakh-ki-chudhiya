@@ -1,6 +1,7 @@
 # Development progress
 
-**Last updated:** 2026-11-18  
+**Last updated:** 2026-11-19
+
 **Current milestone:** Stage 1 — design/catalogue (in progress by owner direction; Stage 0 exit gate remains incomplete)
 
 ## Initial state
@@ -22,20 +23,20 @@ The workspace was a documentation and skill kit with no application code and no 
 
 ## Requirements and skills consulted
 
-Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.md`, all documents in `docs/`, and all 13 project skills in `.agents/skills/`. Applied `project-architecture` and `clean-code`; reviewed the rest for future routing. Reviewed recommended GitHub skills and connected MCP availability in [ADR 0002](decisions/0002-agent-skills-and-tools-review.md). No optional external skill or MCP server was installed. Reviewed current official Next.js, Cloudflare, OpenNext and Supabase documentation/pricing; runtime choice and vinext scan are recorded in [ADR 0001](decisions/0001-stage0-runtime.md).
+Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.md`, all documents in `docs/`, and all 13 project skills in `.agents/skills/`. Applied `project-architecture` and `clean-code`; reviewed the rest for future routing. Reviewed recommended GitHub skills and connected MCP availability in [ADR 0002](decisions/0002-agent-skills-and-tools-review.md). No optional external skills were installed. Supabase MCP is configured and OAuth-authenticated in the owner's Codex user config; no MCP database calls have been made. Reviewed current official Next.js, Cloudflare, OpenNext and Supabase documentation/pricing; runtime choice and vinext scan are recorded in [ADR 0001](decisions/0001-stage0-runtime.md).
 
 ## Changes
 
 - Added a single strict TypeScript Next.js App Router application scaffold, exact package pins and pnpm lockfile, lint/format/type/test scripts, CI workflow, examples and ignored local secrets.
 - Added OpenNext/Workers config, generated Cloudflare types, local-only R2 fixture and Worker smoke script.
-- Added server-only Supabase client setup, a smoke migration with RLS enabled, and a health endpoint. No Supabase project or credentials are configured.
+- Added server-only Supabase client setup, a smoke migration with RLS enabled, and a health endpoint. No application Supabase URL/key is configured in the repository; MCP OAuth is separate and no database calls have been made.
 - Added a minimal home page, web manifest, offline page, and scoped service worker. The service worker excludes API and cookie-bearing account/admin/checkout/order/auth paths.
 - Added ADRs for adapter evaluation and skills/MCP review. Updated README and deployment notes to describe the actual Stage 0 state.
 - Stage 1 first slice: added shared storefront header/footer and empty state, responsive design tokens, home/shop/collections/size guide pages, and a catalogue schema migration with published-row RLS and public column grants that omit exact stock counts. Product pages remain unavailable until real product records/assets are supplied.
 - Added pure product-variant resolution and LKR minor-unit formatting rules, plus an accessible variant picker component. The component is ready for product pages but is not exposed on the empty catalogue routes.
 - Created only local ignored `.dev.vars` and `.wrangler/state` fixture data. No remote service/resource, GitHub mutation, deployment, production credential or billing change was used.
 - Documented local/UAT/live Supabase separation and Worker/R2 isolation in `docs/ENVIRONMENTS.md`, and added UAT-only synthetic catalogue SQL under `supabase/seeds/` (outside the automatic seed path). No hosted database or deployment resources were provisioned; fixture SQL has not been executed.
-- The owner created GitHub repository `DINO1527/lakh-ki-chudhiya`; pushed the project to `main`. Supabase remains at sign-in; no project credentials were read or database changes made.
+- The owner created GitHub repository `DINO1527/lakh-ki-chudhiya`; pushed the project to `main`. The owner reports creating a Supabase project and Codex MCP OAuth login is confirmed. Its UAT/live role remains unconfirmed; no database calls or changes were made and no project identifier or token is stored in the repository.
 
 ## Toolchain and compatibility evidence
 
@@ -61,6 +62,7 @@ Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.m
 | `pnpm test:worker` while preview ran                                                | PASS for SSR 200, health 200/no-store, local R2 read 200/no-store, manifest and service worker availability, and exclusion of API/cookie-bearing routes. Supabase private no-store headers were checked, but actual backend behavior was **SKIPPED** because there is no local Supabase configuration; the smoke endpoint returned expected 503. |
 | `pnpm audit --prod`                                                                 | PASS, no known vulnerabilities found at audit time.                                                                                                                                                                                                                                                                                              |
 | `pnpm install --frozen-lockfile` after changing linker while `node_modules` existed | Did not complete: pnpm refused to replace `node_modules` without an interactive TTY (`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`). This is not a clean-install result; validate from a clean checkout/CI.                                                                                                                                       |
+| `codex mcp login supabase`; `codex mcp list` | OAuth login succeeded; the elevated CLI list reports Supabase enabled with OAuth. This confirms tool registration/authentication only; no database calls were made. |
 | Git status | Clean working tree on `main`, tracking `origin/main`; initial project commit pushed to `https://github.com/DINO1527/lakh-ki-chudhiya`. |
 
 ## Stage 1 checks
@@ -82,12 +84,12 @@ No GitHub Actions workflow was run remotely. These local checks do not close Sta
 
 ## Remaining Stage 0 gates and limitations
 
-- Docker daemon is stopped, Supabase CLI is absent, and no approved development Supabase credentials/project are configured. Auth SSR cookies, RLS query and mutation have **not** been smoke-tested. Do not connect production.
+- Docker daemon is stopped and Supabase CLI is absent. Supabase MCP OAuth is configured for the owner-provided project, but its UAT/live role is unconfirmed; no database call has been made. Auth SSR cookies, RLS query and mutation have **not** been smoke-tested. Confirm the environment before using remote database tools.
 - Full public/private cache-isolation coverage and equivalent vinext Worker-runtime comparison remain. The static vinext compatibility scan does not establish runtime compatibility.
 - No remote R2 resource, deployment, custom domain, production secrets, SMTP or billing activation. R2 remote setup needs explicit approval.
 - No owner-provided logo, product photography/models, final palette confirmation, sizing, price/inventory/policy, WhatsApp number or domain is present. Stage 0 has no storefront catalogue or commercial flows.
 - The Worker smoke test is local and narrow. It is not production security, load, accessibility, disaster-recovery or end-to-end commerce verification.
-- Supabase database-level verification and UAT fixture execution remain pending; the project reference and credentials are not available to this session.
+- Supabase database-level verification and UAT fixture execution remain pending confirmation of the project's environment and availability of database tooling. The project identifier and OAuth token remain outside the repository.
 
 ## Stage 1 current limits
 

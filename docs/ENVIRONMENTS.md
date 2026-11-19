@@ -48,4 +48,4 @@ UAT success does not imply live readiness. Keep migration and application rollba
 - Local `.env.example` points at the standard local Supabase URL and uses a placeholder publishable key.
 - No UAT/live project references, keys, Worker bindings, or buckets are present in the repo.
 - No remote migration, seed, deployment, or resource provisioning was run.
-- UAT seed execution and database-level RLS verification remain pending an owner-provided UAT project and local database tooling.
+- UAT seed execution and database-level RLS verification remain pending confirmation that the owner-provided Supabase project is UAT and access to database tooling. Supabase MCP OAuth is configured in the owner's Codex user config; no database calls have been made through it.

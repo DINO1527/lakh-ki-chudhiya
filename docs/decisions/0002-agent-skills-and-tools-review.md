@@ -1,7 +1,7 @@
 # ADR 0002: External skills and MCP review
 
-- **Status:** Reviewed; no optional external skill/server installed
-- **Date:** 2026-11-18
+- **Status:** Reviewed; Supabase MCP is user-configured and OAuth-authenticated
+- **Date:** 2026-11-19
 - **Scope:** Stage 0 project setup only
 
 ## Bundled project skills
@@ -34,9 +34,9 @@ These sources are mutable GitHub branches. No version/commit was installed or tr
 | Playwright MCP         | Not available                                                                                                                                                                      | No browser UI exists yet; add only for a later authorized QA need.                     |
 | Chrome DevTools MCP    | Not available                                                                                                                                                                      | Not needed for the local HTTP/Worker smoke test.                                       |
 | shadcn MCP             | Not available                                                                                                                                                                      | No UI primitives are being added in this stage.                                        |
-| Supabase MCP           | Not available                                                                                                                                                                      | No dev project credentials are available; do not connect production.                   |
+| Supabase MCP           | Enabled in Codex user config; OAuth login confirmed by `codex mcp list` on 2026-11-19. The connection is scoped to the owner-provided project and is not stored in this repository. | Use only after confirming whether the project is UAT or live. Codex prompts for write-capable tool calls; no remote calls or database changes have been made. |
 | GitHub MCP / connector | Available. Read-only repository fetches were used. Repository metadata reported pull access and no push access; tool surface includes mutation operations, so those remain unused. | Keep read-only for repository research. No issue/PR/repository mutation was performed. |
 | Figma MCP              | Available, with design read/write capabilities                                                                                                                                     | No Figma file or owner brand asset was supplied; not used.                             |
-| Codex skills/config    | Local project skills are available; `.codex/config.example.toml` is inert.                                                                                                         | Leave optional MCP entries disabled.                                                   |
+| Codex skills/config    | Local project skills are available; `.codex/config.example.toml` is inert.                                                                                                         | Supabase MCP uses the owner's user config; keep OAuth tokens out of the repository.    |
 
-No MCP server was installed or added to the project's active configuration. MCP tools are development tools, not storefront dependencies. No production credentials or remote resources were used.
+The Supabase MCP server is configured in the owner's Codex user config, not the project's shared config, and OAuth authentication was confirmed. The user-supplied feature list includes account tools, but Supabase project scoping disables account tools; the project-scoped connection remains in place. OAuth consent can cover broad project and data permissions, so review each requested tool action. Do not use it until the project's UAT/live role is confirmed. No database call, migration, seed, or remote mutation was performed. MCP tools are development tools, not storefront dependencies; no tokens or project identifiers are recorded in this repository.
