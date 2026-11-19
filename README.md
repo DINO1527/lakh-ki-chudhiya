@@ -12,7 +12,7 @@ This workspace began as a documentation and skill kit for a premium handcrafted 
 
 ## Database environments
 
-Use isolated local, UAT, and live Supabase projects. UAT and live must also have separate Worker secrets and R2 buckets. The synthetic catalogue fixture at `supabase/seeds/uat_catalogue.sql` is UAT-only and is deliberately not part of automatic database reset. Confirm the linked project reference and environment before any hosted database write; never load UAT fixtures into live. Setup and release guidance is in [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). The owner reports creating a Supabase project; whether it is UAT or live has not been confirmed. No hosted database changes or deployment resources have been made.
+Development and testing target UAT; the `main` release target uses a separate live Supabase project. Both projects must receive the same ordered migration files so their table and column names stay aligned. The synthetic catalogue fixture at `supabase/seeds/uat_catalogue.sql` is UAT-only and is deliberately not part of automatic database reset. Confirm each project role before any hosted database write; never load UAT fixtures into live. Setup and release guidance is in [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). The owner reports creating one project intended for UAT; dashboard confirmation is pending and the live project has not been created. Branch protection and deployment secrets are not configured yet.
 
 ## Navigation
 

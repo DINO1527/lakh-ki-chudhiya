@@ -23,7 +23,7 @@ The workspace was a documentation and skill kit with no application code and no 
 
 ## Requirements and skills consulted
 
-Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.md`, all documents in `docs/`, and all 13 project skills in `.agents/skills/`. Applied `project-architecture` and `clean-code`; reviewed the rest for future routing. Reviewed recommended GitHub skills and connected MCP availability in [ADR 0002](decisions/0002-agent-skills-and-tools-review.md). No optional external skills were installed. Supabase MCP is configured and OAuth-authenticated in the owner's Codex user config; no MCP database calls have been made. Reviewed current official Next.js, Cloudflare, OpenNext and Supabase documentation/pricing; runtime choice and vinext scan are recorded in [ADR 0001](decisions/0001-stage0-runtime.md).
+Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.md`, all documents in `docs/`, and all 13 project skills in `.agents/skills/`. Applied `project-architecture` and `clean-code`; reviewed the rest for future routing. Reviewed recommended GitHub skills and connected MCP availability in [ADR 0002](decisions/0002-agent-skills-and-tools-review.md). No optional external skills were installed. Supabase MCP is configured and OAuth-authenticated in the owner's Codex user config; no MCP database calls have been made. Reviewed current official Next.js, Cloudflare, OpenNext and Supabase documentation/pricing, including the Free plan project limit and inactivity pause; runtime choice and vinext scan are recorded in [ADR 0001](decisions/0001-stage0-runtime.md).
 
 ## Changes
 
@@ -34,9 +34,9 @@ Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.m
 - Added ADRs for adapter evaluation and skills/MCP review. Updated README and deployment notes to describe the actual Stage 0 state.
 - Stage 1 first slice: added shared storefront header/footer and empty state, responsive design tokens, home/shop/collections/size guide pages, and a catalogue schema migration with published-row RLS and public column grants that omit exact stock counts. Product pages remain unavailable until real product records/assets are supplied.
 - Added pure product-variant resolution and LKR minor-unit formatting rules, plus an accessible variant picker component. The component is ready for product pages but is not exposed on the empty catalogue routes.
-- Created only local ignored `.dev.vars` and `.wrangler/state` fixture data. No remote service/resource, GitHub mutation, deployment, production credential or billing change was used.
-- Documented local/UAT/live Supabase separation and Worker/R2 isolation in `docs/ENVIRONMENTS.md`, and added UAT-only synthetic catalogue SQL under `supabase/seeds/` (outside the automatic seed path). No hosted database or deployment resources were provisioned; fixture SQL has not been executed.
-- The owner created GitHub repository `DINO1527/lakh-ki-chudhiya`; pushed the project to `main`. The owner reports creating a Supabase project and Codex MCP OAuth login is confirmed. Its UAT/live role remains unconfirmed; no database calls or changes were made and no project identifier or token is stored in the repository.
+- Created local ignored `.dev.vars` and `.wrangler/state` fixture data only; no remote R2 resource, deployment, production credential or billing change was used.
+- Documented development/testing-to-UAT and main-to-live target mapping, shared migration order, and free-tier limits in `docs/ENVIRONMENTS.md`. The UAT fixture SQL remains outside the automatic seed path and has not been executed.
+- The owner created GitHub repository `DINO1527/lakh-ki-chudhiya`; pushed the project to `main`. The owner reports creating one Supabase project intended for UAT; dashboard verification is pending. A separate live project has not been created. Supabase MCP OAuth is configured, but the project-scoped endpoint disables account-management tools and no Supabase tools are exposed to this active session. No database calls or changes were made; no project identifier or token is stored in the repository.
 
 ## Toolchain and compatibility evidence
 
@@ -84,12 +84,12 @@ No GitHub Actions workflow was run remotely. These local checks do not close Sta
 
 ## Remaining Stage 0 gates and limitations
 
-- Docker daemon is stopped and Supabase CLI is absent. Supabase MCP OAuth is configured for the owner-provided project, but its UAT/live role is unconfirmed; no database call has been made. Auth SSR cookies, RLS query and mutation have **not** been smoke-tested. Confirm the environment before using remote database tools.
+- Docker daemon is stopped and Supabase CLI is absent. The owner-created project is intended as UAT but needs dashboard confirmation; the separate live project is not created. The project-scoped MCP connection cannot create projects because account-management tools are disabled, and no Supabase tools are exposed in this session. Auth SSR cookies, RLS query and mutation have **not** been smoke-tested.
 - Full public/private cache-isolation coverage and equivalent vinext Worker-runtime comparison remain. The static vinext compatibility scan does not establish runtime compatibility.
 - No remote R2 resource, deployment, custom domain, production secrets, SMTP or billing activation. R2 remote setup needs explicit approval.
 - No owner-provided logo, product photography/models, final palette confirmation, sizing, price/inventory/policy, WhatsApp number or domain is present. Stage 0 has no storefront catalogue or commercial flows.
 - The Worker smoke test is local and narrow. It is not production security, load, accessibility, disaster-recovery or end-to-end commerce verification.
-- Supabase database-level verification and UAT fixture execution remain pending confirmation of the project's environment and availability of database tooling. The project identifier and OAuth token remain outside the repository.
+- Supabase database-level verification and UAT fixture execution remain pending confirmation of the existing project's UAT role and access to database tooling. Live project creation, environment secrets, Worker bindings and deployment automation are outstanding. Project identifiers and OAuth tokens remain outside the repository.
 
 ## Stage 1 current limits
 
