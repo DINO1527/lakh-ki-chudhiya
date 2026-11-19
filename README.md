@@ -1,6 +1,6 @@
 # Lakh Ki Chudhiya | Stage 1 in progress
 
-This workspace began as a documentation and skill kit for a premium handcrafted lac bangle store. It now contains a Next.js App Router foundation, a local OpenNext/Cloudflare Workers proof of concept, and the first responsive storefront pages. The shop intentionally shows empty states until real product imagery, sizes, prices and inventory are supplied. It is **not a production storefront**. All 13 bundled project skills remain available as Markdown; no optional third-party skills were installed. Supabase MCP is configured and OAuth-authenticated in the owner's Codex user config, outside this repository.
+This workspace began as a documentation and skill kit for a premium handcrafted lac bangle store. It now contains a Next.js App Router foundation, a local OpenNext/Cloudflare Workers proof of concept, and the first responsive storefront pages. The shop intentionally shows empty states until real product imagery, sizes, prices and inventory are supplied. It is **not a production storefront**. The 13 bundled project skills remain available, and the reviewed Supabase Postgres best-practices skill is installed at project scope. The owner's Codex user config has separate OAuth-authenticated Supabase MCP entries for UAT and live.
 
 ## Start in Codex
 
@@ -12,7 +12,7 @@ This workspace began as a documentation and skill kit for a premium handcrafted 
 
 ## Database environments
 
-Development and testing target UAT; the `main` release target uses a separate live Supabase project. Both projects must receive the same ordered migration files so their table and column names stay aligned. The synthetic catalogue fixture at `supabase/seeds/uat_catalogue.sql` is UAT-only and is deliberately not part of automatic database reset. Confirm each project role before any hosted database write; never load UAT fixtures into live. Setup and release guidance is in [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). The owner reports creating one project intended for UAT; dashboard confirmation is pending and the live project has not been created. Branch protection and deployment secrets are not configured yet.
+Development and testing target UAT; the `main` release target uses a separate live Supabase project. Both projects must receive the same ordered migration files so their table and column names stay aligned. The synthetic catalogue fixture at `supabase/seeds/uat_catalogue.sql` is UAT-only and is deliberately not part of automatic database reset. Confirm each project role before any hosted database write; never load UAT fixtures into live. Setup and release guidance is in [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). The owner supplied separate project references for UAT and live; dashboard verification is pending. Branch protection and deployment secrets are not configured yet.
 
 ## Navigation
 

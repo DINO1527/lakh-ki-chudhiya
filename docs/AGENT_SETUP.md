@@ -71,3 +71,9 @@ MCP servers are agent tools, not website services. Use official docs directly if
 | Codex skills/config | https://developers.openai.com/codex/skills/ | Project-level discovery |
 
 For MCPs requiring credentials/OAuth, follow upstream docs; don't write tokens in repo. Browser tools may visit only allowed targets; never make live orders, payments or production data changes. Verify actual test suite independently of MCP. Stage 0 may proceed with CLI/docs only.
+
+## Current Supabase setup
+
+- Codex user config has separate project-scoped servers named `supabase` (UAT) and `supabase-live` (live). Both report OAuth authentication; write-capable calls require approval. Project-scoped URLs disable account-management tools.
+- Installed only `supabase-postgres-best-practices` in `.agents/skills/` from `supabase/agent-skills` v0.1.9 (commit `544bfc5`), using `skills@1.7.2`; the skill metadata version is 1.1.1. `skills-lock.json` records the content hash. The MIT notice is in `THIRD_PARTY_NOTICES.md`.
+- The general `supabase` skill remains uninstalled because its imperative schema workflow recommends a `db pull` pattern that differs from this repository's reviewed, checked-in migration workflow. Follow project migration guidance in `docs/ENVIRONMENTS.md`.

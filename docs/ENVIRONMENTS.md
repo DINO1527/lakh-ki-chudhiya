@@ -2,19 +2,19 @@
 
 Use two hosted database environments: UAT and live, each in a separate Supabase project. Development and testing target UAT. A disposable local Supabase stack may be used when a test needs destructive resets. Keep Cloudflare Worker configuration, secrets, and R2 media namespaces separate as well. A project URL, key, Worker name, or bucket name must never be shared between UAT and live.
 
-The owner reports creating one Supabase project. Based on the requested routing, treat it as the intended UAT project until the project name/role is verified in the dashboard. A second, separate Supabase project is required for live. This repository has not created either project or applied any database changes. Project references and credentials belong in secure owner notes or environment-specific secret stores; never commit them.
+The owner supplied separate Supabase project references and designated the projects for UAT and live. Verify their project names/roles in the dashboard before the first database change. The owner created the projects; Codex has not provisioned either project or applied any database changes. Project references and credentials belong in secure owner notes or environment-specific secret stores; never commit them.
 
 ## Environment roles
 
 | Environment | Purpose | Data and operations |
 | --- | --- | --- |
 | Local development and testing | Feature work, local preview, and authorized database-backed tests | Intended to connect to UAT using UAT URL and publishable key only. Use synthetic catalogue and test accounts; no live credentials or customer data. This connection is not configured yet. |
-| UAT | Shared isolated hosted project for development and QA acceptance | Owner-created project is intended for UAT, pending dashboard verification. Synthetic fixtures only; no real messaging, payment, or customer records. |
-| Live | Customer-facing release from `main` after branch and environment protections are configured | Separate live project, not yet created. Owner-approved catalogue and transactions only; never load mock seed data. |
+| UAT | Shared isolated hosted project for development and QA acceptance | Owner-designated project; verify in dashboard. Synthetic fixtures only; no real messaging, payment, or customer records. |
+| Live | Customer-facing release from `main` after branch and environment protections are configured | Separate owner-designated project; verify in dashboard. Owner-approved catalogue and transactions only; never load mock seed data. |
 
 Keep UAT and live as separate Supabase projects. Use the same checked-in migration files, in the same order, on both projects so table and column names stay identical. Apply and verify each migration on UAT first; promote those exact migration files to live only after UAT acceptance and release approval. Do not copy live customer, order, authentication, or media data into UAT. Load only approved UAT fixtures. The `main` branch is the live release target; development and testing use UAT. Branching is not part of this design.
 
-The current Supabase Free plan lists two active projects, 500 MB database size per project, and pausing after a week of low activity; automatic backups and branching are not included. Confirm free-project capacity on the owner's account and current limits before creation. Do not upgrade or enable billing without explicit approval. [Supabase pricing](https://supabase.com/pricing) · [Free project pausing](https://supabase.com/docs/guides/platform/free-project-pausing)
+The current Supabase Free plan lists two active projects, 500 MB database size per project, and pausing after a week of low activity; automatic backups and branching are not included. Confirm current limits and account capacity before any additional project provisioning. Do not upgrade or enable billing without explicit approval. [Supabase pricing](https://supabase.com/pricing) · [Free project pausing](https://supabase.com/docs/guides/platform/free-project-pausing)
 
 ## Credentials and application configuration
 
@@ -28,7 +28,7 @@ Before connecting a local app to a hosted project, verify the project reference 
 
 ## UAT database setup and fixture data
 
-1. Confirm the owner-created project is UAT in the dashboard; record its project reference in the owner's secure operations notes, not Git. Create a separate live project using the free plan only if account capacity allows.
+1. Confirm the owner-provided project references map to the intended UAT and live projects in the dashboard. The owner has supplied both projects; do not provision another project for this setup.
 2. Confirm the UAT project reference in the dashboard before connecting the app or applying SQL. Apply reviewed migrations to UAT in order using the approved deployment workflow. Do not use the seed file as a migration.
 3. Review `supabase/seeds/uat_catalogue.sql`; it contains synthetic, unmistakably non-saleable catalogue rows and no photos, customer data, reviews, orders, or credentials.
 4. Run the file only against the confirmed UAT project. From an authorized machine with the Supabase CLI installed, replace `your-uat-project-ref` with the confirmed UAT project reference and run `supabase db query --remote=your-uat-project-ref --file supabase/seeds/uat_catalogue.sql`. Confirm the CLI's printed `Target:` project and interactive write prompt before proceeding. Do not use `--yes` or a live project reference.
@@ -51,5 +51,5 @@ UAT success does not imply live readiness. Keep migration and application rollba
 
 - Local `.env.example` points at the standard local Supabase URL and uses a placeholder publishable key.
 - No project references, keys, Worker bindings, or buckets are present in the repo.
-- One owner-created Supabase project is intended for UAT, pending dashboard confirmation. The separate live project has not been created. No remote migration, seed, deployment, or resource provisioning was run by Codex.
-- UAT seed execution and database-level RLS verification remain pending project verification and database tooling. The Supabase MCP URL is project-scoped, which disables its account-management tools; the active session exposes no Supabase tools for project creation. No database calls have been made through MCP.
+- The owner supplied separate project references for UAT and live. Codex user config contains `supabase` (UAT) and `supabase-live` (live), both enabled with OAuth; write-capable calls require approval. No remote migration, seed, deployment, or resource provisioning was run by Codex.
+- UAT seed execution and database-level RLS verification remain pending dashboard confirmation and database tooling. Both MCP URLs are project-scoped, which disables account-management tools. No database calls have been made through MCP in this session.

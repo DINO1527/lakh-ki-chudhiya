@@ -2,7 +2,7 @@
 
 Single deployable full-stack Next.js App Router, PostgreSQL/Supabase Auth, media via Cloudflare R2. Modular monolith; feature boundaries follow products, cart, checkout, orders, inventory, customers, reviews, media and administration. No duplicate data store or separate server at launch.
 
-Environment boundary: development and testing target the isolated UAT Supabase project; the `main` release target uses a separate live project. Both use the same ordered migration files. UAT and live also require separate Worker configuration, secrets, and R2 buckets. Only synthetic fixtures belong in UAT. These connections are planned and not yet provisioned; see [ENVIRONMENTS.md](ENVIRONMENTS.md) for setup and release gates. Never select the database or environment based on client-supplied values.
+Environment boundary: development and testing target the isolated UAT Supabase project; the `main` release target uses a separate live project. Both use the same ordered migration files. UAT and live also require separate Worker configuration, secrets, and R2 buckets. Only synthetic fixtures belong in UAT. Owner-supplied project references and Codex MCP entries are configured; application/Worker connections and deployment secrets are not. See [ENVIRONMENTS.md](ENVIRONMENTS.md) for setup and release gates. Never select the database or environment based on client-supplied values.
 
 ## Dependency model
 ```mermaid

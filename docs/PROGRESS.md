@@ -23,7 +23,7 @@ The workspace was a documentation and skill kit with no application code and no 
 
 ## Requirements and skills consulted
 
-Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.md`, all documents in `docs/`, and all 13 project skills in `.agents/skills/`. Applied `project-architecture` and `clean-code`; reviewed the rest for future routing. Reviewed recommended GitHub skills and connected MCP availability in [ADR 0002](decisions/0002-agent-skills-and-tools-review.md). No optional external skills were installed. Supabase MCP is configured and OAuth-authenticated in the owner's Codex user config; no MCP database calls have been made. Reviewed current official Next.js, Cloudflare, OpenNext and Supabase documentation/pricing, including the Free plan project limit and inactivity pause; runtime choice and vinext scan are recorded in [ADR 0001](decisions/0001-stage0-runtime.md).
+Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.md`, all documents in `docs/`, and all 13 bundled project skills in `.agents/skills/`. Applied `project-architecture` and `clean-code`; reviewed the rest for future routing. Reviewed recommended GitHub skills and connected MCP availability in [ADR 0002](decisions/0002-agent-skills-and-tools-review.md). Installed one reviewed Supabase Postgres skill from a pinned release; no skill scripts were executed. The owner's Codex user config has separate UAT and live Supabase MCP entries; both report OAuth, with write approval enabled. No MCP database calls have been made. Reviewed current official Next.js, Cloudflare, OpenNext and Supabase documentation/pricing, including the Free plan project limit and inactivity pause; runtime choice and vinext scan are recorded in [ADR 0001](decisions/0001-stage0-runtime.md).
 
 ## Changes
 
@@ -36,7 +36,8 @@ Read `AGENTS.md`, `PROJECT_SPEC.md`, `README.md`, `DESIGN.md`, `FILE_STRUCTURE.m
 - Added pure product-variant resolution and LKR minor-unit formatting rules, plus an accessible variant picker component. The component is ready for product pages but is not exposed on the empty catalogue routes.
 - Created local ignored `.dev.vars` and `.wrangler/state` fixture data only; no remote R2 resource, deployment, production credential or billing change was used.
 - Documented development/testing-to-UAT and main-to-live target mapping, shared migration order, and free-tier limits in `docs/ENVIRONMENTS.md`. The UAT fixture SQL remains outside the automatic seed path and has not been executed.
-- The owner created GitHub repository `DINO1527/lakh-ki-chudhiya`; pushed the project to `main`. The owner reports creating one Supabase project intended for UAT; dashboard verification is pending. A separate live project has not been created. Supabase MCP OAuth is configured, but the project-scoped endpoint disables account-management tools and no Supabase tools are exposed to this active session. No database calls or changes were made; no project identifier or token is stored in the repository.
+- The owner created GitHub repository `DINO1527/lakh-ki-chudhiya`; pushed the project to `main`. The owner supplied project references for UAT and live. Codex user config now preserves the UAT server and adds `supabase-live`; `codex mcp list` reports both enabled with OAuth. Project roles still need dashboard verification. The active session exposes no Supabase tools, and no database calls or changes were made. Project identifiers and OAuth tokens are not stored in the repository.
+- Installed only `supabase-postgres-best-practices` from `supabase/agent-skills` v0.1.9 (commit `544bfc5`) using pinned CLI `skills@1.7.2`; content metadata is version 1.1.1. Added the MIT notice to `THIRD_PARTY_NOTICES.md`. The general Supabase skill remains deferred because its schema workflow conflicts with this repository's checked-in migration process.
 
 ## Toolchain and compatibility evidence
 
@@ -84,12 +85,12 @@ No GitHub Actions workflow was run remotely. These local checks do not close Sta
 
 ## Remaining Stage 0 gates and limitations
 
-- Docker daemon is stopped and Supabase CLI is absent. The owner-created project is intended as UAT but needs dashboard confirmation; the separate live project is not created. The project-scoped MCP connection cannot create projects because account-management tools are disabled, and no Supabase tools are exposed in this session. Auth SSR cookies, RLS query and mutation have **not** been smoke-tested.
+- Docker daemon is stopped and Supabase CLI is absent. The owner supplied separate UAT/live project references and both MCP entries authenticate, but project roles need dashboard verification and Supabase tools are not exposed in this session. Auth SSR cookies, RLS query and mutation have **not** been smoke-tested.
 - Full public/private cache-isolation coverage and equivalent vinext Worker-runtime comparison remain. The static vinext compatibility scan does not establish runtime compatibility.
 - No remote R2 resource, deployment, custom domain, production secrets, SMTP or billing activation. R2 remote setup needs explicit approval.
 - No owner-provided logo, product photography/models, final palette confirmation, sizing, price/inventory/policy, WhatsApp number or domain is present. Stage 0 has no storefront catalogue or commercial flows.
 - The Worker smoke test is local and narrow. It is not production security, load, accessibility, disaster-recovery or end-to-end commerce verification.
-- Supabase database-level verification and UAT fixture execution remain pending confirmation of the existing project's UAT role and access to database tooling. Live project creation, environment secrets, Worker bindings and deployment automation are outstanding. Project identifiers and OAuth tokens remain outside the repository.
+- Supabase database-level verification and UAT fixture execution remain pending project-role confirmation and access to database tooling. Application environment secrets, Worker bindings, branch protections and deployment automation are outstanding. Project identifiers and OAuth tokens remain outside the repository.
 
 ## Stage 1 current limits
 
@@ -101,7 +102,7 @@ No GitHub Actions workflow was run remotely. These local checks do not close Sta
 
 ## Decisions and next step
 
-OpenNext remains the provisional adapter because actual local build and workerd preview passed and it preserves the approved Next.js implementation. Stage 1 is now underway by owner direction, while Stage 0's Auth, query, full cache-isolation, clean-install and vinext Worker comparison remain incomplete and unwaived. Continue Stage 1 with local-only schema validation when Supabase is available; collect owner-approved product data and assets before adding any sellable catalogue or public product page. The UAT environment and seed workflow are documented, but require an owner-provided isolated project before hosted verification. Do not create remote resources or enable billing without owner authorization.
+OpenNext remains the provisional adapter because actual local build and workerd preview passed and it preserves the approved Next.js implementation. Stage 1 is now underway by owner direction, while Stage 0's Auth, query, full cache-isolation, clean-install and vinext Worker comparison remain incomplete and unwaived. Continue Stage 1 with local-only schema validation until the owner-provided UAT project's role is verified and database tooling is available; collect owner-approved product data and assets before adding any sellable catalogue or public product page. The UAT environment and seed workflow are documented. Do not create remote resources or enable billing without owner authorization.
 
 ## Pending owner inputs
 
