@@ -27,10 +27,10 @@ lakh-ki-chudhiya/
 │   │   └── wishlist/ / promotions/ / media/ / content/ / reports/ / delivery/
 │   ├── components/ (ui/ / layout/ / shared/ / animations/ / three/)
 │   ├── server/ (auth/ / orchestration/ / integrations/)
-│   ├── lib/ (supabase/ / cloudflare/ / whatsapp/ / money/ / validation/)
+│   ├── lib/ (supabase/ / whatsapp/ / money/ / validation/)
 │   ├── config/ / hooks/ / stores/ / styles/ / types/
 ├── public/ (icons/ / licensed-assets/ / offline.html)
-├── supabase/ (migrations/ / tests/ / seed.sql)
+├── supabase/ (config.toml / migrations/ / tests/ / seeds/)
 ├── tests/ (unit/ / integration/ / e2e/ / accessibility/ / visual/ / fixtures/)
 ├── docs/ (decisions/ and engineering/domain guides)
 ├── .agents/skills/<name>/SKILL.md
@@ -38,6 +38,11 @@ lakh-ki-chudhiya/
 ├── .github/ (workflows/ / pull_request_template.md)
 └── scripts/ (approved backup, setup and media tooling)
 ```
+
+Product images live in a private Supabase Storage `product-media` bucket. The
+bucket's MIME and 5 MiB file limits are declared in `supabase/config.toml`;
+`storage.objects` RLS policies are versioned in `supabase/migrations/`.
+Cloudflare Workers host the app; Supabase Storage owns product media.
 
 ## Feature example
 ```text

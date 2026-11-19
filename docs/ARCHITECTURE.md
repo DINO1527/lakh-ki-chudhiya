@@ -1,8 +1,8 @@
 # Architecture and dependency boundaries
 
-Single deployable full-stack Next.js App Router, PostgreSQL/Supabase Auth, media via Cloudflare R2. Modular monolith; feature boundaries follow products, cart, checkout, orders, inventory, customers, reviews, media and administration. No duplicate data store or separate server at launch.
+Single deployable full-stack Next.js App Router, Supabase PostgreSQL/Auth/Storage, hosted on Cloudflare Workers. Product media uses a private Supabase Storage bucket. Modular monolith; feature boundaries follow products, cart, checkout, orders, inventory, customers, reviews, media and administration. No duplicate data store or separate server at launch.
 
-Environment boundary: development and testing target the isolated UAT Supabase project; the `main` release target uses a separate live project. Both use the same ordered migration files. UAT and live also require separate Worker configuration, secrets, and R2 buckets. Only synthetic fixtures belong in UAT. Owner-supplied project references and Codex MCP entries are configured; application/Worker connections and deployment secrets are not. See [ENVIRONMENTS.md](ENVIRONMENTS.md) for setup and release gates. Never select the database or environment based on client-supplied values.
+Environment boundary: development and testing target the isolated UAT Supabase project; the `main` release target uses a separate live project. Both use the same ordered migrations and private `product-media` bucket configuration, with independent objects. Only synthetic fixtures belong in UAT. App and deployment connections still require environment-specific configuration. See [ENVIRONMENTS.md](ENVIRONMENTS.md) for setup and release gates. Never select the database or environment based on client-supplied values.
 
 ## Dependency model
 ```mermaid
@@ -13,7 +13,7 @@ flowchart TD
   I[Infrastructure adapters] --> D
   S --> P[Injected or composed adapters]
   P --> DB[Supabase Postgres / Auth]
-  P --> R2[Cloudflare R2]
+  P --> ST[Supabase Storage private bucket]
 ```
 Domain rules have no React, Next, network or database dependency. Use pure functions for money/variants/transitions. Use cases coordinate authorization and persistence. Adapters implement narrow contracts where substitution or testing warrants them; straightforward read queries need not use elaborate generic repositories. Compose concrete dependencies at server entry points. Do not duplicate transaction-critical rules in TypeScript alone: SQL is authoritative for atomic operations.
 
@@ -27,8 +27,8 @@ Domain rules have no React, Next, network or database dependency. Use pure funct
 | Validation | features/*/schemas | Zod parses untrusted input; never trust client totals |
 | Use cases | features/*/server | server-only auth, orchestration, query/repo |
 | Shared server | server | cross-feature transactions, auth, provider plumbing |
-| Infra | lib/supabase, cloudflare | Typed clients, secrets isolated; no client imports |
-| Persistence | supabase/migrations | versioned schema, grants, RLS, constraints, RPC |
+| Infra | lib/supabase | Typed clients, secrets isolated; no client imports |
+| Persistence | supabase/migrations, config.toml | versioned schema, Storage policies, grants, constraints, RPC and bucket limits |
 
 Server Components by default. Client components for cart, filters requiring interaction, forms, motion and WebGL. Read public data server-side with bounded caching; protected data never shared-cache. Server actions/handlers validate identity, authorization and input independently; auth layout not a sole control. Client state holds only UI and local cart; URLs hold filter/search state; server owns prices, inventory, orders, reviews. Generated DB types belong in types/ and should not leak raw privileged records. Use DTOs with minimal fields.
 

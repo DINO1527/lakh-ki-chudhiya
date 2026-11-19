@@ -26,15 +26,52 @@ await check("Stage 1 catalogue routes", async () => {
     ["/shop", "Shop bangles"],
     ["/collections", "Collections"],
     ["/size-guide", "Size guide"],
+    ["/collections/uat-fixtures-not-for-sale", null],
+    ["/products/uat-sample-bangle-not-for-sale", null],
   ];
   for (const [path, expectedHeading] of routes) {
     const response = await fetch(`${baseUrl}${path}`);
     const html = await response.text();
-    if (!response.ok || !html.includes(expectedHeading)) {
+    const isExpectedNotFound = expectedHeading === null && response.status === 404;
+    if (
+      (!response.ok && !isExpectedNotFound) ||
+      (expectedHeading && !html.includes(expectedHeading)) ||
+      (expectedHeading === null && response.ok && !html.includes('id="main-content"'))
+    ) {
       throw new Error(`${path} did not render its expected heading (${response.status})`);
     }
   }
-  return `${routes.length} catalogue routes returned their expected headings`;
+  return `${routes.length} catalogue routes responded`;
+});
+
+await check("published and draft fixture visibility", async () => {
+  const healthResponse = await fetch(`${baseUrl}/api/health/supabase`);
+  const health = await healthResponse.json();
+  if (healthResponse.status !== 200 || health.status !== "ok") {
+    if (process.env.SUPABASE_SMOKE_REQUIRED === "1") {
+      throw new Error("Supabase is required for this smoke run but is not configured");
+    }
+    console.log(
+      `SKIP catalogue RLS smoke: Supabase returned ${healthResponse.status} (${health.status}); UAT visibility remains unverified.`,
+    );
+    return "backend unavailable; UAT visibility remains unverified";
+  }
+
+  const publishedResponse = await fetch(`${baseUrl}/products/uat-sample-bangle-not-for-sale`);
+  const publishedHtml = await publishedResponse.text();
+  if (publishedResponse.status === 404 && process.env.SUPABASE_SMOKE_REQUIRED !== "1") {
+    console.log("SKIP catalogue RLS smoke: UAT fixture seed is not present.");
+    return "UAT fixture seed absent";
+  }
+  if (!publishedResponse.ok || !publishedHtml.includes("UAT Sample Bangle")) {
+    throw new Error(`published UAT fixture is not visible (${publishedResponse.status})`);
+  }
+
+  const draftResponse = await fetch(`${baseUrl}/products/uat-draft-fixture-hidden`);
+  if (draftResponse.status !== 404) {
+    throw new Error(`draft fixture should be hidden, received ${draftResponse.status}`);
+  }
+  return "published fixture visible and draft fixture returns 404";
 });
 
 await check("route handler and no-store policy", async () => {
@@ -50,15 +87,6 @@ await check("route handler and no-store policy", async () => {
   return `HTTP ${response.status}, ${response.headers.get("cache-control")}`;
 });
 
-await check("local R2 fixture read", async () => {
-  const response = await fetch(`${baseUrl}/api/health/r2`);
-  const body = await response.text();
-  if (!response.ok || !body.includes("Local-only Stage 0 R2 binding fixture.")) {
-    throw new Error(`expected local R2 fixture, received ${response.status}`);
-  }
-  return `HTTP ${response.status}, no-store`;
-});
-
 await check("private Supabase cache policy", async () => {
   const response = await fetch(`${baseUrl}/api/health/supabase`);
   const cacheControl = response.headers.get("cache-control") ?? "";
@@ -70,10 +98,12 @@ await check("private Supabase cache policy", async () => {
     return "configured Auth/query path returned 200";
   if (
     response.status === 503 &&
-    body.status === "unconfigured" &&
+    ["unconfigured", "unavailable"].includes(body.status) &&
     process.env.SUPABASE_SMOKE_REQUIRED !== "1"
   ) {
-    console.log("SKIP Supabase auth/query behavior: no local Supabase project is configured.");
+    console.log(
+      `SKIP Supabase auth/query behavior: backend returned 503 (${body.status}); connectivity and auth/query behavior remain unverified.`,
+    );
     return "private no-store verified; backend behavior skipped";
   }
   throw new Error(`unexpected Supabase smoke response (${response.status}, ${body.status})`);

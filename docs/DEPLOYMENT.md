@@ -2,19 +2,45 @@
 
 ## Stage 0
 
-1. Inspect workspace and available Node LTS/pnpm/Git/Docker. Check current Next.js/React/OpenNext/Workers adapter peer/runtime compatibility and pricing. Pin chosen versions in package manifest/lockfile; record ADR. Do not switch framework without approval.
-2. Scaffold one TypeScript App Router project, configure formatting/lint/typecheck/test, `.env.example`, ignored secrets and GitHub CI definitions. Configure `wrangler.jsonc`, OpenNext config, supported compatibility date and nodejs_compat as required by adapter. Follow official setup, do not invent unsupported config.
-3. Start local Supabase if feasible (CLI/Docker), or obtain approval for an isolated dev project. Verify SSR cookies, RLS query, simple mutation and R2 local/dev binding. Use separate media namespaces. No production data. Test actual workerd preview including public/private cache separation and service-worker scope. R2 local binding is suitable for Stage 0; remote R2 setup requires an account and billing activation, so do not provision it without explicit owner approval.
-4. Record actual commands, outputs, deployed/undeployed resources, compatibility limits and any credentials gates. No live deployment or paid provisioning without approval.
+1. Inspect workspace and available Node LTS/pnpm/Git/Docker. Check Next.js/React/OpenNext/Workers adapter peer and runtime compatibility. Pin chosen versions and record decisions.
+2. Configure one TypeScript App Router project, format/lint/typecheck/test, `.env.example`, ignored secrets, GitHub CI, `wrangler.jsonc`, and OpenNext.
+3. Configure Supabase Auth/Postgres and a private `product-media` Storage bucket with RLS policies. Use the UAT project for development and tests; live remains isolated.
+4. Record actual commands, outputs, undeployed resources, limits and credential gates. Do not deploy live or enable paid services.
+
+The owner requested hosted inspection rather than local preview. Do not run Worker preview unless that preference changes.
 
 ## Budget controls
 
-Target $0 platform recurring cost within verified quotas; not a guarantee. Workers free requests/CPU, Supabase DB/storage/egress/auth quotas and inactivity pause, R2 billing activation and overage must be checked against current official pricing. Track usage; no automatic upgrades. Custom domain, SMTP and assets may cost. Use public optimized images, pre-generate thumbnails offline, no paid image runtime by default, cache public assets efficiently. Limit file uploads and abusive API calls. Supabase default email is restricted; verify custom SMTP and authorized sender before public registration/recovery; use local mail testing otherwise.
+The target is $0 recurring platform cost only within verified free quotas; it is not a guarantee. Supabase Free currently lists 1 GB file storage, 5 GB cached and 5 GB uncached egress, 500 MB database per project, two active projects and pausing after one week of inactivity. The selected bucket has a stricter 5 MiB per-image limit. Check usage and plan limits before launch; no automatic upgrade or paid service. Custom domain, SMTP, assets or quota overage can cost money. Pre-generate optimized images, cache approved public media appropriately, and rate-limit upload paths. Supabase's default email service is restricted; confirm SMTP before public sign-up and recovery.
 
 ## Environment setup and operations
 
-Development and testing are intended to use the UAT Supabase project; the `main` release target uses a separate live Supabase project. Apply the same ordered migration files to both so schema names stay aligned. UAT and live also require separate Cloudflare Worker environments, secret scopes, and R2 buckets. Wrangler environment bindings/vars must be configured independently. The owner supplied project references for both environments; dashboard verification is pending, and the application/Worker connections are not configured. Branch protection, environment secrets, and deployment automation are not configured; the current GitHub workflow runs CI only. See [ENVIRONMENTS.md](ENVIRONMENTS.md) for project separation, UAT-only fixture workflow, target verification and release steps.
+Development and testing use the UAT Supabase project; `main` targets the separate live project. GitHub Actions maps `develop` pushes to the UAT Worker. Live uses a separate manual `workflow_dispatch` from `main` after UAT inspection; pull requests run checks only. Wrangler names the Workers `lakh-ki-chudhiya-uat` and `lakh-ki-chudhiya-live`.
 
-Do not commit `.env.local` or `.dev.vars`; never use production credentials for local testing. Configure actual WhatsApp number, catalogue, delivery, policies, domain/SSL and owner accounts only from owner values. Test UAT with synthetic fixtures, RLS, cache, health checks and load constraints. Prepare database export/restore and R2 media backup outside the provider; do not assume free managed backup. Production approval gate: critical tests, owner signoff, plan/billing review, migration compatibility, rollback strategy, monitoring, real assets and legal/business content. Roll back app version separately from DB migration; prefer forward fixes/expand-contract and test restore.
+Product media is stored in Supabase Storage. The two Supabase projects each receive the same private bucket definition and RLS policies; bucket objects are isolated per project. The GitHub Cloudflare workflow does not apply database migrations, load fixtures or sync Storage buckets.
 
-References: https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/ ; https://opennext.js.org/cloudflare/get-started ; https://developers.cloudflare.com/workers/platform/limits/ ; https://developers.cloudflare.com/r2/pricing/ ; https://supabase.com/pricing ; https://supabase.com/docs/guides/auth/auth-smtp ; https://nextjs.org/docs/app/guides/progressive-web-apps
+Before Cloudflare deployments can succeed, create the two named Workers, set repository Actions secrets listed in [ENVIRONMENTS.md](ENVIRONMENTS.md), allow the GitHub app to access this repository, configure least-privilege Cloudflare API tokens and protect `main`. Do not add secrets to Wrangler vars or commit local env files.
+
+## Supabase setup path
+
+Use Supabase CLI v3.2.0 with the owner's authenticated account. Confirm the project reference in the dashboard before each hosted write. For UAT, run the following from the repository root after code review:
+
+```sh
+pnpm dlx supabase@3.2.0 login
+pnpm dlx supabase@3.2.0 seed buckets --remote=<confirmed-uat-project-ref>
+pnpm dlx supabase@3.2.0 db push --dry-run --remote=<confirmed-uat-project-ref>
+pnpm dlx supabase@3.2.0 db push --remote=<confirmed-uat-project-ref>
+```
+
+Inspect each target and migration diff; do not use `--yes`. Load `supabase/seeds/uat_catalogue.sql` only into the confirmed UAT project, then run `supabase/tests/catalogue_rls.sql` and `supabase/tests/storage_policies.sql`. A real upload/download test is pending implementation of the media admin workflow and an owner-approved/licensed test image. This hosted test path does not need Docker.
+
+After UAT acceptance and separate release approval, configure the same bucket and apply the same migration files to live using the confirmed live reference. Do not apply UAT seeds to live. Database and application rollback paths remain separate; prefer forward database fixes and test recovery before a live release.
+
+Supabase's [database migration guide](https://supabase.com/docs/guides/deployment/database-migrations) documents `db push`; [Storage configuration](https://supabase.com/docs/guides/local-development/cli/config) documents buckets in `supabase/config.toml`, and the CLI's `seed buckets` command synchronizes those declarations. Supabase GitHub integration is optional and not currently part of this repository's release workflow.
+
+## Current state
+
+- Cloudflare Workers hosting config exists, but remote Worker creation/deployment, GitHub secrets and domain remain to be completed by the owner.
+- Supabase bucket and policies are now versioned in the repository. Hosted UAT/live projects have not been changed in this session because no authenticated Supabase CLI session or MCP tool is available. The pinned CLI was used only for local config validation.
+- Worker preview was not run, per the owner's preference. Actual hosted migration, bucket sync, Storage API upload/download, Auth and RLS checks remain pending.
+- Reference docs: [Cloudflare Next.js](https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/) · [OpenNext setup](https://opennext.js.org/cloudflare/get-started) · [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) · [Supabase pricing](https://supabase.com/pricing) · [Supabase Storage access control](https://supabase.com/docs/guides/storage/security/access-control) · [Supabase Auth SMTP](https://supabase.com/docs/guides/auth/auth-smtp) · [Next.js PWA](https://nextjs.org/docs/app/guides/progressive-web-apps)

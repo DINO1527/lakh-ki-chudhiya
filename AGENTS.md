@@ -6,7 +6,7 @@
 - Inspect current workspace, git status and existing project patterns. Do not overwrite human changes. Begin Stage 0 only; advance stages when explicitly directed. Prefer focused changes and maintain `docs/PROGRESS.md` with evidence.
 
 ## Non-negotiable implementation rules
-- Single Next.js App Router TypeScript strict app; Supabase PostgreSQL/Auth, Cloudflare Workers/R2, free-tier-first. No Medusa, separate backend, microservices or paid provisioning. Validate compatible pinned versions in Worker preview, not merely `next dev`.
+- Single Next.js App Router TypeScript strict app; Supabase PostgreSQL/Auth/Storage and Cloudflare Workers hosting, free-tier-first. No Medusa, separate backend, microservices or paid provisioning. Validate compatible pinned versions in Worker preview, not merely `next dev`.
 - SOLID pragmatically, DRY, KISS, YAGNI. Thin route components, feature-owned components/domain/services, server-only persistence, narrow provider interfaces. Prefer functions and composition. Do not duplicate price, stock, permission or transition rules. Avoid premature abstractions.
 - Use shared accessible primitives and semantic design tokens; search for existing components before creating new ones. Keep client boundaries small. Lazy-load optional 3D, honor reduced motion, provide static fallback. No fake product photos/reviews or simulated production flows.
 - Persist checkout transaction before WhatsApp handoff; sending a message requires customer action and cannot be detected via wa.me. Reserve stock only at admin confirmation, consume at dispatch. Keep order/payment states separate; future gateways unavailable until implemented and verified. Server determines price, eligibility, stock and permissions.

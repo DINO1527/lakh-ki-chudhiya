@@ -1,6 +1,19 @@
 import Link from "next/link";
+import { ProductGrid } from "@/features/products/components/product-card";
+import { getPublicShopPage } from "@/features/products/server/public-catalogue";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const catalogue = await getPublicShopPage({
+    search: "",
+    collectionSlug: "",
+    sizeCode: "",
+    colourName: "",
+    sort: "featured",
+    page: 1,
+  });
+
   return (
     <main id="main-content">
       <section aria-labelledby="home-title" className="hero">
@@ -26,6 +39,23 @@ export default function HomePage() {
           <span className="hero-art__caption">Crafted with care</span>
         </div>
       </section>
+
+      {catalogue.status === "ready" && catalogue.data.products.length > 0 && (
+        <section aria-labelledby="featured-title" className="featured-section">
+          <div className="featured-section__heading">
+            <div>
+              <p className="eyebrow">The catalogue</p>
+              <h2 className="section-title" id="featured-title">
+                Published designs
+              </h2>
+            </div>
+            <Link className="text-link" href="/shop">
+              View all designs <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+          <ProductGrid products={catalogue.data.products} />
+        </section>
+      )}
 
       <section aria-labelledby="story-title" className="story-section">
         <div className="story-section__label">

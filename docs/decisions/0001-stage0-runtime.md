@@ -1,5 +1,7 @@
 # ADR 0001: Stage 0 runtime and adapter evaluation
 
+> Historical note: the original media-storage preference below was superseded by [ADR 0003](0003-supabase-storage-free-tier.md). The R2 runtime fixture and checks described here were removed; this ADR remains as a record of prior compatibility work only.
+
 - **Status:** Provisional; local Worker preview passed, integration gates remain
 - **Date:** 2026-11-18
 - **Decision owner:** Project owner

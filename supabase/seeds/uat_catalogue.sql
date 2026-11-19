@@ -20,12 +20,11 @@ on conflict (slug) do update set
   updated_at = now();
 
 insert into public.products (
-  id, collection_id, slug, title, description, material,
+  id, slug, title, description, material,
   care_instructions, set_count, status, sort_order
 )
-select
+values (
   'a2000000-0000-4000-8000-000000000001',
-  c.id,
   'uat-sample-bangle-not-for-sale',
   'UAT Sample Bangle — NOT FOR SALE',
   'Synthetic UAT fixture. This is not a real product and cannot be ordered.',
@@ -34,10 +33,8 @@ select
   1,
   'published',
   9000
-from public.collections c
-where c.slug = 'uat-fixtures-not-for-sale'
+)
 on conflict (slug) do update set
-  collection_id = excluded.collection_id,
   title = excluded.title,
   description = excluded.description,
   material = excluded.material,
@@ -46,6 +43,13 @@ on conflict (slug) do update set
   status = excluded.status,
   sort_order = excluded.sort_order,
   updated_at = now();
+
+insert into public.product_collections (product_id, collection_id)
+select p.id, c.id
+from public.products p
+join public.collections c on c.slug = 'uat-fixtures-not-for-sale'
+where p.slug = 'uat-sample-bangle-not-for-sale'
+on conflict (product_id, collection_id) do nothing;
 
 insert into public.product_variants (
   id, product_id, sku, size_code, inner_diameter_mm, colour_name,
@@ -71,12 +75,11 @@ on conflict (sku) do update set
   updated_at = now();
 
 insert into public.products (
-  id, collection_id, slug, title, description, material,
+  id, slug, title, description, material,
   care_instructions, set_count, status, sort_order
 )
 values (
   'a2000000-0000-4000-8000-000000000002',
-  'a1000000-0000-4000-8000-000000000001',
   'uat-draft-fixture-hidden',
   'UAT Draft Fixture — Hidden',
   'Synthetic draft row used to confirm public RLS filtering.',
@@ -87,7 +90,6 @@ values (
   9001
 )
 on conflict (slug) do update set
-  collection_id = excluded.collection_id,
   title = excluded.title,
   description = excluded.description,
   material = excluded.material,
@@ -96,3 +98,10 @@ on conflict (slug) do update set
   status = excluded.status,
   sort_order = excluded.sort_order,
   updated_at = now();
+
+insert into public.product_collections (product_id, collection_id)
+select p.id, c.id
+from public.products p
+join public.collections c on c.slug = 'uat-fixtures-not-for-sale'
+where p.slug = 'uat-draft-fixture-hidden'
+on conflict (product_id, collection_id) do nothing;

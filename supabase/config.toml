@@ -1,0 +1,6 @@
+project_id = "lakh-ki-chudhiya"
+
+[storage.buckets.product-media]
+public = false
+file_size_limit = "5MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp", "image/avif"]

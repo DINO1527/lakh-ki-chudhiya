@@ -13,7 +13,7 @@ The bundled local skills work as documentation without installation. External sk
 | https://github.com/pbakaus/impeccable | Visual polishing, alternate design guidance | Optional design |
 | https://github.com/shadcn-ui/ui/tree/main/skills/shadcn | Component/registry guidance | Core UI |
 | https://github.com/supabase/agent-skills | PostgreSQL best practices | Core data |
-| https://github.com/cloudflare/skills | Workers/R2 deployment and runtime | Core hosting |
+| https://github.com/cloudflare/skills | Workers deployment and runtime | Core hosting |
 | https://github.com/openai/skills | General agent skills; verify current catalog | Optional |
 | https://github.com/microsoft/playwright-cli | Browser workflows and agent skill (verify setup) | QA |
 
@@ -34,7 +34,7 @@ npx skills add supabase/agent-skills --skill supabase-postgres-best-practices -a
 npx skills list
 ```
 
-For Addy Osmani, also discover test-driven-development, code-simplification, security-and-hardening, frontend-ui-engineering and planning skills. For Vercel discover composition patterns and web design guidance. Cloudflare: select Workers/R2 skills after listing. UI/UX Pro Max provides its own setup path if needed; use upstream Codex guide instead of guessing install flags. Impeccable is an alternate design reviewer; do not enable conflicting style directions. `DESIGN.md` is the project authority. No commands above were executed in creating the kit.
+For Addy Osmani, also discover test-driven-development, code-simplification, security-and-hardening, frontend-ui-engineering and planning skills. For Vercel discover composition patterns and web design guidance. Cloudflare: select Workers skills after listing. Supabase: select the Storage and Postgres guidance after reviewing the upstream skills. UI/UX Pro Max provides its own setup path if needed; use upstream Codex guide instead of guessing install flags. Impeccable is an alternate design reviewer; do not enable conflicting style directions. `DESIGN.md` is the project authority. No commands above were executed in creating the kit.
 
 ## Reference repositories (not skills)
 | Repository | What to learn | Caveat |

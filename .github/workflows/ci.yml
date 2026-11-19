@@ -3,7 +3,14 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Environment to deploy from its matching branch
+        required: true
+        type: choice
+        options: [uat, live]
 
 permissions:
   contents: read
@@ -28,3 +35,69 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm cf:build
+
+  deploy-uat:
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.target == 'uat' && github.ref == 'refs/heads/develop')
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: uat
+    concurrency:
+      group: deploy-uat
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_UAT }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_UAT_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_UAT_PUBLISHABLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.12.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check UAT deployment credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing Actions secret CLOUDFLARE_API_TOKEN_UAT" >&2; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Missing Actions secret CLOUDFLARE_ACCOUNT_ID" >&2; exit 1; }
+          test -n "$NEXT_PUBLIC_SUPABASE_URL" || { echo "Missing Actions secret SUPABASE_UAT_URL" >&2; exit 1; }
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "Missing Actions secret SUPABASE_UAT_PUBLISHABLE_KEY" >&2; exit 1; }
+      - run: pnpm cf:build
+      - run: pnpm deploy:uat
+
+  deploy-live:
+    if: github.event_name == 'workflow_dispatch' && inputs.target == 'live' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: live
+    concurrency:
+      group: deploy-live
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN_LIVE }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_LIVE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_LIVE_PUBLISHABLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.12.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check live deployment credentials
+        shell: bash
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "Missing Actions secret CLOUDFLARE_API_TOKEN_LIVE" >&2; exit 1; }
+          test -n "$CLOUDFLARE_ACCOUNT_ID" || { echo "Missing Actions secret CLOUDFLARE_ACCOUNT_ID" >&2; exit 1; }
+          test -n "$NEXT_PUBLIC_SUPABASE_URL" || { echo "Missing Actions secret SUPABASE_LIVE_URL" >&2; exit 1; }
+          test -n "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" || { echo "Missing Actions secret SUPABASE_LIVE_PUBLISHABLE_KEY" >&2; exit 1; }
+      - run: pnpm cf:build
+      - run: pnpm deploy:live

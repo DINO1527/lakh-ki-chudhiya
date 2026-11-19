@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "lakh-ki-chudhiya-stage0",
+  "name": "lakh-ki-chudhiya",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-11-18",
   "compatibility_flags": ["nodejs_compat"],
@@ -9,11 +9,28 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS",
   },
-  "r2_buckets": [
-    {
-      "binding": "PRODUCT_MEDIA",
-      "bucket_name": "lakh-ki-chudhiya-stage0-local",
-      "preview_bucket_name": "lakh-ki-chudhiya-stage0-local",
+  "env": {
+    "uat": {
+      "name": "lakh-ki-chudhiya-uat",
+      "workers_dev": true,
+      "assets": {
+        "directory": ".open-next/assets",
+        "binding": "ASSETS",
+      },
+      "vars": {
+        "APP_ENV": "uat",
+      },
     },
-  ],
+    "live": {
+      "name": "lakh-ki-chudhiya-live",
+      "workers_dev": true,
+      "assets": {
+        "directory": ".open-next/assets",
+        "binding": "ASSETS",
+      },
+      "vars": {
+        "APP_ENV": "live",
+      },
+    },
+  },
 }

@@ -56,7 +56,7 @@ Actual card payment (e.g. PayHere), Koko, Mintpay, optional COD/bank transfer, a
 | UI primitives | shadcn/ui, Lucide React | Reusable accessible components |
 | Animation | Motion (`motion` / `motion/react`) | CSS transitions for simple effects; Lenis only if justified |
 | 3D | Three.js, @react-three/fiber, @react-three/drei | Dynamically import client-only components |
-| Media | Cloudflare R2 Standard storage | Public published media; private staging and moderation assets |
+| Media | Supabase Storage | Private `product-media` bucket; signed URLs only for published product images |
 | Forms | React Hook Form, Zod | Client UX + authoritative server validation |
 | Cart state | Zustand | Persist only non-sensitive cart data locally |
 | Product gallery | Embla Carousel | Add only if needed |
@@ -78,20 +78,20 @@ Customer / installed PWA / staff browser
          Next.js App Router
       storefront + admin + API
           /              \
- Supabase Auth/Postgres   Cloudflare R2
-   RLS + SQL RPCs         published/staged media
+ Supabase Auth/Postgres   Supabase Storage
+   RLS + SQL RPCs         private product media
           
  Customer checkout -> wa.me link -> customer sends message
  Staff -> manual order confirmation -> stock/fulfilment updates
 ```
 
-- Use Supabase for identity and relational records; R2 for media only. Do not duplicate catalogue/order data in Cloudflare D1.
+- Use Supabase for identity, relational records and media. Cloudflare Workers host the app only; do not duplicate catalogue/order data in Cloudflare D1 or store product media on Cloudflare.
 - Prefer real Next.js with `@opennextjs/cloudflare` initially as agreed; Cloudflare's current guide recommends vinext for new projects, so compare current compatibility and deployment limits in a small proof of concept. Keep Next.js as the approved framework. Record adapter decision in an ADR; do not silently switch to an alternative runtime framework or paid hosting.
-- Phase 0 must demonstrate an SSR page, route handler, session cookie flow, Supabase query, R2 binding/read, manifest/service worker and build/preview in the actual Worker runtime (`workerd`), not just `next dev`. Test private and public caching isolation. Use the adapter's supported scripts/configuration; for OpenNext configure `nodejs_compat` and a supported compatibility date.
+- Phase 0 must demonstrate an SSR page, route handler, session cookie flow, Supabase query, private Supabase Storage policy, manifest/service worker and build/preview in the actual Worker runtime (`workerd`), not just `next dev`. Test private and public caching isolation. Use the adapter's supported scripts/configuration; for OpenNext configure `nodejs_compat` and a supported compatibility date.
 - Validate compressed Worker size, cold starts, CPU and request limits. Keep heavy 3D libraries exclusively on the browser side; no runtime native image processing, persistent filesystem, long-running Node server or unsupported modules. Prefer pre-generated WebP/AVIF images and thumbnails; avoid paid runtime transformation features.
-- Budget target: zero recurring platform cost **within applicable free allowances**, not guaranteed zero costs. Workers Free currently lists 100,000 requests/day and 10 ms CPU/request; Supabase Free has a 500 MB database quota and can pause low-activity projects. R2 Standard has a free allowance but usage above it can be billed; verify billing activation requirements, storage and operation quotas before provisioning. Domain, SMTP, services, overages and assets may cost money. Monitor usage, set billing alerts if supported, apply upload/rate limits and never upgrade automatically.
-- Local development with Supabase CLI/Docker where available; otherwise use an explicitly approved development project. Separate production data, auth settings, R2 namespaces and secrets from development. Never use production customer data in tests.
-- Maintain isolated local, UAT and live Supabase projects. UAT fixtures must be explicitly synthetic and must never be applied to live; keep Worker secrets and R2 buckets environment-scoped. See `docs/ENVIRONMENTS.md`; do not provision hosted resources or invent project credentials.
+- Budget target: zero recurring platform cost **within applicable free allowances**, not guaranteed zero costs. Workers Free currently lists 100,000 requests/day and 10 ms CPU/request. Supabase Free currently lists 500 MB database, 1 GB file storage, 5 GB cached and uncached egress, two active projects and pauses low-activity projects. These limits can change or be exceeded; inspect account usage before launch. Domain, SMTP, overages and assets may cost money. Monitor usage, apply upload/rate limits and never upgrade automatically.
+- Local development with Supabase CLI/Docker where available; otherwise use an explicitly approved development project. Separate production data, auth settings, Storage buckets and secrets from development. Never use production customer data in tests.
+- Maintain isolated UAT and live Supabase projects; development and testing use UAT. Configure the same private bucket in each project, with independent objects. UAT fixtures must be explicitly synthetic and must never be applied to live; keep Worker secrets environment-scoped. See `docs/ENVIRONMENTS.md`; do not provision hosted resources or invent project credentials.
 - Public email/password sign-up and resets require configured production SMTP; default Supabase SMTP is limited. Use local email capture for testing, document the production setup gate, and leave unavailable public auth options disabled rather than pretending email works. Google OAuth is optional and requires owner-supplied credentials.
 - Write a manual backup/restore procedure for database migrations/data and media. Retain backups outside the platform under owner control; do not assume free managed backups are downloadable. Never expose backup files publicly.
 
@@ -215,7 +215,7 @@ Conceptual schema; agent must create versioned SQL migrations with foreign keys,
 | `products` | Title, slug, descriptions, material, set information, status, timestamps |
 | `product_collections` | Many-to-many links |
 | `product_variants` | SKU, size code, diameter, colour/design, exact price, active state |
-| `product_media` | R2 object key, variant/product association, type, state, alt, sort order |
+| `product_media` | Supabase Storage path, variant/product association, type, state, alt, sort order |
 | `inventory` | Variant ID, on-hand quantity, reserved quantity; non-negative constraints |
 | `inventory_movements` | Adjustment/reserve/release/ship history and actor/reason |
 | `carts`, `cart_items` | Signed-in cart and unique cart/variant rows; guest cart may be local only |
@@ -346,9 +346,9 @@ Define actual TypeScript DTOs only when used. Provider stubs must fail closed, n
 - Protect mutation endpoints from CSRF as appropriate (same-site cookies, trusted origin and tokens where needed). Validate redirect destinations. Use secure cookie settings, safe CSP/security headers, XSS-safe rendering, rate limits for login/checkout/reviews/uploads, optional Cloudflare Turnstile with server verification if abuse demands it. Never trust user HTML or allow arbitrary URL fetching.
 - Validate Zod input at server boundaries and database constraints. Use parameterized queries, safe error messages/request IDs, no secrets/PII in logs. No unauthenticated listing of orders/customers. Verify authorization independently for direct API access, not just route layout.
 
-### Media and R2
+### Product media and Supabase Storage
 
-Use a private staging bucket/prefix with authenticated upload/read and a separate published public namespace or controlled delivery route. Draft/review files must not be reachable by guessed keys or public list endpoints. Limit MIME type and file size; validate actual file signature where practical; reject SVG/HTML/executable uploads or unsafe external 3D resources. Generate safe random object keys; do not trust client filenames. Use short-lived signed upload URLs or scoped Worker uploads; never expose R2 credentials. Prefer WebP/AVIF/JPEG/PNG for photos and GLB for approved 3D. Example initial limits (adjust after testing): 5 MB/photo, 10 MB/GLB, 20 MB/video; optimize outside runtime and serve responsive sizes, long immutable cache for versioned public media. Confirm published status before promoting an object; track orphan cleanup and deletion safety. Use a custom domain when available; do not rely on a development-only R2 URL for production traffic. For a no-domain trial, use a Worker-controlled public media endpoint with appropriate cache and quota monitoring.
+Use the private `product-media` bucket declared in `supabase/config.toml` for product images in both UAT and live; the projects do not share objects. The bucket limits uploads to 5 MiB and JPEG, PNG, WebP or AVIF. Start with image-only media; 3D/video uploads are out of scope until quotas and moderation workflows are reviewed. Draft/review files must not be reachable by guessed keys or object listing. `storage.objects` policies allow public users to create short-lived signed URLs only for published media attached to published products; admin uploads, moves and deletes require a trusted Supabase Auth `app_metadata.role=admin` claim. Never use editable `user_metadata` or a service-role key in the browser. Generate random object paths; do not trust client filenames. Validate file signatures in the upload workflow, which is not implemented yet; optimize thumbnails offline and strip sensitive metadata where feasible. Avoid relying on paid image transformations. Check Supabase's current storage and egress quotas before launch; the free allowance is limited and is not a zero-cost guarantee. Use the Storage API for all object changes; never write directly to Supabase-managed `storage` tables.
 
 ### API and data access boundaries
 
@@ -371,8 +371,6 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SECRET_KEY=             # optional privileged server-only operations
 NEXT_PUBLIC_SITE_URL=
-# R2 accessed through Worker binding PRODUCT_MEDIA; separate dev/prod resources
-# Keep R2 credentials in secret store if using S3 signing instead of binding
 # Optional: TURNSTILE_SECRET_KEY and public site key only when configured
 ```
 
@@ -382,7 +380,7 @@ Provide `.env.example` and document local `.env.local`/Worker secret setup. Sett
 
 | Stage | Work | Exit gate |
 | --- | --- | --- |
-| 0 — Foundation | Inspect repo; scaffold Next.js/TS; configure package tools, Worker adapter, Supabase and R2 proof of concept; create ADR and progress log | Typecheck/build, Worker preview, auth/data/media smoke tests; free-tier compatibility evidence |
+| 0 — Foundation | Inspect repo; scaffold Next.js/TS; configure package tools, Worker adapter, Supabase and Storage policy proof of concept; create ADR and progress log | Typecheck/build, Worker preview, auth/data/media smoke tests; free-tier compatibility evidence |
 | 1 — Design/catalogue | Shared layouts/tokens, responsive home/shop/product/collection pages, migrations, fixture catalogue, variant selection, size guide | Responsive and accessible catalogue, unpublished data protected |
 | 2 — Admin/catalogue | Staff auth, product CRUD, staging/publishing, collections, inventory, media, content | Draft -> preview -> publish -> archive works end-to-end; RLS tests |
 | 3 — Account/cart | Customer auth/profile, addresses, cart persistence/merge, wishlist | Guest and logged-in session flow, cart consistency, access isolation |
@@ -416,8 +414,10 @@ Verify current versions and quotas before implementation. References checked for
 - OpenNext setup: https://opennext.js.org/cloudflare/get-started
 - OpenNext troubleshooting: https://opennext.js.org/cloudflare/troubleshooting
 - Workers limits: https://developers.cloudflare.com/workers/platform/limits/
-- R2 pricing: https://developers.cloudflare.com/r2/pricing/
 - Supabase pricing: https://supabase.com/pricing
+- Supabase Storage buckets: https://supabase.com/docs/guides/storage/buckets/fundamentals
+- Supabase Storage access control: https://supabase.com/docs/guides/storage/security/access-control
+- Supabase Storage helper functions: https://supabase.com/docs/guides/storage/schema/helper-functions
 - Supabase pausing: https://supabase.com/docs/guides/platform/free-project-pausing
 - Supabase SMTP: https://supabase.com/docs/guides/auth/auth-smtp
 - Supabase production checklist: https://supabase.com/docs/guides/deployment/going-into-prod

@@ -5,9 +5,10 @@ import { formatLkrPrice, formatVariantLabel, type ProductVariant } from "../doma
 
 type VariantPickerProps = {
   variants: readonly ProductVariant[];
+  isUatFixture?: boolean;
 };
 
-export function VariantPicker({ variants }: VariantPickerProps) {
+export function VariantPicker({ variants, isUatFixture = false }: VariantPickerProps) {
   const titleId = useId();
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const selectedVariant = variants.find(
@@ -33,7 +34,10 @@ export function VariantPicker({ variants }: VariantPickerProps) {
                 type="button"
               >
                 <span className="variant-option__label">{formatVariantLabel(variant)}</span>
-                <span className="variant-option__price">{formatLkrPrice(variant.priceMinor)}</span>
+                <span className="variant-option__price">
+                  {isUatFixture ? "Test price · " : ""}
+                  {formatLkrPrice(variant.priceMinor)}
+                </span>
                 {!variant.isAvailable && (
                   <span className="variant-option__availability">Out of stock</span>
                 )}
@@ -44,7 +48,7 @@ export function VariantPicker({ variants }: VariantPickerProps) {
       </ul>
       <p aria-live="polite" className="variant-picker__selection">
         {selectedVariant
-          ? `${formatVariantLabel(selectedVariant)} · ${formatLkrPrice(selectedVariant.priceMinor)}`
+          ? `${formatVariantLabel(selectedVariant)} · ${isUatFixture ? "test price " : ""}${formatLkrPrice(selectedVariant.priceMinor)}`
           : "Select an available option to see your selection."}
       </p>
     </section>
