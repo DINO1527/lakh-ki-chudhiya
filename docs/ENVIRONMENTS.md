@@ -6,11 +6,11 @@ The owner supplied separate project references and designated one UAT and one li
 
 ## Environment roles
 
-| Environment | Purpose | Data and operations |
-| --- | --- | --- |
-| Local development and checks | Feature work and automated checks | Use UAT URL and publishable key only if local database access is configured. The owner requested hosted inspection instead of local preview. Use synthetic catalogue and test accounts; no live credentials or customer data. |
-| UAT | Shared isolated hosted project for development and QA acceptance | Owner-designated project. Synthetic fixtures only; no real messaging, payment, or customer records. |
-| Live | Customer-facing release from `main` after branch and environment protections are configured | Separate owner-designated project. Owner-approved catalogue and transactions only; never load mock seed data. |
+| Environment                  | Purpose                                                                                     | Data and operations                                                                                                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Local development and checks | Feature work and automated checks                                                           | Use UAT URL and publishable key only if local database access is configured. The owner requested hosted inspection instead of local preview. Use synthetic catalogue and test accounts; no live credentials or customer data. |
+| UAT                          | Shared isolated hosted project for development and QA acceptance                            | Owner-designated project. Synthetic fixtures only; no real messaging, payment, or customer records.                                                                                                                           |
+| Live                         | Customer-facing release from `main` after branch and environment protections are configured | Separate owner-designated project. Owner-approved catalogue and transactions only; never load mock seed data.                                                                                                                 |
 
 Keep UAT and live as separate Supabase projects. Apply the same checked-in migrations, in order, to both so table and column names stay identical. Apply and verify each migration to UAT first; promote those exact migration files to live only after UAT acceptance and release approval. Configure the bucket identically in each project, but never copy objects or customer data between them. Load only approved UAT fixtures. The `develop` branch is the planned UAT deployment branch; `main` is the live release branch.
 
@@ -22,22 +22,29 @@ The app reads `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_K
 
 Wrangler defines separate Worker environments named `lakh-ki-chudhiya-uat` and `lakh-ki-chudhiya-live`, with `APP_ENV` set to `uat` and `live` respectively. Keep deployment credentials in GitHub Actions secrets, not in `vars` or this repository. The owner requested inspecting hosted deployments instead of local preview.
 
-GitHub Actions maps `develop` pushes to the UAT Worker. Live deployment is a separate manual `workflow_dispatch` from `main`, so UAT can be inspected before promoting. Pull requests run verification only and never receive deployment credentials. The deploy jobs reference GitHub environments named `uat` and `live`; protect `main` and restrict the `live` environment to `main` in repository settings. For a private repository on GitHub Free, environment secrets and deployment branch restrictions may be unavailable; confirm current GitHub plan limits before relying on them. Follow GitHub's [environment availability rules](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
+GitHub Actions maps `develop` pushes to the UAT Worker. Live deployment is a separate manual `workflow_dispatch` from `main`, so UAT can be inspected before promoting. Pull requests run verification only and never receive deployment credentials. The deploy jobs reference GitHub environments named `uat` and `live`; protect `main` and restrict the `live` environment to `main` in repository settings. This repository is public, so GitHub Free currently supports its environments and environment secrets; private repositories need GitHub Pro, Team or Enterprise for those features. Follow GitHub's [environment availability rules](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments).
 
-Configure these repository Actions secrets before enabling deployments:
+Create GitHub Actions environments named `uat` and `live`. Add these environment secrets to `uat`:
 
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_API_TOKEN_UAT` and `CLOUDFLARE_API_TOKEN_LIVE` (separate tokens, scoped to their one Worker)
-- `SUPABASE_UAT_URL` and `SUPABASE_UAT_PUBLISHABLE_KEY`
-- `SUPABASE_LIVE_URL` and `SUPABASE_LIVE_PUBLISHABLE_KEY`
+- `CLOUDFLARE_API_TOKEN_UAT`
+- `SUPABASE_UAT_URL`
+- `SUPABASE_UAT_PUBLISHABLE_KEY`
 
-Use each project's URL and publishable key from its dashboard. These values are public-client configuration but remain environment-specific. Never substitute a secret/service-role key. The Cloudflare tokens stay in Actions secrets; do not add them to Wrangler `vars`, `.dev.vars`, code or logs. The workflow builds with the branch's Supabase values and deploys to the matching Worker. It does not run on pull requests, apply database migrations, load fixtures or create Storage buckets.
+Add these environment secrets to `live`:
+
+- `CLOUDFLARE_API_TOKEN_LIVE`
+- `SUPABASE_LIVE_URL`
+- `SUPABASE_LIVE_PUBLISHABLE_KEY`
+
+Add `CLOUDFLARE_ACCOUNT_ID` as a repository Actions secret shared by both environments. Restrict `uat` deployments to `develop` and `live` deployments to `main`; add a reviewer gate to `live` if available. The repository is currently public, so GitHub Free supports environment secrets. Private repositories need GitHub Pro, Team or Enterprise for environments, secrets and deployment branch rules.
+
+Use each project's URL and publishable key from its dashboard. These values are public-client configuration but remain environment-specific. Never substitute a secret/service-role key. Create separate custom Cloudflare Account API tokens for UAT and live. Give each Workers Scripts Edit/Write access scoped to its existing Worker, plus Account Settings Read if Wrangler requires it. Avoid the broad “Edit Cloudflare Workers” template because it also grants KV and R2 permissions. The tokens stay in Actions secrets; do not add them to Wrangler `vars`, `.dev.vars`, code or logs. The existing GitHub Actions workflow is the only deployment pipeline; do not also connect Cloudflare Workers Builds to this repository. The workflow builds with the branch's Supabase values and deploys to the matching Worker. It does not run on pull requests, apply database migrations, load fixtures or create Storage buckets.
 
 Cloudflare Workers Editor can deploy code to an existing Worker; initial Worker creation requires a broader Workers Admin role. Create the two named Workers in the dashboard, then use separate least-privilege Editor tokens for CI. See [Workers permissions](https://developers.cloudflare.com/workers/authorization/workers/).
 
 ## Supabase Storage and database setup
 
-The repository declares one private bucket, `product-media`, in `supabase/config.toml`. It accepts JPEG, PNG, WebP and AVIF images up to 5 MiB. This private setting is intended for both projects; hosted bucket creation is pending. Policies in `supabase/migrations/20261118020000_supabase_storage_policies.sql` limit anonymous signed-URL creation to published images attached to published products; they deny object listing and draft access. Admin Storage writes require a trusted `app_metadata.role=admin` claim. The admin workflow that assigns this claim and media upload UI are not implemented yet.
+The repository declares one private bucket, `product-media`, in `supabase/config.toml`. It accepts JPEG, PNG, WebP and AVIF images up to 5 MiB. The bucket is created in the owner-confirmed UAT project; the live project is unchanged and must receive the same definition after UAT acceptance. Policies in `supabase/migrations/20261118020000_supabase_storage_policies.sql` limit anonymous signed-URL creation to published images attached to published products; they deny object listing and draft access. Admin Storage writes require a trusted `app_metadata.role=admin` claim. The admin workflow that assigns this claim and media upload UI are not implemented yet.
 
 Use Supabase CLI v3.2.0 with an authenticated owner account. Always specify the project reference explicitly and inspect the command's printed target and diff:
 
@@ -50,9 +57,9 @@ pnpm dlx supabase@3.2.0 db push --remote=<confirmed-uat-project-ref>
 
 The bucket-sync command creates/updates the declared bucket through Supabase Storage; the database push applies migrations. Do not use `--yes`; inspect the target project and confirm each write prompt. Do not use the live project reference for UAT work.
 
-For UAT fixtures, review `supabase/seeds/uat_catalogue.sql` and apply it only to the confirmed UAT project using the documented SQL workflow. It contains synthetic, unmistakably non-saleable catalogue rows and no photos, customer data, reviews, orders or credentials. Never apply it to live.
+For UAT fixtures, review `supabase/seeds/uat_catalogue.sql` and apply it only to the confirmed UAT project using the documented SQL workflow. The seed has been applied in UAT and currently creates two synthetic products and three variants. It contains unmistakably non-saleable catalogue rows and no photos, customer data, reviews, orders or credentials. Never apply it to live.
 
-Run `supabase/tests/catalogue_rls.sql` and `supabase/tests/storage_policies.sql` against UAT after migrations and bucket creation. Verify published rows, draft protections, exact-stock denial, private bucket state and operation-scoped Storage policies. A real upload and signed-download check still needs the media API workflow and an owner-approved/licensed test image. This hosted path does not require Docker.
+Run the rollback-only SQL checks directly against UAT with `pnpm dlx supabase@3.2.0 db query --remote=<confirmed-uat-project-ref> --file supabase/tests/catalogue_rls.sql` and the matching `storage_policies.sql` command. These direct hosted checks passed on 2026-11-19 for published/draft visibility, exact-stock denial, private bucket state and Storage policy shape. They do not start a local Supabase database. `supabase test db --remote` uses a pg_prove runner container; its first run failed because these scripts are assertion blocks rather than pgTAP plans and the runner lacked access to Storage metadata. Do not use that runner for this no-Docker workflow until the test harness is adapted. A real upload and signed-download check still needs the media API workflow and an owner-approved/licensed test image.
 
 To prepare live after UAT acceptance, inspect the live target separately, then run `pnpm dlx supabase@3.2.0 seed buckets --remote=<confirmed-live-project-ref>` and `pnpm dlx supabase@3.2.0 db push --dry-run --remote=<confirmed-live-project-ref>`; apply only after an explicit live release approval. Never load UAT fixtures into live. The same migration files must reach both projects in the same order.
 
@@ -61,8 +68,8 @@ Supabase GitHub integration can watch repository branches, but it is not the cur
 ## Current setup status
 
 - `.env.example` contains placeholder values only. No Supabase credentials belong in the repository.
-- The owner supplied separate project references for UAT and live. Verify which dashboard is UAT/live before writes.
-- `supabase/config.toml` and migrations now declare the same private image bucket and access rules for both projects; hosted configuration is not confirmed applied.
+- The owner confirmed the UAT project reference; the separate live project remains unchanged.
+- The private `product-media` bucket and all three checked-in migrations are applied in UAT. The synthetic UAT fixture is loaded; direct rollback-only RLS and Storage SQL assertions passed. Live still needs the same migrations and bucket after UAT acceptance and release approval.
 - The named Cloudflare Workers have not been confirmed created or deployed.
-- The GitHub workflow maps `develop` to UAT and offers a separate manual live deployment from `main`; repository secrets and branch protections still need owner setup.
-- No Supabase migration, bucket sync, seed or database test was run in this workspace because there is no authenticated Supabase CLI session or Supabase MCP tool in this session. Supabase CLI v3.2.0 was invoked only to validate local config. Docker is not required for the hosted UAT path.
+- The GitHub workflow maps `develop` to UAT and offers a separate manual live deployment from `main`. GitHub currently has only `main`; create `develop` after the UAT Worker and environment secrets are ready. Repository deployment secrets and branch protections still need owner setup.
+- Supabase CLI v3.2.0 is authenticated. No credentials are stored in the repository. No local Supabase database, Worker preview or deployment was run. The GitHub CI verification run for commit `d6cd920` passed; no deployment job was run.

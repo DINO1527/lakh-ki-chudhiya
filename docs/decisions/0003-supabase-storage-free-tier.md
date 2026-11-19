@@ -1,6 +1,6 @@
 # ADR 0003: Store product media in Supabase Storage
 
-- **Status:** Accepted by owner; hosted resources not yet configured
+- **Status:** Accepted by owner; UAT bucket and migrations configured, live pending UAT acceptance
 - **Date:** 2026-11-19
 - **Decision owner:** Project owner
 
@@ -30,4 +30,4 @@ Supabase's current Free plan lists 1 GB file storage, 5 GB cached egress and 5 G
 
 ## Verification status
 
-Repository configuration and policies are checked in. At acceptance of this ADR, no Supabase CLI or authenticated Supabase MCP tool was available in the active session, so neither hosted project was changed and no remote bucket, migration or Storage API request was verified. See `docs/PROGRESS.md` and `docs/ENVIRONMENTS.md` for exact next steps.
+Repository configuration and policies are checked in. At acceptance of this ADR, no Supabase CLI or authenticated Supabase MCP tool was available in the active session. Since then, the owner confirmed the UAT project and the authenticated CLI created its private bucket, applied the three repository migrations and loaded the synthetic UAT fixture. Direct rollback-only SQL checks passed. The live project and Storage API upload/download remain unverified and unchanged; see `docs/PROGRESS.md` and `docs/ENVIRONMENTS.md` for exact next steps.

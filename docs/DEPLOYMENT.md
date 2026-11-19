@@ -19,7 +19,7 @@ Development and testing use the UAT Supabase project; `main` targets the separat
 
 Product media is stored in Supabase Storage. The two Supabase projects each receive the same private bucket definition and RLS policies; bucket objects are isolated per project. The GitHub Cloudflare workflow does not apply database migrations, load fixtures or sync Storage buckets.
 
-Before Cloudflare deployments can succeed, create the two named Workers, set repository Actions secrets listed in [ENVIRONMENTS.md](ENVIRONMENTS.md), allow the GitHub app to access this repository, configure least-privilege Cloudflare API tokens and protect `main`. Do not add secrets to Wrangler vars or commit local env files.
+Before Cloudflare deployments can succeed, create the named Workers, set up the `uat` and `live` GitHub environments and secrets listed in [ENVIRONMENTS.md](ENVIRONMENTS.md), configure least-privilege Cloudflare API tokens and protect `main`. The repository's existing GitHub Actions workflow is the deployment path; do not configure a second Cloudflare Workers Builds integration. Do not add secrets to Wrangler vars or commit local env files.
 
 ## Supabase setup path
 
@@ -32,7 +32,7 @@ pnpm dlx supabase@3.2.0 db push --dry-run --remote=<confirmed-uat-project-ref>
 pnpm dlx supabase@3.2.0 db push --remote=<confirmed-uat-project-ref>
 ```
 
-Inspect each target and migration diff; do not use `--yes`. Load `supabase/seeds/uat_catalogue.sql` only into the confirmed UAT project, then run `supabase/tests/catalogue_rls.sql` and `supabase/tests/storage_policies.sql`. A real upload/download test is pending implementation of the media admin workflow and an owner-approved/licensed test image. This hosted test path does not need Docker.
+Inspect each target and migration diff; do not use `--yes` unless the owner approved that exact target and operation. The UAT bucket, three migrations and synthetic fixture are applied. Its rollback-only checks passed through `supabase db query --remote=<confirmed-uat-project-ref> --file ...`; this path does not start a local Supabase database. The `supabase test db --remote` pg_prove runner was also tried and failed because the scripts are not pgTAP plans and the runner lacked Storage metadata access. A real upload/download test is pending the media admin workflow and an owner-approved/licensed test image.
 
 After UAT acceptance and separate release approval, configure the same bucket and apply the same migration files to live using the confirmed live reference. Do not apply UAT seeds to live. Database and application rollback paths remain separate; prefer forward database fixes and test recovery before a live release.
 
@@ -41,6 +41,7 @@ Supabase's [database migration guide](https://supabase.com/docs/guides/deploymen
 ## Current state
 
 - Cloudflare Workers hosting config exists, but remote Worker creation/deployment, GitHub secrets and domain remain to be completed by the owner.
-- Supabase bucket and policies are now versioned in the repository. Hosted UAT/live projects have not been changed in this session because no authenticated Supabase CLI session or MCP tool is available. The pinned CLI was used only for local config validation.
-- Worker preview was not run, per the owner's preference. Actual hosted migration, bucket sync, Storage API upload/download, Auth and RLS checks remain pending.
+- Supabase UAT has the private bucket, all three repository migrations and synthetic fixture. Direct rollback-only catalogue RLS and Storage policy checks passed. Live has not been changed; do not promote until UAT acceptance and release approval.
+- Worker preview was not run, per the owner's preference. Cloudflare Workers have not been created or deployed. Storage API upload/download and application Auth/cache-isolation checks remain pending.
+- GitHub CI for `d6cd920` passed. The repository currently has only `main`; create `develop` after the UAT Worker and environment secrets are ready. GitHub deployment environments/secrets and Cloudflare tokens still need configuration.
 - Reference docs: [Cloudflare Next.js](https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/) · [OpenNext setup](https://opennext.js.org/cloudflare/get-started) · [Workers limits](https://developers.cloudflare.com/workers/platform/limits/) · [Supabase pricing](https://supabase.com/pricing) · [Supabase Storage access control](https://supabase.com/docs/guides/storage/security/access-control) · [Supabase Auth SMTP](https://supabase.com/docs/guides/auth/auth-smtp) · [Next.js PWA](https://nextjs.org/docs/app/guides/progressive-web-apps)
