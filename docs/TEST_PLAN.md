@@ -22,7 +22,7 @@ Test with synthetic fixtures and authorized development data. Use Vitest for pur
 | REV-01 | Delivered vs undelivered review | Only owner of eligible delivered item; uniqueness |
 | REV-02 | Moderate/edit | Approved public; edit pending; rating uses approved only |
 | PAY-01 | Enable future provider without integration | Backend refuses; no gateway shown or false payment |
-| MED-01 | Private Supabase bucket and `storage.objects` policies | `supabase/tests/storage_policies.sql` checks private bucket and operation-scoped published signing/admin policies; real API upload/signed-download test still requires UAT setup and a licensed test image |
+| MED-01 | Private Supabase bucket and `storage.objects` policies | `supabase/tests/storage_policies.sql` checks private bucket, published-only signing and fixed-path database-backed staff authorization; real API upload/signed-download test still requires an owner-approved licensed image |
 | ADMIN-01 | Staff/owner scope | Direct forbidden actions fail, audit log |
 | ADMIN-02 | Staff sign-in, inactive member, direct server action and RLS | Unassigned/inactive accounts cannot read admin data or mutate it; role removal takes effect; only owners manage staff |
 | ADMIN-03 | Product draft -> private preview -> publish -> archive | Publish requirements fail closed; draft media cannot be publicly signed; archived products disappear from public queries |

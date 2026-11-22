@@ -32,6 +32,10 @@ Domain rules have no React, Next, network or database dependency. Use pure funct
 
 Server Components by default. Client components for cart, filters requiring interaction, forms, motion and WebGL. Read public data server-side with bounded caching; protected data never shared-cache. Server actions/handlers validate identity, authorization and input independently; auth layout not a sole control. Client state holds only UI and local cart; URLs hold filter/search state; server owns prices, inventory, orders, reviews. Generated DB types belong in types/ and should not leak raw privileged records. Use DTOs with minimal fields.
 
+## Admin and inventory
+
+The `/admin` route group uses Supabase SSR cookies refreshed in `src/proxy.ts`; the proxy is not the authorization boundary. Server pages and actions call `requireStaff`, and RLS checks the same active owner/staff membership through `public.has_admin_role`. Staff assignments are stored in `public.staff_members`, not editable Auth metadata. Inventory changes call the `adjust_inventory` RPC, which locks a variant row, prevents reductions below reserved stock and records an `inventory_movements` row atomically. Shopper availability is generated from active status and on-hand minus reserved quantity. Order reservation, dispatch and cancellation transitions remain Stage 4.
+
 ## Checkout flow
 Client sends variant IDs/qty and contact/delivery data plus idempotency key -> server authenticates or establishes guest context, validates input and computes quote -> SQL transaction persists order/items snapshot -> authorized summary -> customer clicks encoded WhatsApp link -> staff manually confirms through atomic reservation RPC. Dispatch consumes reservation and stock once; cancellation before dispatch releases once. Concurrency and duplicate calls must be tested in Postgres. External link is not payment or proof of message delivery.
 

@@ -17,4 +17,4 @@
 
 - The one-to-one `inventory` table in the conceptual model is represented by quantity columns on the existing variant row for this migration. This avoids duplicate stock state; a future migration may extract it only if a real need appears.
 - A database owner must bootstrap one owner account once in each environment. Until then, login succeeds only for Auth users who have an active staff row, and the admin workspace remains inaccessible.
-- UAT must receive the Stage 2 migration before the updated Worker. Live requires the same ordered migration set after UAT acceptance and explicit release approval. The UAT fixture is never copied to live.
+- UAT received the Stage 2 migration before its Worker; hosted smoke checks passed. At the owner's explicit request, live then received the same ordered migrations and private bucket without copying the UAT fixture. The live Worker and first-owner membership setup remain pending.

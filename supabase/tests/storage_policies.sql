@@ -6,7 +6,10 @@ do $$
 declare
   bucket_is_private boolean;
   published_policy text;
-  admin_policy text;
+  staff_policy text;
+  role_helper_is_definer boolean;
+  role_helper_config text[];
+  role_helper_source text;
 begin
   select not public into bucket_is_private
   from storage.buckets
@@ -29,17 +32,26 @@ begin
     raise exception 'published media policy does not limit signing to published rows';
   end if;
 
-  select qual || coalesce(with_check, '') into admin_policy
+  select qual || coalesce(with_check, '') into staff_policy
   from pg_policies
   where schemaname = 'storage'
     and tablename = 'objects'
-    and policyname = 'admins can manage product media objects';
+    and policyname = 'staff can manage product media objects';
 
-  if admin_policy is null
-    or admin_policy not like '%app_metadata%'
-    or admin_policy not like '%admin%'
-    or admin_policy not like '%product-media%' then
-    raise exception 'admin Storage policy is missing trusted role or bucket checks';
+  select prosecdef, proconfig, prosrc
+    into role_helper_is_definer, role_helper_config, role_helper_source
+  from pg_proc
+  where oid = 'public.has_admin_role(text[])'::regprocedure;
+
+  if staff_policy is null
+    or staff_policy not like '%has_admin_role%'
+    or staff_policy not like '%staff%'
+    or staff_policy not like '%product-media%'
+    or staff_policy like '%app_metadata%'
+    or role_helper_is_definer is distinct from true
+    or not (role_helper_config @> array['search_path=""'])
+    or role_helper_source not like '%public.staff_members%' then
+    raise exception 'Storage policy does not use the fixed-path database staff role check';
   end if;
 end;
 $$;
