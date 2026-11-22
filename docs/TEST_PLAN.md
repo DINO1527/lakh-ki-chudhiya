@@ -24,6 +24,10 @@ Test with synthetic fixtures and authorized development data. Use Vitest for pur
 | PAY-01 | Enable future provider without integration | Backend refuses; no gateway shown or false payment |
 | MED-01 | Private Supabase bucket and `storage.objects` policies | `supabase/tests/storage_policies.sql` checks private bucket and operation-scoped published signing/admin policies; real API upload/signed-download test still requires UAT setup and a licensed test image |
 | ADMIN-01 | Staff/owner scope | Direct forbidden actions fail, audit log |
+| ADMIN-02 | Staff sign-in, inactive member, direct server action and RLS | Unassigned/inactive accounts cannot read admin data or mutate it; role removal takes effect; only owners manage staff |
+| ADMIN-03 | Product draft -> private preview -> publish -> archive | Publish requirements fail closed; draft media cannot be publicly signed; archived products disappear from public queries |
+| INV-05 | Stock adjustment with a reason | Atomic delta and movement actor/reason; zero, overflow, invalid and below-reserved changes fail without partial writes |
+| MED-02 | Product image upload and archive | MIME/signature/size and alt text validated; random private path; public signing starts only after product/media publish |
 | PWA-01 | Offline catalogue/cart | Cached public data labeled stale; checkout disabled |
 | PWA-02 | Logout/account switch | No private cache or identity leakage |
 | UI-01 | Mobile/desktop keyboard, contrast, touch | No overflow; meaningful focus; accessible controls |

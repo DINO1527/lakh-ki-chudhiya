@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { SiteFooter } from "@/components/storefront/site-footer";
-import { SiteHeader } from "@/components/storefront/site-header";
 import { ServiceWorkerRegistration } from "./service-worker-registration";
 import "./globals.css";
 
@@ -17,9 +15,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <a className="skip-link" href="#main-content">
           Skip to content
         </a>
-        <SiteHeader />
         {children}
-        <SiteFooter />
         <ServiceWorkerRegistration />
       </body>
     </html>

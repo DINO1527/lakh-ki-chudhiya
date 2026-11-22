@@ -1,10 +1,10 @@
 # Development progress
 
-**Last updated:** 2026-11-19
+**Last updated:** 2026-11-22
 
-**Current milestone:** Stage 1 — design/catalogue (in progress by owner direction; Stage 0 exit gate remains incomplete)
+**Current milestone:** Stage 2 — admin/catalogue (in progress by owner direction; Stage 0 and Stage 1 exit gates remain incomplete)
 
-**Current storage decision (2026-11-19):** The owner replaced the initial R2 plan with Supabase Storage to avoid the Cloudflare subscription prompt and keep storage within the free-tier-first stack. R2 fixture references below are historical evidence only; R2 code and Worker bindings have been removed. See ADR 0003. The UAT bucket, migrations and synthetic fixtures are configured and checked; live remains unchanged pending UAT acceptance and release approval.
+**Current storage decision (2026-11-19):** The owner replaced the initial R2 plan with Supabase Storage to avoid the Cloudflare subscription prompt and keep storage within the free-tier-first stack. R2 fixture references below are historical evidence only; R2 code and Worker bindings have been removed. See ADR 0003. The private UAT bucket, four ordered migrations and synthetic fixtures are configured and checked; live remains unchanged pending UAT review and release approval.
 
 ## Initial state
 
@@ -16,7 +16,7 @@ The workspace was a documentation and skill kit with no application code and no 
 | -------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0 Foundation         | In progress | Next.js scaffold and OpenNext Worker proof passed historically. The local R2 fixture was removed after the owner changed storage to Supabase. Supabase Auth/Storage RLS and full cache-isolation gates remain. See ADRs 0001 and 0003.                                           |
 | 1 Design/catalogue   | In progress | Public catalogue queries, filters, pagination, product/collection detail pages, and UAT fixture/RLS SQL are implemented. UAT migrations, synthetic fixtures and rollback-only RLS/Storage checks pass. Visual/accessibility acceptance remains, so the exit gate is not yet met. |
-| 2 Admin/catalogue    | Not started | Stage 1 only.                                                                                                                                                                                                                                                                    |
+| 2 Admin/catalogue    | In progress | Staff authentication, catalogue authoring, content, inventory adjustment and audit workflows are implemented locally. Stage 2 migration is applied to UAT; Worker rollout is pending.                                                                                                                                 |
 | 3 Account/cart       | Not started | Stage 1 only.                                                                                                                                                                                                                                                                    |
 | 4 Orders             | Not started | Stage 1 only.                                                                                                                                                                                                                                                                    |
 | 5 Reviews/reports    | Not started | Stage 1 only.                                                                                                                                                                                                                                                                    |
@@ -133,15 +133,32 @@ GitHub Actions CI for the storage change passed on commit `d6cd920`; no deployme
 
 - The supplied palette is explicitly proposed rather than owner-approved; the interface uses those tokens as a working direction. Typeface choices are system fallbacks until licensed assets are selected.
 - No saleable products, prices, inventory, confirmed variants, verified size chart, collections or product media were supplied. The customer pages therefore show honest empty states and no fabricated catalogue entries, reviews or product imagery.
-- The catalogue migration and synthetic fixtures are applied to UAT, and direct rollback-only RLS checks pass. Live migration is pending UAT acceptance and release approval. Admin authoring and product structured data remain future work.
+- The catalogue migration and synthetic fixtures are applied to UAT, and direct rollback-only RLS checks pass. Live migration is pending UAT review and release approval. Admin authoring is implemented in the Stage 2 changes below; product structured data remains future work.
 - Variant resolution and price formatting have unit coverage and the picker is wired to the public product detail route. No actual approved catalogue data, photography or owner-verified sizing/pricing was supplied.
 - The Stage 1 gate still needs mobile/desktop keyboard, contrast, touch-target and screen-reader/accessibility review. Do not mark Stage 1 complete until this evidence exists or the owner explicitly waives the gate.
-- The checked-in GitHub deployment jobs need Actions environments/secrets, Cloudflare tokens/account ID and UAT/live Supabase URLs and publishable keys. GitHub currently has only `main`; create `develop` after the UAT Worker and secrets are ready. Do not deploy main/live before the database and owner acceptance gates pass.
+- The owner confirmed that the GitHub Actions UAT deployment succeeded and that the preview URL opens. The `develop` branch exists from `main`; the owner supplied a screenshot showing `pnpm cf:build` and `pnpm deploy:uat` succeeded. This is UAT deployment evidence only; no live deployment was run.
 - The abstract ring artwork is decorative CSS, not a product rendering or product photograph.
+
+## UAT Worker deployment (owner-confirmed 2026-11-19)
+
+- The owner provided a GitHub Actions screenshot showing the `deploy-uat` job succeeded, including `pnpm cf:build` and `pnpm deploy:uat`, and confirmed that the preview URL opens.
+- The `develop` branch was created from the verified `main` commit `d4ad9c6c455b84146c794b245f67b5a91786b9cc`.
+- The exact Worker URL and workflow run identifier were not captured in this progress record. No manual storefront, accessibility, or browser security acceptance has been recorded yet. This does not establish a live deployment; live remains untouched.
 
 ## Decisions and next step
 
-OpenNext remains the provisional adapter because local build and workerd preview passed and it preserves the approved Next.js implementation. Stage 1 implementation is present and its UAT migration, fixtures and direct RLS/Storage checks pass; visual/accessibility exit checks remain incomplete. Stage 0's application Auth/query/cache-isolation, clean-install and vinext Worker comparison also remain incomplete and unwaived. The next infrastructure step is to configure the UAT Cloudflare Worker and GitHub Actions environment, then create `develop` to trigger UAT deployment. Keep live unchanged until UAT acceptance and separate release approval; do not enable billing.
+OpenNext remains the provisional adapter because its Worker build passes and it preserves the approved Next.js implementation. Stage 1 implementation is present and its UAT migration, fixtures, direct RLS/Storage checks and owner-confirmed Worker deployment pass; visual/accessibility acceptance remains incomplete. Stage 0's application Auth/query/cache-isolation, clean-install and vinext Worker comparison also remain incomplete and unwaived. The owner directed Stage 2 on 2026-11-22. The Stage 2 migration and rollback-only SQL checks now pass on UAT; deploy the matching Worker, verify the hosted login boundary, then follow the UAT review and live release sequence. Do not enable billing.
+
+## Stage 2 implementation and UAT database (2026-11-22)
+
+- The owner directed Stage 2 implementation and requested UAT and live deployment. The dashboard code is local and not yet pushed to GitHub in this record.
+- Supabase CLI project listings still return identical display names. The UAT project was identified by the three existing Stage 0/1 migrations and the documented synthetic catalogue (2 products, 3 variants, 1 collection). The other active project has no catalogue tables or migration history and remains the live target. Project references are kept out of this repository.
+- Added a trusted `staff_members` role table, database-backed Storage authorization, product/collection/content administration, owner-only team access and activity views, private image upload and archive, and atomic per-variant stock adjustments with actor/reason history. Availability is now generated from active status and on-hand minus reserved quantity. Order reservations and dispatch remain Stage 4.
+- Applied `20261122000000_stage2_admin_inventory.sql` to UAT after a dry run. All four local migrations now match UAT. The rollback-only `supabase/tests/stage2_admin_inventory.sql` assertions pass for public content visibility, anonymous quantity denial, an unassigned authenticated role, stock-write denial, and the generated availability column. An initial attempt with `db query --read-only` was rejected because the CLI disallows `BEGIN`; the same rollback-only file passed through the hosted query path and ended in `ROLLBACK`.
+- `pnpm lint`, `pnpm format:check`, `pnpm typecheck` and `pnpm test`: PASS; 16 unit tests. `pnpm build`: PASS with explicit UAT placeholder variables. `pnpm cf:build`: PASS after retrying with approved filesystem access; Windows support and Node.js middleware warnings remain.
+- `pnpm cf:typegen` completed, but Wrangler reported an EPERM log-file warning and included a variable from ignored local development configuration in the generated file. That local-only type change was removed and is not part of the implementation.
+- UAT has zero active staff memberships. The admin sign-in and unauthorized access paths can be inspected, but a positive staff workflow requires the owner to bootstrap the first membership using [ADMIN_OPERATIONS.md](ADMIN_OPERATIONS.md). No Storage API upload was attempted because no owner-approved test image was supplied. No local Worker preview was run, per the owner's hosted-inspection preference.
+- Next: push the verified code to `develop`, deploy the UAT Worker, run hosted login and route checks, and record owner review before the live release. Stage 0 and Stage 1 outstanding gates remain visible and are not marked waived.
 
 ## Pending owner inputs
 

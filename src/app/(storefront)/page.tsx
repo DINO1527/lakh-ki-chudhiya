@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ProductGrid } from "@/features/products/components/product-card";
 import { getPublicShopPage } from "@/features/products/server/public-catalogue";
+import { getPublishedHomepageHero } from "@/features/content/server/homepage";
 
 export const dynamic = "force-dynamic";
 
@@ -13,21 +14,19 @@ export default async function HomePage() {
     sort: "featured",
     page: 1,
   });
+  const hero = await getPublishedHomepageHero();
 
   return (
     <main id="main-content">
       <section aria-labelledby="home-title" className="hero">
         <div className="hero__copy">
-          <p className="eyebrow">Lac bangles, made by hand</p>
+          <p className="eyebrow">{hero.eyebrow}</p>
           <h1 className="hero__title" id="home-title">
-            Colour with a story of its own.
+            {hero.title}
           </h1>
-          <p className="hero__description">
-            We are preparing a thoughtful collection of handcrafted lac bangles. The pieces, sizes
-            and details will be shared here once they are ready.
-          </p>
-          <Link className="button button--primary" href="/shop">
-            Explore the collection
+          <p className="hero__description">{hero.body}</p>
+          <Link className="button button--primary" href={hero.ctaHref}>
+            {hero.ctaLabel}
             <span aria-hidden="true">↗</span>
           </Link>
         </div>

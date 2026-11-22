@@ -24,7 +24,7 @@ Supabase's current Free plan lists 1 GB file storage, 5 GB cached egress and 5 G
 
 - UAT and live require identical migrations and bucket configuration but hold separate files. Apply and verify UAT first; promote the same reviewed artifacts to live only after acceptance and release approval. Never run UAT seeds in live.
 - The Supabase CLI's `seed buckets` command syncs the bucket declared in config. Database RLS policies and the `storage_path` schema are delivered through migrations. Cloudflare's deploy workflow does not apply either.
-- Signed URLs are temporary. The first-admin claim assignment and media upload/admin interface are not implemented; no actual upload or public image serving flow is claimed complete.
+- At the time of this ADR, first-admin assignment and media upload were deferred. Stage 2 now implements membership-backed access and image upload; the UAT API upload and signed-image acceptance check remain unverified.
 - Free storage and egress can be exhausted. Optimize files and monitor account usage. If the workload exceeds free limits, pause media growth and ask the owner before adopting a paid plan or another provider.
 - The prior R2-oriented ADR and progress entries are historical evidence only. The current architecture authority is this ADR and the updated `PROJECT_SPEC.md`.
 

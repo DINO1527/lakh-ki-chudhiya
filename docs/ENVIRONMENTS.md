@@ -44,7 +44,7 @@ Cloudflare Workers Editor can deploy code to an existing Worker; initial Worker 
 
 ## Supabase Storage and database setup
 
-The repository declares one private bucket, `product-media`, in `supabase/config.toml`. It accepts JPEG, PNG, WebP and AVIF images up to 5 MiB. The bucket is created in the owner-confirmed UAT project; the live project is unchanged and must receive the same definition after UAT acceptance. Policies in `supabase/migrations/20261118020000_supabase_storage_policies.sql` limit anonymous signed-URL creation to published images attached to published products; they deny object listing and draft access. Admin Storage writes require a trusted `app_metadata.role=admin` claim. The admin workflow that assigns this claim and media upload UI are not implemented yet.
+The repository declares one private bucket, `product-media`, in `supabase/config.toml`. It accepts JPEG, PNG, WebP and AVIF images up to 5 MiB. The bucket is created in the owner-confirmed UAT project; live remains unchanged. The Stage 1 migration limits anonymous signed-URL creation to published images attached to published products and denies public object listing and draft access. The Stage 2 migration replaces the earlier `app_metadata.role=admin` Storage check with an active database-backed owner/staff membership check; this migration is now applied to UAT. Live must receive the ordered migration set only after UAT review and release approval.
 
 Use Supabase CLI v3.2.0 with an authenticated owner account. Always specify the project reference explicitly and inspect the command's printed target and diff:
 
@@ -69,7 +69,7 @@ Supabase GitHub integration can watch repository branches, but it is not the cur
 
 - `.env.example` contains placeholder values only. No Supabase credentials belong in the repository.
 - The owner confirmed the UAT project reference; the separate live project remains unchanged.
-- The private `product-media` bucket and all three checked-in migrations are applied in UAT. The synthetic UAT fixture is loaded; direct rollback-only RLS and Storage SQL assertions passed. Live still needs the same migrations and bucket after UAT acceptance and release approval.
-- The named Cloudflare Workers have not been confirmed created or deployed.
-- The GitHub workflow maps `develop` to UAT and offers a separate manual live deployment from `main`. GitHub currently has only `main`; create `develop` after the UAT Worker and environment secrets are ready. Repository deployment secrets and branch protections still need owner setup.
-- Supabase CLI v3.2.0 is authenticated. No credentials are stored in the repository. No local Supabase database, Worker preview or deployment was run. The GitHub CI verification run for commit `d6cd920` passed; no deployment job was run.
+- The private `product-media` bucket and all four checked-in migrations are applied in UAT. The synthetic fixture is loaded; direct rollback-only Stage 1 RLS/Storage and Stage 2 authorization/stock assertions passed. Live still needs the ordered migrations and bucket after UAT review and release approval.
+- The owner confirmed a successful Stage 1 UAT Worker deployment. The Stage 2 Worker deployment is pending; no local Worker preview was run.
+- The GitHub workflow maps `develop` to UAT and offers a separate manual live deployment from `main`. Both `main` and `develop` exist. A prior `deploy-uat` run succeeded, showing the required deployment environment/secrets were available then; verify them before future releases. Branch protection and environment restrictions should be verified before live release.
+- Supabase CLI v3.2.0 is authenticated. No credentials or project references are stored in the repository. The Stage 2 code passes local lint, formatting, typecheck, unit tests, Next.js build and Cloudflare Worker bundle build. UAT currently has no active staff membership, so first-owner bootstrap and positive authenticated workflow checks remain pending.
