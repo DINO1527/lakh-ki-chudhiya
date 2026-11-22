@@ -6,12 +6,9 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const supabase = await createSupabaseServerClient();
-    const [{ data: userData, error: authError }, { data, error: queryError }] = await Promise.all([
-      supabase.auth.getUser(),
-      supabase.from("stage0_smoke").select("id").limit(1),
-    ]);
+    const { data, error: queryError } = await supabase.from("stage0_smoke").select("id").limit(1);
 
-    if (authError || queryError) {
+    if (queryError) {
       return NextResponse.json(
         { status: "unavailable" },
         { status: 503, headers: { "Cache-Control": "private, no-store" } },
@@ -19,7 +16,7 @@ export async function GET() {
     }
 
     return NextResponse.json(
-      { status: "ok", authenticated: Boolean(userData.user), querySucceeded: Array.isArray(data) },
+      { status: "ok", querySucceeded: Array.isArray(data) },
       { headers: { "Cache-Control": "private, no-store" } },
     );
   } catch {
