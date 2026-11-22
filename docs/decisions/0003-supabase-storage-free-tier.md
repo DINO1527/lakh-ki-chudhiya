@@ -1,6 +1,6 @@
 # ADR 0003: Store product media in Supabase Storage
 
-- **Status:** Accepted by owner; UAT bucket and migrations configured, live pending UAT acceptance
+- **Status:** Accepted by owner; private bucket and migrations configured in UAT and live
 - **Date:** 2026-11-19
 - **Decision owner:** Project owner
 

@@ -1,6 +1,6 @@
 # Lakh Ki Chudhiya | Stage 2 in progress
 
-This workspace began as a documentation and skill kit for a premium handcrafted lac bangle store. It now contains a Next.js App Router foundation, a Cloudflare Workers adapter build, responsive storefront catalogue routes, and a protected admin workspace for products, collections, homepage content, staff access and per-SKU stock adjustments. The Stage 2 migration and hosted Worker checks pass on UAT. The live database has the ordered migrations and private media bucket; the live Worker rollout is pending. The shop shows empty states when no approved catalogue is configured; UAT fixtures are synthetic and visibly marked not for sale. Real product imagery, owner-approved prices and verified sizes are still required before sale. It is **not a production storefront**. The 13 bundled project skills remain available, and the reviewed Supabase Postgres best-practices skill is installed at project scope.
+This workspace began as a documentation and skill kit for a premium handcrafted lac bangle store. It now contains a Next.js App Router foundation, a Cloudflare Workers adapter build, responsive storefront catalogue routes, and a protected admin workspace for products, collections, homepage content, staff access and per-SKU stock adjustments. Stage 2 migrations and hosted Worker checks pass on UAT and live. The live Worker is deployed at `https://lakh-ki-chudhiya-live.dinoshan-theiventhiran.workers.dev`. The shop shows empty states when no approved catalogue is configured; UAT fixtures are synthetic and visibly marked not for sale. Real product imagery, owner-approved prices and verified sizes are still required before sale. It is **not a production storefront**. The 13 bundled project skills remain available, and the reviewed Supabase Postgres best-practices skill is installed at project scope.
 
 ## Start in Codex
 
@@ -12,7 +12,7 @@ This workspace began as a documentation and skill kit for a premium handcrafted 
 
 ## Database environments
 
-Development and testing target UAT; the `main` release target uses a separate live Supabase project. Both projects must receive the same ordered migration files so their table and column names stay aligned. The synthetic catalogue fixture at `supabase/seeds/uat_catalogue.sql` is UAT-only and is deliberately not part of automatic database reset. Never load UAT fixtures into live. Setup and release guidance is in [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). UAT's Stage 2 Worker and hosted smoke checks pass; live has the ordered migrations and private bucket, with its Worker rollout pending. UAT/live mapping is confirmed from migration and fixture state; the CLI display names still match.
+Development and testing target `lakh-ki-chudhiya-uat`; the `main` release target uses the separate `lakh-ki-chudhiya-live` Supabase project. Both projects receive the same ordered migrations. The synthetic catalogue fixture at `supabase/seeds/uat_catalogue.sql` is UAT-only and is deliberately not part of automatic database reset. Never load UAT fixtures into live. Setup and release guidance is in [`docs/ENVIRONMENTS.md`](docs/ENVIRONMENTS.md). UAT and live Stage 2 Workers and hosted smoke checks pass. Project names were confirmed in the authenticated Supabase project list; references remain outside this repository.
 
 ## Navigation
 
@@ -38,4 +38,4 @@ The original project specification is retained with minor integration edits. Sri
 
 ## Media storage
 
-Product images use a private Supabase Storage `product-media` bucket in UAT and will use the same definition in live after UAT acceptance. The Stage 2 migration moves Storage writes to active database-backed staff membership. The bucket's 5 MiB image limit and accepted MIME types are in `supabase/config.toml`; access policies are versioned in migrations. Cloudflare Workers host the app. See `docs/ENVIRONMENTS.md` and ADRs 0003–0004. Supabase Free includes limited storage and egress quotas, so free use is not guaranteed at any traffic level.
+Product images use separate private Supabase Storage `product-media` buckets in UAT and live. The Stage 2 migration moves Storage writes to active database-backed staff membership. The bucket's 5 MiB image limit and accepted MIME types are in `supabase/config.toml`; access policies are versioned in migrations. Cloudflare Workers host the app. See `docs/ENVIRONMENTS.md` and ADRs 0003–0004. Supabase Free includes limited storage and egress quotas, so free use is not guaranteed at any traffic level.
