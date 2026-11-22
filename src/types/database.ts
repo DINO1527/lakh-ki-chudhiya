@@ -18,6 +18,16 @@ type AdminResourceType =
   | "product_media"
   | "site_content"
   | "staff_member";
+type OrderStatus =
+  | "pending_confirmation"
+  | "confirmed"
+  | "processing"
+  | "packed"
+  | "dispatched"
+  | "delivered"
+  | "cancelled";
+type PaymentStatus = "unpaid" | "pending" | "paid" | "failed" | "refunded";
+type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   public: {
@@ -119,6 +129,71 @@ export type Database = {
         changed_fields: string[];
         created_at: string;
       }>;
+      customer_profiles: TableDefinition<{
+        user_id: string;
+        full_name: string;
+        phone: string;
+        created_at: string;
+        updated_at: string;
+      }>;
+      cart_items: TableDefinition<{
+        user_id: string;
+        variant_id: string;
+        quantity: number;
+        updated_at: string;
+      }>;
+      orders: TableDefinition<{
+        id: string;
+        reference: string;
+        customer_id: string | null;
+        customer_name: string;
+        customer_email: string;
+        customer_phone: string;
+        delivery_address: string;
+        delivery_city: string;
+        delivery_postal_code: string;
+        delivery_note: string;
+        currency: "LKR";
+        subtotal_minor: number;
+        delivery_fee_minor: number | null;
+        total_minor: number | null;
+        status: OrderStatus;
+        payment_status: PaymentStatus;
+        channel: "whatsapp";
+        created_at: string;
+        updated_at: string;
+      }>;
+      order_items: TableDefinition<{
+        id: string;
+        order_id: string;
+        variant_id: string;
+        product_title: string;
+        sku: string;
+        variant_label: string;
+        unit_price_minor: number;
+        quantity: number;
+        line_total_minor: number;
+        created_at: string;
+      }>;
+      stock_reservations: TableDefinition<{
+        id: string;
+        order_id: string;
+        variant_id: string;
+        quantity: number;
+        status: "reserved" | "released" | "consumed";
+        created_at: string;
+        updated_at: string;
+      }>;
+      order_events: TableDefinition<{
+        id: number;
+        order_id: string;
+        actor_user_id: string | null;
+        event_type: "created" | "status_changed" | "delivery_fee_set";
+        from_status: OrderStatus | null;
+        to_status: OrderStatus | null;
+        reason: string;
+        created_at: string;
+      }>;
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -160,6 +235,43 @@ export type Database = {
           p_status: ProductStatus;
         };
         Returns: undefined;
+      };
+      quote_cart: {
+        Args: { p_items: Json };
+        Returns: Json;
+      };
+      replace_customer_cart: {
+        Args: { p_items: Json };
+        Returns: Json;
+      };
+      create_order_with_quote: {
+        Args: {
+          p_confirmed_quote_hash: string;
+          p_confirmed_subtotal_minor: number;
+          p_customer_email: string;
+          p_customer_name: string;
+          p_customer_phone: string;
+          p_delivery_address: string;
+          p_delivery_city: string;
+          p_delivery_note: string;
+          p_delivery_postal_code: string;
+          p_guest_access_hash?: string | null;
+          p_idempotency_key: string;
+          p_items: Json;
+        };
+        Returns: Json;
+      };
+      transition_order: {
+        Args: { p_order_id: string; p_next_status: string; p_reason: string };
+        Returns: string;
+      };
+      set_order_delivery_fee: {
+        Args: { p_order_id: string; p_delivery_fee_minor: number; p_reason: string };
+        Returns: undefined;
+      };
+      get_guest_order: {
+        Args: { p_reference: string; p_access_hash: string };
+        Returns: Json;
       };
     };
     Enums: { [_ in never]: never };

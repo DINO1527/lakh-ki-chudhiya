@@ -8,13 +8,13 @@ Test with synthetic fixtures and authorized development data. Use Vitest for pur
 | CAT-02 | Filter+sort+size/colour | Correct variant, URL state, price/stock |
 | CAT-03 | UAT published/draft RLS and public columns | `supabase/tests/catalogue_rls.sql` proves published fixture visible, draft/inactive variant hidden, out-of-stock variant visible as unavailable, and exact stock count denied to `anon` |
 | CART-01 | Guest persistence and merge | Dedup by variant, quantities capped/revalidated, no PII |
-| CART-02 | Update/remove and stale prices | Correct totals; show changes and reconfirm |
+| CART-02 | Update/remove and stale prices | Correct totals; compare complete quote (line identity, label, unit price and quantity), show changes and reconfirm even when the subtotal is unchanged |
 | AUTH-01 | Register/login/reset/logout | Session flow, safe redirect, SMTP gate; no cached private state |
 | AUTH-02 | Direct API and cross-user access | 401/403/404 as appropriate; RLS rejects |
 | ORD-01 | Guest/auth checkout | Atomic snapshots, reference, unpaid/pending, secure access |
 | ORD-02 | Duplicate submission | Single order; mismatched replay rejected |
 | ORD-03 | WhatsApp handoff absent/blocked | Persisted order; reopen/copy; no false sent status |
-| ORD-04 | Tampered price/quantity | Server rejects/requotes; no invalid order |
+| ORD-04 | Tampered price/quantity | Server rejects/requotes; complete quote is checked under variant locks; no invalid order |
 | INV-01 | Concurrent confirmation last unit | Exactly one successful reservation |
 | INV-02 | Duplicate confirm/dispatch/cancel | No double deduction or release |
 | INV-03 | Cancel/expire before dispatch | Release only existing reservation; pending expiry no effect |
@@ -33,6 +33,8 @@ Test with synthetic fixtures and authorized development data. Use Vitest for pur
 | UI-01 | Mobile/desktop keyboard, contrast, touch | No overflow; meaningful focus; accessible controls |
 | UI-02 | Reduced motion/no WebGL | Static fallback and usable product page |
 | RUN-01 | Worker preview SSR/auth/API/Supabase Storage/PWA | Evidence in actual workerd, not only next dev; no storage binding is expected on the Worker |
+
+Stage 3/4 hosted UAT coverage is recorded in `docs/PROGRESS.md`. The rollback-only SQL script verifies quote/order privileges, idempotent replay, changed replay rejection, no stock reservation during order creation, quantity availability, and a same-subtotal/per-line price change. It does not replace browser auth, staff transition, media upload, concurrency or Worker preview checks.
 
 ## Acceptance procedure
 Each new change starts with expected behavior and risk list. Test happy, edge, failure and negative permissions; write failing regression test when appropriate. Use concurrency tests with independent DB sessions. Intercept WhatsApp external navigation; do not send real message. Use mobile/desktop viewport, record traces/screenshots with fixtures. Check public caching after staff updates. Verify migrations on fresh local DB and upgrade path when appropriate. CI target scripts: `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test`, `pnpm test:e2e`, `pnpm build`, plus adapter-specific build/preview and SQL command defined in Stage 0. These are proposed, not currently executable. No release with unresolved critical security, money, stock, auth or order failures. Record exact results and skips in PROGRESS.md.

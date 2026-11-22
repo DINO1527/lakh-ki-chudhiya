@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { formatLkrPrice } from "../domain/product-variant";
 import type { PublicProduct } from "../domain/catalogue";
 
@@ -11,8 +12,19 @@ export function ProductCard({ product }: { product: PublicProduct }) {
   return (
     <li className="product-card">
       <Link className="product-card__link" href={`/products/${product.slug}`}>
-        <span aria-hidden="true" className="product-card__media-placeholder">
-          <span>Photography forthcoming</span>
+        <span className="product-card__media-placeholder">
+          {product.images[0] ? (
+            <Image
+              alt={product.images[0].altText}
+              className="product-card__image"
+              height={800}
+              src={product.images[0].url}
+              unoptimized
+              width={800}
+            />
+          ) : (
+            <span>Photography forthcoming</span>
+          )}
         </span>
         <span className="product-card__content">
           {product.isUatFixture && (

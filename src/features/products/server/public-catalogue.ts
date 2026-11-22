@@ -32,6 +32,11 @@ type ProductCollectionRow = Pick<
   "product_id" | "collection_id"
 >;
 
+type ProductMediaRow = Pick<
+  Database["public"]["Tables"]["product_media"]["Row"],
+  "product_id" | "storage_path" | "alt_text" | "sort_order"
+>;
+
 type ProductVariantRow = Pick<
   Database["public"]["Tables"]["product_variants"]["Row"],
   | "id"
@@ -277,7 +282,7 @@ async function loadPublicProducts(
   if (rows.length === 0) return { status: "ready", data: [] };
 
   const productIds = rows.map((row) => row.id);
-  const [variantsResult, linksResult] = await Promise.all([
+  const [variantsResult, linksResult, mediaResult] = await Promise.all([
     supabase
       .from("product_variants")
       .select(VARIANT_SELECT, { count: "exact" })
@@ -290,18 +295,46 @@ async function loadPublicProducts(
       .select("product_id, collection_id", { count: "exact" })
       .in("product_id", productIds)
       .limit(1_000),
+    supabase
+      .from("product_media")
+      .select("product_id, storage_path, alt_text, sort_order", { count: "exact" })
+      .in("product_id", productIds)
+      .eq("media_type", "image")
+      .eq("status", "published")
+      .order("sort_order", { ascending: true })
+      .limit(200),
   ]);
 
   if (
     variantsResult.error ||
     linksResult.error ||
+    mediaResult.error ||
     (variantsResult.count ?? 0) > 1_000 ||
-    (linksResult.count ?? 0) > 1_000
+    (linksResult.count ?? 0) > 1_000 ||
+    (mediaResult.count ?? 0) > 200
   ) {
     return { status: "error" };
   }
 
   const links = (linksResult.data ?? []) as ProductCollectionRow[];
+  const mediaRows = (mediaResult.data ?? []) as ProductMediaRow[];
+  const signedMedia =
+    mediaRows.length > 0
+      ? await supabase.storage.from("product-media").createSignedUrls(
+          mediaRows.map((media) => media.storage_path),
+          3_600,
+        )
+      : null;
+  const mediaByProductId = new Map<string, { url: string; altText: string }[]>();
+  if (!signedMedia?.error) {
+    for (const [index, media] of mediaRows.entries()) {
+      const signedUrl = signedMedia?.data?.[index]?.signedUrl;
+      if (!signedUrl) continue;
+      const productMedia = mediaByProductId.get(media.product_id) ?? [];
+      productMedia.push({ url: signedUrl, altText: media.alt_text });
+      mediaByProductId.set(media.product_id, productMedia);
+    }
+  }
   const collectionIds = [...new Set(links.map((link) => link.collection_id))];
   const collectionsResult =
     collectionIds.length > 0
@@ -366,6 +399,7 @@ async function loadPublicProducts(
         sortOrder: row.sort_order,
         collections: productCollections,
         variants: variantsByProductId.get(row.id) ?? [],
+        images: mediaByProductId.get(row.id) ?? [],
         isUatFixture,
       };
     }),

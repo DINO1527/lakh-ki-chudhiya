@@ -38,6 +38,7 @@ export type PublicProduct = {
   sortOrder: number;
   collections: readonly PublicCollection[];
   variants: readonly ProductVariant[];
+  images: readonly { url: string; altText: string }[];
   isUatFixture: boolean;
 };
 

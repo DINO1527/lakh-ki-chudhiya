@@ -27,7 +27,7 @@ values (
   'a2000000-0000-4000-8000-000000000001',
   'uat-sample-bangle-not-for-sale',
   'UAT Sample Bangle — NOT FOR SALE',
-  'Synthetic UAT fixture. This is not a real product and cannot be ordered.',
+  'Synthetic UAT fixture for cart and order workflow tests only. It is not a real product or live sale.',
   'Synthetic test data',
   'No care guidance; this is a test fixture.',
   1,

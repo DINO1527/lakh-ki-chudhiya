@@ -8,7 +8,10 @@ const navigation = [
   { href: "/admin/products", label: "Products" },
   { href: "/admin/collections", label: "Collections" },
   { href: "/admin/inventory", label: "Inventory" },
+  { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/customers", label: "Customers" },
   { href: "/admin/content", label: "Homepage content" },
+  { href: "/admin/security", label: "Account security" },
 ] as const;
 
 export function AdminShell({

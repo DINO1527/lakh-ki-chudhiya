@@ -23,7 +23,7 @@ export default async function AdminDashboard({
           The dashboard data could not be loaded. Refresh or contact the owner.
         </AdminNotice>
       ) : (
-        <section aria-label="Catalogue summary" className="admin-stat-grid">
+        <section aria-label="Store summary" className="admin-stat-grid">
           <article className="admin-stat-card">
             <span>Products</span>
             <strong>{overview.productCount}</strong>
@@ -44,6 +44,16 @@ export default async function AdminDashboard({
             <strong>{overview.unavailableCount}</strong>
             <Link href="/admin/inventory?availability=unavailable">Check availability</Link>
           </article>
+          <article className="admin-stat-card">
+            <span>Order requests</span>
+            <strong>{overview.orderCount}</strong>
+            <Link href="/admin/orders">Review orders</Link>
+          </article>
+          <article className="admin-stat-card admin-stat-card--attention">
+            <span>Awaiting confirmation</span>
+            <strong>{overview.pendingOrderCount}</strong>
+            <Link href="/admin/orders">Confirm stock</Link>
+          </article>
         </section>
       )}
       <section aria-labelledby="admin-quick-actions" className="admin-panel">
@@ -58,10 +68,12 @@ export default async function AdminDashboard({
           <Link href="/admin/collections">Manage collections</Link>
           <Link href="/admin/inventory">Adjust stock with a reason</Link>
           <Link href="/admin/content">Edit homepage content</Link>
+          <Link href="/admin/orders">Review order requests</Link>
+          <Link href="/admin/customers">View customers</Link>
         </div>
         <p className="admin-muted">
-          Order confirmation, reservations and dispatch controls arrive in the orders stage. Stock
-          is not reserved by this dashboard.
+          Order totals remain separate from paid revenue. Stock is reserved only when staff confirm
+          an order.
         </p>
       </section>
     </>

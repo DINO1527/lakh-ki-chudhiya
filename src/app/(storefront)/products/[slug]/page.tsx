@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { CatalogueNotice, UatFixtureNotice } from "@/features/products/components/catalogue-notice";
 import { VariantPicker } from "@/features/products/components/variant-picker";
@@ -61,8 +62,20 @@ export default async function ProductPage({ params }: ProductPageProps) {
       </nav>
 
       <div className="product-detail">
-        <figure aria-label="Product photograph not available" className="product-detail__media">
-          <span>Verified product photography will appear here.</span>
+        <figure className="product-detail__media">
+          {product.images[0] ? (
+            <Image
+              alt={product.images[0].altText}
+              className="product-detail__image"
+              height={1_000}
+              priority
+              src={product.images[0].url}
+              unoptimized
+              width={1_000}
+            />
+          ) : (
+            <span>Verified product photography will appear here.</span>
+          )}
         </figure>
 
         <section aria-labelledby="product-title" className="product-detail__content">
@@ -107,7 +120,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           )}
 
           <p className="product-detail__note">
-            Ordering will open after product details, imagery and business policies are confirmed.
+            Adding to the cart does not reserve stock. Availability is confirmed before fulfilment.
           </p>
           <Link className="text-link" href="/size-guide">
             Read the size guide <span aria-hidden="true">→</span>
