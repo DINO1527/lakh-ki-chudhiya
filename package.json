@@ -22,23 +22,31 @@
     "cf:typegen": "wrangler types --env-interface CloudflareEnv --include-runtime=false --include-main-module=false src/types/cloudflare-env.generated.d.ts && prettier --write src/types/cloudflare-env.generated.d.ts"
   },
   "dependencies": {
+    "@react-three/fiber": "9.8.2",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.119.0",
     "next": "16.4.6",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "three": "0.187.0"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "1.20.17",
     "@next/eslint-plugin-next": "16.4.6",
+    "@opennextjs/cloudflare": "1.20.17",
     "@types/node": "24.10.1",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
+    "@types/three": "0.187.0",
     "eslint": "9.39.1",
     "eslint-config-next": "16.4.6",
     "prettier": "3.6.2",
     "typescript": "5.9.3",
     "vitest": "4.0.18",
     "wrangler": "4.164.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@jridgewell/trace-mapping": "0.3.31"
+    }
   }
 }

@@ -51,11 +51,11 @@ async function loadPageData(props: CollectionPageProps): Promise<CollectionPageR
 export async function generateMetadata(props: CollectionPageProps): Promise<Metadata> {
   const result = await loadPageData(props);
   if (result.status !== "ready" || !result.data) {
-    return { title: "Collection | Lakh Ki Chudhiya" };
+    return { title: "Collection | Lacora" };
   }
 
   return {
-    title: `${result.data.selectedCollection.name} | Lakh Ki Chudhiya`,
+    title: `${result.data.selectedCollection.name} | Lacora`,
     description:
       result.data.selectedCollection.description ||
       `Explore published designs in ${result.data.selectedCollection.name}.`,

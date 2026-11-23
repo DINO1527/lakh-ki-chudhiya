@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Size guide | Lakh Ki Chudhiya",
+  title: "Size guide | Lacora",
   description: "Learn what bangle sizing information to check before ordering.",
 };
 

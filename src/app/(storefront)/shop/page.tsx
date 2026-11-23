@@ -13,7 +13,7 @@ import {
 import { getPublicShopPage } from "@/features/products/server/public-catalogue";
 
 export const metadata: Metadata = {
-  title: "Shop | Lakh Ki Chudhiya",
+  title: "Shop | Lacora",
   description: "Browse published handcrafted lac bangle designs and their available sizes.",
 };
 

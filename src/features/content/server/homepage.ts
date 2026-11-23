@@ -10,9 +10,9 @@ export type HomepageHero = {
 };
 
 export const DEFAULT_HOMEPAGE_HERO: HomepageHero = {
-  eyebrow: "Lac bangles, made by hand",
+  eyebrow: "Lacora · handcrafted lac bangles",
   title: "Colour with a story of its own.",
-  body: "We are preparing a thoughtful collection of handcrafted lac bangles. The pieces, sizes and details will be shared here once they are ready.",
+  body: "A romance in the circles. Discover the warmth, colour and detail of handcrafted lac bangles by Lacora.",
   ctaLabel: "Explore the collection",
   ctaHref: "/shop",
 };

@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CatalogueNotice, UatFixtureNotice } from "@/features/products/components/catalogue-notice";
+import {
+  CatalogueNotice,
+  UatFixtureNotice,
+} from "@/features/products/components/catalogue-notice";
 import { VariantPicker } from "@/features/products/components/variant-picker";
 import { getPublicProductBySlug } from "@/features/products/server/public-catalogue";
 
@@ -11,18 +14,23 @@ type ProductPageProps = {
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: ProductPageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: ProductPageProps): Promise<Metadata> {
   const { slug } = await params;
   const result = await getPublicProductBySlug(slug);
 
   if (result.status !== "ready" || !result.data) {
-    return { title: "Product | Lakh Ki Chudhiya" };
+    return { title: "Product | Lacora" };
   }
 
   return {
-    title: `${result.data.title} | Lakh Ki Chudhiya`,
-    description: result.data.description || `Product details for ${result.data.title}.`,
-    robots: result.data.isUatFixture ? { index: false, follow: false } : undefined,
+    title: `${result.data.title} | Lacora`,
+    description:
+      result.data.description || `Product details for ${result.data.title}.`,
+    robots: result.data.isUatFixture
+      ? { index: false, follow: false }
+      : undefined,
   };
 }
 
@@ -61,12 +69,17 @@ export default async function ProductPage({ params }: ProductPageProps) {
       </nav>
 
       <div className="product-detail">
-        <figure aria-label="Product photograph not available" className="product-detail__media">
+        <figure className="product-detail__media">
           <span>Verified product photography will appear here.</span>
         </figure>
 
-        <section aria-labelledby="product-title" className="product-detail__content">
-          <p className="eyebrow">{product.collections[0]?.name ?? "Handcrafted lac bangles"}</p>
+        <section
+          aria-labelledby="product-title"
+          className="product-detail__content"
+        >
+          <p className="eyebrow">
+            {product.collections[0]?.name ?? "Handcrafted lac bangles"}
+          </p>
           <h1 className="page-heading" id="product-title">
             {product.title}
           </h1>
@@ -80,7 +93,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <div>
               <dt>Sold as</dt>
               <dd>
-                {product.setCount === 1 ? "One sellable unit" : `Set of ${product.setCount} units`}
+                {product.setCount === 1
+                  ? "One sellable unit"
+                  : `Set of ${product.setCount} units`}
               </dd>
             </div>
             {product.material && (
@@ -92,7 +107,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </dl>
 
           {product.variants.length > 0 ? (
-            <VariantPicker isUatFixture={product.isUatFixture} variants={product.variants} />
+            <VariantPicker
+              isUatFixture={product.isUatFixture}
+              variants={product.variants}
+            />
           ) : (
             <p className="product-detail__availability" role="status">
               Available sizes and colours are being confirmed.
@@ -107,7 +125,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
           )}
 
           <p className="product-detail__note">
-            Ordering will open after product details, imagery and business policies are confirmed.
+            Availability is confirmed before fulfilment. Product details are
+            published after they are verified.
           </p>
           <Link className="text-link" href="/size-guide">
             Read the size guide <span aria-hidden="true">→</span>
