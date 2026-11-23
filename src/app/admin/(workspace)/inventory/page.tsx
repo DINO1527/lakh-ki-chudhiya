@@ -80,8 +80,8 @@ export default async function AdminInventoryPage({
         <AdminNotice tone="error">Some inventory data could not be loaded.</AdminNotice>
       ) : null}
       <AdminNotice>
-        Availability is on hand minus reserved. Order reservations and dispatch are not enabled in
-        this stage.
+        Availability is on hand minus reserved. Orders reserve stock when confirmed, dispatch
+        consumes it, and pre-dispatch cancellation releases it. Cart activity never reserves stock.
       </AdminNotice>
 
       <section aria-labelledby="inventory-list-heading" className="admin-panel">

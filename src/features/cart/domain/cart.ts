@@ -63,6 +63,21 @@ export function mergeCartItems(...sources: (readonly CartItem[])[]): CartItem[] 
   return normalizeCartItems(sources.flat());
 }
 
+/**
+ * A signed-in cart in local storage is a cache of the server cart unless it has unsynced edits.
+ * Only guest items are additive; summing the server and cached account snapshots doubles quantities
+ * every time the customer signs in again.
+ */
+export function hydrateCustomerCart(
+  serverItems: readonly CartItem[],
+  cachedAccountItems: readonly CartItem[],
+  guestItems: readonly CartItem[],
+  hasUnsyncedAccountChanges: boolean,
+): CartItem[] {
+  const accountItems = hasUnsyncedAccountChanges ? cachedAccountItems : serverItems;
+  return mergeCartItems(accountItems, guestItems);
+}
+
 export function calculateCartSubtotalMinor(
   items: readonly CartItem[],
   pricesByVariant: ReadonlyMap<string, number>,

@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   CART_STORAGE_KEY,
+  hydrateCustomerCart,
   mergeCartItems,
   normalizeCartItems,
   type CartItem,
@@ -40,14 +41,23 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
   const [hydrated, setHydrated] = useState(false);
   const [syncState, setSyncState] = useState<CartContextValue["syncState"]>("idle");
   const storageKey = customerId ? `${CART_STORAGE_KEY}:${customerId}` : `${CART_STORAGE_KEY}:guest`;
+  const pendingSyncStorageKey = customerId ? `${storageKey}:pending` : null;
   const initialItemsKey = JSON.stringify(initialItems);
 
   useEffect(() => {
     let accountItems: CartItem[] = [];
     let guestItems: CartItem[] = [];
+    let accountItemsExist = false;
+    let hasUnsyncedAccountChanges = false;
     try {
-      accountItems = normalizeCartItems(JSON.parse(localStorage.getItem(storageKey) ?? "[]"));
+      const accountItemsJson = localStorage.getItem(storageKey);
+      accountItemsExist = accountItemsJson !== null;
+      accountItems = normalizeCartItems(JSON.parse(accountItemsJson ?? "[]"));
       if (customerId) {
+        hasUnsyncedAccountChanges =
+          accountItemsExist &&
+          pendingSyncStorageKey !== null &&
+          localStorage.getItem(pendingSyncStorageKey) === "1";
         guestItems = normalizeCartItems(
           JSON.parse(localStorage.getItem(`${CART_STORAGE_KEY}:guest`) ?? "[]"),
         );
@@ -55,21 +65,25 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
     } catch {
       localStorage.removeItem(storageKey);
       localStorage.removeItem(`${CART_STORAGE_KEY}:guest`);
+      if (pendingSyncStorageKey) localStorage.removeItem(pendingSyncStorageKey);
     }
 
     const serverItems = normalizeCartItems(JSON.parse(initialItemsKey));
     const frame = window.requestAnimationFrame(() => {
       setItems(
         customerId
-          ? mergeCartItems(serverItems, accountItems, guestItems)
+          ? hydrateCustomerCart(serverItems, accountItems, guestItems, hasUnsyncedAccountChanges)
           : guestItems.length > 0
             ? guestItems
             : accountItems,
       );
+      if (customerId && guestItems.length > 0 && pendingSyncStorageKey) {
+        localStorage.setItem(pendingSyncStorageKey, "1");
+      }
       setHydrated(true);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [customerId, initialItemsKey, storageKey]);
+  }, [customerId, initialItemsKey, pendingSyncStorageKey, storageKey]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -88,6 +102,7 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
         .then((response) => {
           if (!response.ok) throw new Error("Cart sync failed");
           localStorage.removeItem(`${CART_STORAGE_KEY}:guest`);
+          if (pendingSyncStorageKey) localStorage.removeItem(pendingSyncStorageKey);
           setSyncState("saved");
         })
         .catch(() => {
@@ -99,7 +114,11 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [customerId, hydrated, items, storageKey]);
+  }, [customerId, hydrated, items, pendingSyncStorageKey, storageKey]);
+
+  const markAccountCartPending = useCallback(() => {
+    if (pendingSyncStorageKey) localStorage.setItem(pendingSyncStorageKey, "1");
+  }, [pendingSyncStorageKey]);
 
   const invalidateCheckoutKey = useCallback(() => {
     sessionStorage.removeItem("lakh-checkout-idempotency-v1");
@@ -108,14 +127,16 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
   const addItem = useCallback(
     (variantId: string, quantity = 1) => {
       invalidateCheckoutKey();
+      markAccountCartPending();
       setItems((current) => mergeCartItems(current, [{ variantId, quantity }]));
     },
-    [invalidateCheckoutKey],
+    [invalidateCheckoutKey, markAccountCartPending],
   );
 
   const setQuantity = useCallback(
     (variantId: string, quantity: number) => {
       invalidateCheckoutKey();
+      markAccountCartPending();
       setItems((current) =>
         quantity < 1
           ? current.filter((item) => item.variantId !== variantId)
@@ -124,21 +145,23 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
             ),
       );
     },
-    [invalidateCheckoutKey],
+    [invalidateCheckoutKey, markAccountCartPending],
   );
 
   const removeItem = useCallback(
     (variantId: string) => {
       invalidateCheckoutKey();
+      markAccountCartPending();
       setItems((current) => current.filter((item) => item.variantId !== variantId));
     },
-    [invalidateCheckoutKey],
+    [invalidateCheckoutKey, markAccountCartPending],
   );
 
   const clearCart = useCallback(() => {
     invalidateCheckoutKey();
+    markAccountCartPending();
     setItems([]);
-  }, [invalidateCheckoutKey]);
+  }, [invalidateCheckoutKey, markAccountCartPending]);
 
   const value = useMemo<CartContextValue>(
     () => ({

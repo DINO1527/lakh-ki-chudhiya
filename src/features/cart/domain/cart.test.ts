@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { calculateCartSubtotalMinor, mergeCartItems, normalizeCartItems } from "./cart";
+import {
+  calculateCartSubtotalMinor,
+  hydrateCustomerCart,
+  mergeCartItems,
+  normalizeCartItems,
+} from "./cart";
 
 const variantA = "11111111-1111-4111-8111-111111111111";
 const variantB = "22222222-2222-4222-8222-222222222222";
@@ -30,6 +35,49 @@ describe("cart domain", () => {
       { variantId: variantA, quantity: 99 },
       { variantId: variantB, quantity: 1 },
     ]);
+  });
+
+  it("does not add a synced local account-cart cache to its server copy", () => {
+    expect(
+      hydrateCustomerCart(
+        [{ variantId: variantA, quantity: 2 }],
+        [{ variantId: variantA, quantity: 2 }],
+        [],
+        false,
+      ),
+    ).toEqual([{ variantId: variantA, quantity: 2 }]);
+  });
+
+  it("keeps unsynced account edits and additively merges the guest cart", () => {
+    expect(
+      hydrateCustomerCart(
+        [{ variantId: variantA, quantity: 2 }],
+        [{ variantId: variantA, quantity: 3 }],
+        [
+          { variantId: variantA, quantity: 1 },
+          { variantId: variantB, quantity: 1 },
+        ],
+        true,
+      ),
+    ).toEqual([
+      { variantId: variantA, quantity: 4 },
+      { variantId: variantB, quantity: 1 },
+    ]);
+  });
+
+  it("uses the server cart when the local account cache has no pending edits", () => {
+    expect(
+      hydrateCustomerCart(
+        [{ variantId: variantA, quantity: 3 }],
+        [{ variantId: variantA, quantity: 1 }],
+        [],
+        false,
+      ),
+    ).toEqual([{ variantId: variantA, quantity: 3 }]);
+  });
+
+  it("keeps an unsynced local removal instead of restoring it from the server", () => {
+    expect(hydrateCustomerCart([{ variantId: variantA, quantity: 1 }], [], [], true)).toEqual([]);
   });
 
   it("uses only server-quoted integer prices for subtotal calculations", () => {
