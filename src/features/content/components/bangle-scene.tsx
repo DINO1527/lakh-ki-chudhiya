@@ -342,7 +342,7 @@ function CentreBraid() {
     () => makeRoundedBandGeometry(BRAID_PROFILE.majorRadius, CENTRE_RING_PROFILE),
     [],
   );
-  const braidLayers = useMemo(makeBraidLayers, []);
+  const braidLayers = useMemo(() => makeBraidLayers(), []);
   useEffect(() => () => core.dispose(), [core]);
   useEffect(() => () => braidLayers.forEach((layer) => layer.geometry.dispose()), [braidLayers]);
 
