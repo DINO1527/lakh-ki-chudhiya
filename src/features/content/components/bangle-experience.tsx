@@ -121,14 +121,18 @@ export function BangleExperience() {
   useEffect(() => {
     const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
     const updateMotionPreference = () => setReducedMotion(motionPreference.matches);
-    updateMotionPreference();
+    const motionPreferenceFrame = window.requestAnimationFrame(updateMotionPreference);
+    const webGlCheckFrame = window.requestAnimationFrame(() => setMotionEnabled(canUseWebGL()));
     motionPreference.addEventListener("change", updateMotionPreference);
-    setMotionEnabled(canUseWebGL());
 
     const stage = stageRef.current;
     if (!stage || !("IntersectionObserver" in window)) {
       setVisible(true);
-      return () => motionPreference.removeEventListener("change", updateMotionPreference);
+      return () => {
+        window.cancelAnimationFrame(motionPreferenceFrame);
+        window.cancelAnimationFrame(webGlCheckFrame);
+        motionPreference.removeEventListener("change", updateMotionPreference);
+      };
     }
 
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), {
@@ -138,6 +142,8 @@ export function BangleExperience() {
     observer.observe(stage);
 
     return () => {
+      window.cancelAnimationFrame(motionPreferenceFrame);
+      window.cancelAnimationFrame(webGlCheckFrame);
       observer.disconnect();
       motionPreference.removeEventListener("change", updateMotionPreference);
     };
@@ -146,10 +152,6 @@ export function BangleExperience() {
   const isSceneActive = motionEnabled && visible && !reducedMotion;
   const showScene = isSceneActive && sceneReady;
   const handleSceneReady = useCallback(() => setSceneReady(true), []);
-
-  useEffect(() => {
-    if (!isSceneActive) setSceneReady(false);
-  }, [isSceneActive]);
 
   return (
     <div className="bangle-experience">
