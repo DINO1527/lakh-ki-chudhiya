@@ -3,15 +3,18 @@
 interface __BaseEnv_CloudflareEnv {
   ASSETS: Fetcher;
   APP_ENV?: "uat" | "live";
+  STAGE0_SMOKE_ENABLED: string;
 }
 declare namespace Cloudflare {
   interface UatEnv {
     ASSETS: Fetcher;
     APP_ENV: "uat";
+    STAGE0_SMOKE_ENABLED: string;
   }
   interface LiveEnv {
     ASSETS: Fetcher;
     APP_ENV: "live";
+    STAGE0_SMOKE_ENABLED: string;
   }
   interface Env extends __BaseEnv_CloudflareEnv {}
 }
@@ -20,7 +23,8 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
   [Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-  interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "APP_ENV">> {}
+  interface ProcessEnv
+    extends StringifyValues<Pick<Cloudflare.Env, "APP_ENV" | "STAGE0_SMOKE_ENABLED">> {}
 }
 declare module "*.txt" {
   const value: string;

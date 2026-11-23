@@ -1,6 +1,6 @@
 # Development progress
 
-**Last updated:** 2026-11-22
+**Last updated:** 2026-11-23
 
 **Current milestone:** Stage 2 — admin/catalogue (in progress by owner direction; Stage 0 and Stage 1 exit gates remain incomplete)
 
@@ -16,7 +16,7 @@ The workspace was a documentation and skill kit with no application code and no 
 | -------------------- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0 Foundation         | In progress | Next.js scaffold and OpenNext Worker proof passed historically. The local R2 fixture was removed after the owner changed storage to Supabase. Supabase Auth/Storage RLS and full cache-isolation gates remain. See ADRs 0001 and 0003.                                           |
 | 1 Design/catalogue   | In progress | Public catalogue queries, filters, pagination, product/collection detail pages, and UAT fixture/RLS SQL are implemented. UAT migrations, synthetic fixtures and rollback-only RLS/Storage checks pass. Visual/accessibility acceptance remains, so the exit gate is not yet met. |
-| 2 Admin/catalogue    | In progress | Staff authentication, catalogue authoring, content, inventory adjustment and audit workflows are deployed to UAT and live. First-owner setup and positive authenticated admin checks remain pending.                                                                                                                        |
+| 2 Admin/catalogue    | In progress | Staff authentication, catalogue authoring, content, inventory adjustment and audit workflows are deployed to UAT and live. First-owner setup and positive authenticated admin checks remain pending.                                                                             |
 | 3 Account/cart       | Not started | Stage 1 only.                                                                                                                                                                                                                                                                    |
 | 4 Orders             | Not started | Stage 1 only.                                                                                                                                                                                                                                                                    |
 | 5 Reviews/reports    | Not started | Stage 1 only.                                                                                                                                                                                                                                                                    |
@@ -164,6 +164,64 @@ OpenNext remains the provisional adapter because its Worker build passes and it 
 - UAT and live currently have zero active staff memberships. The admin sign-in and unauthorized access paths can be inspected, but a positive staff workflow requires the owner to bootstrap the first membership using [ADMIN_OPERATIONS.md](ADMIN_OPERATIONS.md). No Storage API upload was attempted because no owner-approved test image was supplied. No local Worker preview was run, per the owner's hosted-inspection preference.
 - Next: bootstrap the first owner membership in each environment, then verify a positive authenticated admin workflow. Stage 0 and Stage 1 visual/accessibility gates remain incomplete; they are not recorded as passed or waived. The owner explicitly requested both environment deployments.
 
+## Customer storefront visual release (2026-11-23)
+
+- Owner requested a customer-homepage redesign using the Lacora burgundy and white palette, responsive navigation, and a slowly auto-rotating bangle hero. The release is limited to the storefront presentation; no database schema, product records, fixtures, checkout, or account workflows changed.
+- UAT: successful workflow run [45160442777](https://github.com/DINO1527/lakh-ki-chudhiya/actions/runs/45160442777) deployed `develop` commit `f4fc127ae186893207f24e71949169f728e133c1`. Worker version `ba04c5e2-d375-4d7c-b780-b3a66364b551` is served at `https://lakh-ki-chudhiya-uat.dinoshan-theiventhiran.workers.dev`.
+- Live: successful verification and deployment workflow run [45165004985](https://github.com/DINO1527/lakh-ki-chudhiya/actions/runs/45165004985) deployed `main` commit `7730e38143d39c4ab762b55f34b19a54953f4a1d`. Worker version `c4834b1a-ee1f-45c9-919f-70f30c3a1d61` is served at `https://lakh-ki-chudhiya-live.dinoshan-theiventhiran.workers.dev`.
+- Post-deploy smoke checks: UAT and live homepage routes returned HTTP 200; each `/api/health/supabase` route returned HTTP 200 with `{"status":"ok","querySucceeded":true}`. The successful GitHub verification job completed before deployment in both environment runs.
+- No customer-uploaded sample image was published as an actual product photo. Catalogue content, prices, and inventory remain unchanged. Visual/accessibility acceptance for Stages 0 and 1 is still outstanding.
+
+## Lac bangle 3D model correction (2026-11-23)
+
+- Rebuilt the hero model as five separate rings with matching inner radii: two smooth ivory spacers, two ruby outer bands with matching fine diagonal ornaments, and a thicker ruby/maroon woven centre with raised crossing strands and surface-following gold/pearl accents. A recessed burgundy backing keeps the weave visually continuous.
+- Kept the slow 42-second 360-degree rotation and added a restrained automatic separation/reassembly cycle for the four spacer/outer rings. The static fallback now mirrors the five-ring order and decorative pattern. Reduced-motion and WebGL fallback behavior remains enabled.
+- No new dependency, database/schema or catalogue change. These local corrections have not been deployed.
+- Focused checks: ESLint on the three changed components passed; targeted strict TypeScript compilation passed; Prettier check passed; `git diff --check` passed (line-ending conversion warnings only). The full `tsc --noEmit` remains blocked by stale `.next/dev/types/validator.ts` entries for routes absent from this live branch; it did not report errors in the changed components. No test suite or Worker build was run.
+- Visual review remains incomplete: the pre-opened `localhost:3000` tab served an older model, and the isolated local preview did not finish refreshing after the final geometry adjustment. Do not treat screenshots from the earlier geometry iteration as final visual acceptance.
+
+## Cinematic homepage and bangle geometry refinement (2026-11-23)
+
+- Applied the owner-supplied Lacora landing specification locally. The storefront keeps its existing burgundy, ivory and gold tokens, and no catalogue, order, database, or checkout content was changed.
+- Rebuilt the centre bangle braid as 24 continuous ruby/maroon strands following only the raised outer shell of the centre ring, with alternating radial over/under crossings and fine gold/ivory surface lines. The center ring has a solid rounded core; its inner radius and the two spacer and outer ring inner radii are all 0.70 scene units. Corrected a custom mesh vertex-stride mismatch that had produced invalid strand indices.
+- Added independent curved entrances for the five rings. The editorial copy stays visually hidden during the 3.2-second assembly and reveals in a staggered sequence afterward; static and reduced-motion fallbacks reveal the copy without waiting for an animation. The assembled stack rotates once every 42 seconds and keeps a restrained separation/rejoin cycle. Animation pauses when the stage is off-screen or the browser tab is hidden.
+- Added a layered burgundy/ivory SVG wave at the hero edge with subtle motion and a reduced-motion override. The 3D canvas remains dynamically imported and capped at 1.25 device pixel ratio. No dependency was added.
+- `pnpm lint`, `pnpm typecheck`, `git diff --check`, and focused Prettier checks on the changed page/components/CSS: PASS. The full `pnpm format:check` reports 25 existing formatting violations in unmodified files; the changed files pass the focused check. No test suite was run.
+- `pnpm cf:build` compiled the Next.js application and completed TypeScript and page generation. OpenNext packaging stopped on Windows with `EPERM` while creating a symlink in `.open-next/middleware`; the earlier sandbox attempt also hit parent-directory access denial. The Worker bundle gate remains unverified.
+- Visual review: local browser preview was checked at 320×780 and 1280×800. The finished 3D stack, open center, burgundy field, ivory wave and post-assembly copy reveal render at both widths. The 320px layout no longer has horizontal overflow, and the assembled bangle clears the fixed mobile navigation. Browser console showed no page errors; Three.js emitted non-fatal Clock and shadow-map deprecation warnings. The local Wrangler development integration also logged an `EPERM` while trying to write under the user AppData folder, but the Next preview remained available.
+- Focused Prettier, full `pnpm lint`, and full `pnpm typecheck`: PASS after the final responsive and intro changes. No test suite or Worker build was run in this visual review. These homepage and geometry changes are local and have not been deployed to UAT or live.
+
+## Full-bleed hero pullback (2026-11-23)
+
+- Reframed the 3D stage to span the complete hero behind the copy. The five rings begin as a centered close-up, draw into a compact stack, then pull back over 5.2 seconds to a right-side desktop position or a centered lower mobile position. The headline and supporting copy reveal in staggered steps from 3.1 seconds while the product is still settling. Slow 42-second rotation and the existing separation/reassembly cycle begin after the landing.
+- Reduced the centre braid profile and strand dimensions so the raised bridal weave stays visually dominant without overwhelming the ivory spacers. The model keeps five independent rings, the shared 0.70 inner radius, and tight spacing. The static poster now opens full-bleed while WebGL loads and moves to the responsive resting position for reduced-motion or no-WebGL use.
+- Preserved the burgundy and ivory hero palette. No new dependencies, photography, product records, or business behavior were added.
+- Visual review at 390×844 and 1440×900 confirmed the enlarged opening, copy appearing during the pullback, a readable five-ring resting stack, and no overlap with the fixed mobile navigation. The portrait document width remained within its 390px viewport. The 1440px desktop stack settled in the right column clear of the copy.
+- `pnpm lint`, `pnpm typecheck`, focused Prettier checks, and `git diff --check`: PASS. No tests, Worker build, or deployment were run for this local visual refinement. UAT and live remain unchanged.
+
+## Homepage spacing and full-width braid refinement (2026-11-23)
+
+- Removed the post-reveal dark panel behind hero copy. Tightened desktop hero, story and welcome spacing while preserving the burgundy and ivory field and the cinematic full-viewport mobile opening.
+- Increased the settled 3D stack size, expanded the centre braid across the full rounded outer profile, and kept its strands and surface accents continuous through 360 degrees. Added a compact-height mobile layout so the settled stack clears the copy and fixed navigation on short phones.
+- Reworked the SVG wave to start and end at the viewport edges with a shallow, continuous contour; the left and right hero edges no longer terminate on a clipped extension.
+- Visual review passed at 1440×900, 390×844, 390×800, 390×700, 319×780 and 319×590. The rotating 3D canvas rendered on desktop and mobile; the compact-phone copy, bangle and bottom navigation do not overlap. Shop, Collections and Size Guide were spot-checked at desktop and mobile widths; none had horizontal overflow. The browser console had no errors. The Size Guide's second information card passes behind the existing fixed mobile navigation in a top-of-page capture; this is the current global navigation behavior.
+- `pnpm lint`: PASS. `pnpm typecheck`: PASS. Focused Prettier check on the changed CSS and components: PASS. `git diff --check`: PASS with existing LF/CRLF conversion notices. Full `pnpm format:check` reports 25 formatting violations in unchanged files after formatting the touched scene component; no unrelated files were changed to address them. No test suite, Worker build, or deployment was run.
+- Changes are local only; UAT and live were not updated. The local Shop and Collections pages show their truthful disconnected-catalogue states because this preview has no catalogue connection.
+
+## Homepage cinematic atmosphere, loader and full-profile braid (2026-11-24)
+
+- Added a generated, product-free burgundy and ivory silk backdrop (`public/brand/lacora-hero-atmosphere.webp`, 49,954 bytes) to unify the hero background behind both copy and the transparent 3D scene. The hero now finishes with a deeper, animated, full-width wave; the story section reuses the backdrop, and the truthful catalogue-ready message now has a branded callout panel.
+- Added the reusable `BangleLoader` for the App Router loading state and the 3D hero. On WebGL-capable browsers the temporary 2D illustration stays hidden while the backdrop image and Three.js scene load; the scene notifies readiness after its ring groups and meshes mount, then starts the cinematic arrival. Unsupported WebGL, reduced motion, and scene errors retain the static fallback.
+- Rebuilt the centre weave to follow the complete rounded torus profile, including inward-facing surface areas, with 32 continuous ruby/maroon strands and depth-based crossings. Thin gold, bright-gold and ivory accents follow the strand surfaces around the full circumference. The five-ring stack and 360-degree motion remain in place.
+- Visual review passed at desktop 1440×900, mobile 390×844 and compact mobile 320×590. The hero backdrop and wave fill the width; the bangle remains clear of the fixed mobile navigation. On the live preview, the loaded scene has one canvas, no temporary poster, and no active loader; document widths were 375px at 390px and 305px at 320px, with no horizontal overflow.
+- `pnpm lint`: PASS. `pnpm typecheck`: PASS. Focused Prettier and `git diff --check`: PASS. No test suite or Worker build was run. This is local work only; UAT and live were not changed.
+
 ## Pending owner inputs
 
 Brand/logo, product photos/models, size chart, LKR prices, inventory, verified WhatsApp number, delivery fees/policies, domain, and dev/prod credentials plus SMTP. No payment gateway merchant access is available. These inputs do not block safe local foundation work.
+
+## Homepage release verification (2026-11-24)
+
+- `pnpm lint`, `pnpm format:check`, `pnpm typecheck`, `pnpm test` (16 tests), `pnpm cf:typegen`, and `pnpm build`: PASS. The repository-wide format check initially found 25 existing formatting violations; those files were formatted and the full gate now passes.
+- `pnpm cf:build`: Next.js compilation passed, but OpenNext could not finish packaging on this Windows host because creating its middleware symlink returned `EPERM`, including after an elevated retry. WSL is unavailable in this environment. The Linux GitHub Actions Worker build remains the authoritative Cloudflare packaging gate.
+- UAT and live deployment are pending the branch CI and environment workflows.
