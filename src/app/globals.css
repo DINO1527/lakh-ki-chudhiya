@@ -1814,11 +1814,12 @@ main {
 
 @media (width <= 48rem) {
   .admin-shell {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .admin-sidebar {
     min-height: auto;
+    min-width: 0;
     gap: 0.8rem;
     padding: 0.8rem 1rem;
   }
@@ -2278,6 +2279,17 @@ main {
     grid-template-columns: minmax(0, 1fr) auto;
   }
   .cart-item__total {
+    text-align: left;
+  }
+  .order-list__item {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+  }
+  .order-list__item h2 a {
+    overflow-wrap: anywhere;
+  }
+  .order-list__amount {
+    overflow-wrap: anywhere;
     text-align: left;
   }
   .admin-order-card__header,
