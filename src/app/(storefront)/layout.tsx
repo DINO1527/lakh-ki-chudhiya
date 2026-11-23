@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/storefront/site-footer";
 import { SiteHeader } from "@/components/storefront/site-header";
+import { MobileNavigation } from "@/components/storefront/mobile-navigation";
 import { CartProvider } from "@/features/cart/components/cart-provider";
 import { createSupabaseServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server";
 
@@ -29,9 +30,12 @@ export default async function StorefrontLayout({ children }: Readonly<{ children
 
   return (
     <CartProvider customerId={customerId} initialItems={initialItems} key={customerId ?? "guest"}>
-      <SiteHeader isSignedIn={customerId !== null} />
-      {children}
-      <SiteFooter />
+      <div className="storefront-shell">
+        <SiteHeader isSignedIn={customerId !== null} />
+        {children}
+        <SiteFooter />
+        <MobileNavigation isSignedIn={customerId !== null} />
+      </div>
     </CartProvider>
   );
 }

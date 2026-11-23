@@ -17,11 +17,11 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   const result = await getPublicProductBySlug(slug);
 
   if (result.status !== "ready" || !result.data) {
-    return { title: "Product | Lakh Ki Chudhiya" };
+    return { title: "Product | Lacora" };
   }
 
   return {
-    title: `${result.data.title} | Lakh Ki Chudhiya`,
+    title: `${result.data.title} | Lacora`,
     description: result.data.description || `Product details for ${result.data.title}.`,
     robots: result.data.isUatFixture ? { index: false, follow: false } : undefined,
   };

@@ -3,7 +3,7 @@ import { setPasswordFromRecovery } from "@/features/customers/server/auth-action
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Choose a new password | Lakh Ki Chudhiya",
+  title: "Choose a new password | Lacora",
   robots: { index: false, follow: false },
 };
 

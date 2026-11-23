@@ -4,7 +4,7 @@ import { registerCustomer } from "@/features/customers/server/auth-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Create an account | Lakh Ki Chudhiya",
+  title: "Create an account | Lacora",
   robots: { index: false, follow: false },
 };
 

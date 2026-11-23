@@ -4,8 +4,9 @@ import { ServiceWorkerRegistration } from "./service-worker-registration";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Lakh Ki Chudhiya",
-  description: "Discover handcrafted lac bangles from Lakh Ki Chudhiya.",
+  title: "Lacora | Handcrafted lac bangles",
+  description:
+    "Discover Lacora: handcrafted lac bangles in expressive colours and timeless circles.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {

@@ -5,7 +5,7 @@ import { CatalogueNotice } from "@/features/products/components/catalogue-notice
 import { getPublicCollections } from "@/features/products/server/public-catalogue";
 
 export const metadata: Metadata = {
-  title: "Collections | Lakh Ki Chudhiya",
+  title: "Collections | Lacora",
   description: "Explore published collections of handcrafted lac bangles.",
 };
 

@@ -4,7 +4,7 @@ import { requestCustomerPasswordReset } from "@/features/customers/server/auth-a
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Reset password | Lakh Ki Chudhiya",
+  title: "Reset password | Lacora",
   robots: { index: false, follow: false },
 };
 

@@ -3,7 +3,7 @@ import { CartPageClient } from "@/features/cart/components/cart-page-client";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Your cart | Lakh Ki Chudhiya",
+  title: "Your bag | Lacora",
   robots: { index: false, follow: false },
 };
 

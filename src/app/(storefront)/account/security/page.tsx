@@ -4,7 +4,7 @@ import { requireCustomer } from "@/features/customers/server/access";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Account security | Lakh Ki Chudhiya",
+  title: "Account security | Lacora",
   robots: { index: false },
 };
 type PageProps = { searchParams: Promise<Record<string, string | string[] | undefined>> };

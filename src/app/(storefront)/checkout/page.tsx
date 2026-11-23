@@ -4,7 +4,7 @@ import { createSupabaseServerClient, isSupabaseServerConfigured } from "@/lib/su
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Checkout | Lakh Ki Chudhiya",
+  title: "Checkout | Lacora",
   robots: { index: false, follow: false },
 };
 

@@ -5,7 +5,7 @@ import { requireCustomer } from "@/features/customers/server/access";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Your orders | Lakh Ki Chudhiya",
+  title: "Your orders | Lacora",
   robots: { index: false },
 };
 

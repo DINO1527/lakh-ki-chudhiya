@@ -6,7 +6,7 @@ import { getOrderSummaryByReference } from "@/features/orders/server/order-summa
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Order details | Lakh Ki Chudhiya",
+  title: "Order details | Lacora",
   robots: { index: false },
 };
 

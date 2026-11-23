@@ -4,7 +4,7 @@ import { signInCustomer } from "@/features/customers/server/auth-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Customer sign in | Lakh Ki Chudhiya",
+  title: "Customer sign in | Lacora",
   robots: { index: false, follow: false },
 };
 

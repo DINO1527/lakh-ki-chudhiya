@@ -114,7 +114,11 @@ await check("manifest and service-worker resources", async () => {
   const manifest = await manifestResponse.json();
   const workerResponse = await fetch(`${baseUrl}/sw.js`);
   const workerScript = await workerResponse.text();
-  if (!manifestResponse.ok || manifest.name !== "Lakh Ki Chudhiya" || !workerResponse.ok) {
+  if (
+    !manifestResponse.ok ||
+    manifest.name !== "Lacora | Handcrafted lac bangles" ||
+    !workerResponse.ok
+  ) {
     throw new Error("manifest or service worker was not served");
   }
   if (
