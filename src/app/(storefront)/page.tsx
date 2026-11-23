@@ -1,8 +1,9 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ProductGrid } from "@/features/products/components/product-card";
 import { getPublicShopPage } from "@/features/products/server/public-catalogue";
 import { getPublishedHomepageHero } from "@/features/content/server/homepage";
-import { BangleExperience } from "@/features/content/components/bangle-experience";
+import { HomeHero } from "@/features/content/components/home-hero";
 import { CollectionCard } from "@/features/collections/components/collection-card";
 
 export const dynamic = "force-dynamic";
@@ -28,35 +29,13 @@ export default async function HomePage() {
 
   return (
     <main className="home-page" id="main-content">
-      <section aria-labelledby="home-title" className="home-hero">
-        <div className="home-hero__copy">
-          <p className="home-hero__eyebrow">
-            <span aria-hidden="true" className="home-hero__eyebrow-line" />
-            {hero.eyebrow}
-          </p>
-          <h1 className="home-hero__title" id="home-title">
-            {hero.title}
-          </h1>
-          <p className="home-hero__description">{hero.body}</p>
-          <div className="home-hero__actions">
-            <Link className="button home-hero__button" href={hero.ctaHref}>
-              {hero.ctaLabel}
-              <span aria-hidden="true">↗</span>
-            </Link>
-            <Link className="home-hero__story-link" href="#our-story">
-              The Lacora story <span aria-hidden="true">↓</span>
-            </Link>
-          </div>
-          <div className="home-hero__footnote">
-            <span aria-hidden="true" className="home-hero__footnote-rule" />
-            Made by hand. Made to feel like you.
-          </div>
-        </div>
-
-        <div className="home-hero__art">
-          <BangleExperience />
-        </div>
-      </section>
+      <HomeHero
+        body={hero.body}
+        ctaHref={hero.ctaHref}
+        ctaLabel={hero.ctaLabel}
+        eyebrow={hero.eyebrow}
+        title={hero.title}
+      />
 
       <section aria-label="The Lacora approach" className="home-values">
         <p className="home-values__intro">The art of wearing colour</p>
@@ -112,13 +91,6 @@ export default async function HomePage() {
       )}
 
       <section aria-labelledby="story-title" className="home-story" id="our-story">
-        <div aria-hidden="true" className="home-story__emblem">
-          <span className="home-story__emblem-ring home-story__emblem-ring--outer" />
-          <span className="home-story__emblem-ring home-story__emblem-ring--middle" />
-          <span className="home-story__emblem-ring home-story__emblem-ring--inner" />
-          <span className="home-story__emblem-mark">L</span>
-          <span className="home-story__emblem-caption">A romance in the circles</span>
-        </div>
         <div className="home-story__copy">
           <p className="eyebrow">A romance in the circles</p>
           <h2 className="section-title" id="story-title">
@@ -131,6 +103,18 @@ export default async function HomePage() {
           <Link className="text-link" href="/collections">
             Explore the colour stories <span aria-hidden="true">→</span>
           </Link>
+        </div>
+        <div aria-hidden="true" className="home-story__visual">
+          <Image
+            alt=""
+            className="home-story__visual-image"
+            fill
+            loading="lazy"
+            sizes="(max-width: 46rem) 100vw, 46vw"
+            src="/brand/lacora-hero-atmosphere.webp"
+            unoptimized
+          />
+          <span className="home-story__visual-caption">A romance in the circles</span>
         </div>
       </section>
 
