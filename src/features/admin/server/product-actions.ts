@@ -229,7 +229,6 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
     storage_path: storagePath,
     alt_text: altText,
     media_type: "image",
-    status: "draft",
   });
 
   if (metadataError) {
