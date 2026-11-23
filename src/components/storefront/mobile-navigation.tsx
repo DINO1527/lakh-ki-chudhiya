@@ -17,9 +17,7 @@ export function MobileNavigation() {
     <nav aria-label="Quick navigation" className="mobile-navigation">
       {navigation.map(({ href, label, icon }) => {
         const isActive =
-          href === "/"
-            ? pathname === "/"
-            : pathname === href || pathname.startsWith(`${href}/`);
+          href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
         return (
           <Link

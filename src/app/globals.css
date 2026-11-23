@@ -2578,16 +2578,8 @@ main {
   overflow: hidden;
   margin-inline: auto;
   background:
-    radial-gradient(
-      ellipse 43% 82% at 77% 48%,
-      rgb(255 249 240 / 11%),
-      transparent 74%
-    ),
-    radial-gradient(
-      ellipse 58% 105% at 8% 112%,
-      rgb(161 59 79 / 25%),
-      transparent 66%
-    ),
+    radial-gradient(ellipse 43% 82% at 77% 48%, rgb(255 249 240 / 11%), transparent 74%),
+    radial-gradient(ellipse 58% 105% at 8% 112%, rgb(161 59 79 / 25%), transparent 66%),
     linear-gradient(112deg, #380713 0%, #580b22 53%, #3e0719 100%);
 }
 

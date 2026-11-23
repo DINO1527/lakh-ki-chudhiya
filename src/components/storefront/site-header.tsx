@@ -28,10 +28,7 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav
-          aria-label="Main navigation"
-          className="site-nav site-nav--desktop"
-        >
+        <nav aria-label="Main navigation" className="site-nav site-nav--desktop">
           {navigation.map(({ href, label }) => (
             <Link className="site-nav__link" href={href} key={href}>
               {label}
@@ -48,10 +45,7 @@ export function SiteHeader() {
             <StorefrontIcon name="search" />
           </Link>
           <details className="mobile-menu">
-            <summary
-              aria-label="Navigation menu"
-              className="icon-link mobile-menu__toggle"
-            >
+            <summary aria-label="Navigation menu" className="icon-link mobile-menu__toggle">
               <span aria-hidden="true" className="mobile-menu__bars" />
             </summary>
             <nav aria-label="Mobile navigation" className="mobile-menu__panel">
