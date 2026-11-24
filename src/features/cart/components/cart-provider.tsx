@@ -14,6 +14,7 @@ import {
   hydrateCustomerCart,
   mergeCartItems,
   normalizeCartItems,
+  replaceCartItem,
   type CartItem,
 } from "../domain/cart";
 
@@ -24,6 +25,7 @@ type CartContextValue = {
   syncState: "idle" | "saving" | "saved" | "error";
   addItem: (variantId: string, quantity?: number) => void;
   setQuantity: (variantId: string, quantity: number) => void;
+  replaceItem: (currentVariantId: string, nextVariantId: string, quantity: number) => void;
   removeItem: (variantId: string) => void;
   clearCart: () => void;
 };
@@ -157,6 +159,15 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
     [invalidateCheckoutKey, markAccountCartPending],
   );
 
+  const replaceItem = useCallback(
+    (currentVariantId: string, nextVariantId: string, quantity: number) => {
+      invalidateCheckoutKey();
+      markAccountCartPending();
+      setItems((current) => replaceCartItem(current, currentVariantId, nextVariantId, quantity));
+    },
+    [invalidateCheckoutKey, markAccountCartPending],
+  );
+
   const clearCart = useCallback(() => {
     invalidateCheckoutKey();
     markAccountCartPending();
@@ -171,10 +182,11 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
       syncState,
       addItem,
       setQuantity,
+      replaceItem,
       removeItem,
       clearCart,
     }),
-    [items, hydrated, syncState, addItem, setQuantity, removeItem, clearCart],
+    [items, hydrated, syncState, addItem, setQuantity, replaceItem, removeItem, clearCart],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

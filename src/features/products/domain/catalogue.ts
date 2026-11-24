@@ -23,6 +23,17 @@ export type PublicImage = {
   sortOrder: number;
 };
 
+export type PublicStorefrontOffer = {
+  id: string;
+  name: string;
+  targetType: "product" | "collection";
+  targetName: string;
+  targetSlug: string;
+  minimumSets: number;
+  discountBasisPoints: number;
+  endsAt: string | null;
+};
+
 export type PublicCollection = {
   id: string;
   slug: string;
@@ -44,10 +55,25 @@ export type PublicProduct = {
   deliveryFeeMinor: number | null;
   sortOrder: number;
   images: readonly PublicImage[];
+  offers: readonly PublicStorefrontOffer[];
   collections: readonly PublicCollection[];
   variants: readonly ProductVariant[];
   isUatFixture: boolean;
 };
+
+export function describeOfferTerms(offer: PublicStorefrontOffer): string {
+  const percentage = offer.discountBasisPoints / 100;
+  const discount = Number.isInteger(percentage)
+    ? String(percentage)
+    : percentage.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+  const setLabel = offer.minimumSets === 1 ? "complete set" : "complete sets";
+  const target =
+    offer.targetType === "product"
+      ? `of ${offer.targetName}`
+      : `from the ${offer.targetName} collection`;
+
+  return `Save ${discount}% when you buy ${offer.minimumSets} or more ${setLabel} ${target}.`;
+}
 
 export function normalizeCatalogueFilters(searchParams: CatalogueSearchParams): CatalogueFilters {
   const rawSearch = firstValue(searchParams.q)

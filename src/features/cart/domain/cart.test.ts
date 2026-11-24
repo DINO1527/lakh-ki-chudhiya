@@ -4,6 +4,7 @@ import {
   hydrateCustomerCart,
   mergeCartItems,
   normalizeCartItems,
+  replaceCartItem,
 } from "./cart";
 
 const variantA = "11111111-1111-4111-8111-111111111111";
@@ -35,6 +36,26 @@ describe("cart domain", () => {
       { variantId: variantA, quantity: 99 },
       { variantId: variantB, quantity: 1 },
     ]);
+  });
+
+  it("replaces a cart selection and merges its quantity into an existing size", () => {
+    expect(
+      replaceCartItem(
+        [
+          { variantId: variantA, quantity: 2 },
+          { variantId: variantB, quantity: 3 },
+        ],
+        variantA,
+        variantB,
+        4,
+      ),
+    ).toEqual([{ variantId: variantB, quantity: 7 }]);
+  });
+
+  it("keeps the existing cart unchanged when an edit is invalid", () => {
+    const items = [{ variantId: variantA, quantity: 2 }];
+    expect(replaceCartItem(items, variantA, variantB, 0)).toEqual(items);
+    expect(replaceCartItem(items, variantB, variantA, 1)).toEqual(items);
   });
 
   it("does not add a synced local account-cart cache to its server copy", () => {

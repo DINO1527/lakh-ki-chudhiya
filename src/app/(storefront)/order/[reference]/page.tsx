@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { CommerceSteps } from "@/features/cart/components/commerce-steps";
 import { formatLkrPrice } from "@/features/products/domain/product-variant";
 import { CopyOrderReference } from "@/features/orders/components/copy-order-reference";
+import { OrderProgress } from "@/features/orders/components/order-progress";
 import { getOrderSummaryByReference } from "@/features/orders/server/order-summary";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +20,7 @@ export default async function OrderPage({ params }: PageProps) {
   if (result.status === "not_found") notFound();
   if (result.status === "error") {
     return (
-      <main className="page-shell account-page" id="main-content">
+      <main className="page-shell order-page" id="main-content">
         <p className="eyebrow">Order</p>
         <h1 className="page-heading">Order details unavailable</h1>
         <p role="alert">
@@ -30,20 +32,37 @@ export default async function OrderPage({ params }: PageProps) {
   const order = result.order;
 
   return (
-    <main className="page-shell account-page" id="main-content">
+    <main className="page-shell order-page" id="main-content">
       <p className="eyebrow">Order saved</p>
       <h1 className="page-heading">Thank you, {order.customer_name}</h1>
       <p className="page-intro">
         Your order and price were saved. Stock is reserved only after staff confirm the order.
       </p>
+      <CommerceSteps current="saved" />
       <section aria-labelledby="order-status-heading" className="order-confirmation">
-        <h2 id="order-status-heading">Order status</h2>
-        <p className="order-status-badge">{formatStatus(order.status)}</p>
-        <p>
-          Payment: {formatStatus(order.payment_status)} ·{" "}
-          {order.payment_method === "cod" ? "Cash on delivery" : "Arrange after confirmation"}
-        </p>
+        <div className="order-confirmation__heading">
+          <div>
+            <p className="eyebrow">Order reference</p>
+            <h2 id="order-status-heading">{order.reference}</h2>
+          </div>
+          <span className="order-status-badge" data-status={order.status}>
+            {formatStatus(order.status)}
+          </span>
+        </div>
         <CopyOrderReference reference={order.reference} />
+        <OrderProgress status={order.status} />
+        <div className="order-confirmation__facts">
+          <p>
+            <span>Payment</span>
+            <strong>{formatStatus(order.payment_status)}</strong>
+          </p>
+          <p>
+            <span>Method</span>
+            <strong>
+              {order.payment_method === "cod" ? "Cash on delivery" : "Arrange after confirmation"}
+            </strong>
+          </p>
+        </div>
       </section>
 
       <section aria-labelledby="order-items-heading" className="order-detail-section">

@@ -1,3 +1,6 @@
+import type { PublicImage } from "@/features/products/domain/catalogue";
+import type { ProductVariant } from "@/features/products/domain/product-variant";
+
 export const CART_STORAGE_KEY = "lakh-ki-chudhiya-cart-v1";
 export const CART_ITEM_LIMIT = 20;
 export const CART_QUANTITY_LIMIT = 99;
@@ -17,6 +20,15 @@ export type CartQuoteItem = {
   quantity: number;
   line_total_minor: number;
   quantity_available: boolean;
+  product_preview?: CartProductPreview;
+};
+
+export type CartProductPreview = {
+  slug: string;
+  setCount: number;
+  isUatFixture: boolean;
+  images: readonly PublicImage[];
+  variants: readonly ProductVariant[];
 };
 
 export type CartQuote = {
@@ -73,6 +85,29 @@ export function normalizeCartItems(value: unknown): CartItem[] {
 
 export function mergeCartItems(...sources: (readonly CartItem[])[]): CartItem[] {
   return normalizeCartItems(sources.flat());
+}
+
+export function replaceCartItem(
+  items: readonly CartItem[],
+  currentVariantId: string,
+  nextVariantId: string,
+  quantity: number,
+): CartItem[] {
+  if (
+    !UUID_PATTERN.test(currentVariantId) ||
+    !UUID_PATTERN.test(nextVariantId) ||
+    !Number.isSafeInteger(quantity) ||
+    quantity < 1 ||
+    quantity > CART_QUANTITY_LIMIT ||
+    !items.some((item) => item.variantId === currentVariantId)
+  ) {
+    return normalizeCartItems(items);
+  }
+
+  return mergeCartItems(
+    items.filter((item) => item.variantId !== currentVariantId),
+    [{ variantId: nextVariantId, quantity }],
+  );
 }
 
 /**

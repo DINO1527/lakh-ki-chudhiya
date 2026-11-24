@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CatalogueNotice, UatFixtureNotice } from "@/features/products/components/catalogue-notice";
 import { ProductGallery } from "@/features/products/components/product-gallery";
+import { StorefrontOfferList } from "@/features/products/components/storefront-offers";
 import { VariantPicker } from "@/features/products/components/variant-picker";
 import { formatLkrPrice } from "@/features/products/domain/product-variant";
 import { getPublicProductBySlug } from "@/features/products/server/public-catalogue";
@@ -102,6 +103,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
               </div>
             )}
           </dl>
+
+          <StorefrontOfferList compact offers={product.offers} />
 
           {product.variants.length > 0 ? (
             <VariantPicker isUatFixture={product.isUatFixture} variants={product.variants} />

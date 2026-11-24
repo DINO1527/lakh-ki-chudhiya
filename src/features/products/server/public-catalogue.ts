@@ -8,6 +8,7 @@ import {
   type PublicCollection,
   type PublicImage,
   type PublicProduct,
+  type PublicStorefrontOffer,
 } from "../domain/catalogue";
 import type { ProductVariant } from "../domain/product-variant";
 
@@ -65,9 +66,14 @@ export type PublicShopPage = {
   filters: CatalogueFilters;
   totalCount: number;
   totalPages: number;
+  offers: readonly PublicStorefrontOffer[];
 };
 
+type ActiveOfferRow =
+  Database["public"]["Functions"]["get_active_storefront_offers"]["Returns"][number];
+
 const UAT_FIXTURE_COLLECTION = "uat-fixtures-not-for-sale";
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const COLLECTION_QUERY_LIMIT = 1_000;
 const MAX_PRODUCTS_PER_COLLECTION = 5_000;
 const MAX_VARIANT_FILTER_ROWS = 1_000;
@@ -100,6 +106,7 @@ export async function getPublicCollections(): Promise<
   const mediaResult = await loadCollectionImages(
     supabase,
     rows.map((row) => row.id),
+    1,
   );
   if (mediaResult.status === "error") return { status: "error" };
   const imagesByCollectionId = mediaResult.data;
@@ -144,7 +151,7 @@ export async function getPublicShopPage(
   if (!isSupabaseServerConfigured()) return { status: "unconfigured" };
 
   const supabase = await createSupabaseServerClient();
-  const [collectionsResult, filterOptionsResult] = await Promise.all([
+  const [collectionsResult, filterOptionsResult, offersResult] = await Promise.all([
     supabase
       .from("collections")
       .select(COLLECTION_SELECT, { count: "exact" })
@@ -158,21 +165,34 @@ export async function getPublicShopPage(
       .eq("is_available", true)
       .order("size_code", { ascending: true, nullsFirst: true })
       .limit(FILTER_OPTION_QUERY_LIMIT),
+    supabase.rpc("get_active_storefront_offers", { p_limit: 12 }),
   ]);
 
   if (
     collectionsResult.error ||
     (collectionsResult.count ?? 0) > COLLECTION_QUERY_LIMIT ||
     filterOptionsResult.error ||
-    (filterOptionsResult.count ?? 0) > FILTER_OPTION_QUERY_LIMIT
+    (filterOptionsResult.count ?? 0) > FILTER_OPTION_QUERY_LIMIT ||
+    offersResult.error
   ) {
     return { status: "error" };
   }
 
-  const collections = (collectionsResult.data ?? []).map(toPublicCollection);
+  const collectionRows = collectionsResult.data ?? [];
+  const collectionMediaResult = await loadCollectionImages(
+    supabase,
+    collectionRows.map((row) => row.id),
+    1,
+  );
+  if (collectionMediaResult.status === "error") return { status: "error" };
+  const collections = collectionRows.map((row) => ({
+    ...toPublicCollection(row),
+    images: collectionMediaResult.data.get(row.id) ?? [],
+  }));
   const filterOptions: CatalogueFilterOptions = {
     sizeCodes: uniqueSorted((filterOptionsResult.data ?? []).flatMap((row) => row.size_code ?? [])),
   };
+  const offers = (offersResult.data ?? []).map(toPublicStorefrontOffer);
   const selectedCollection = filters.collectionSlug
     ? (collections.find((collection) => collection.slug === filters.collectionSlug) ?? null)
     : null;
@@ -188,6 +208,7 @@ export async function getPublicShopPage(
         filters,
         totalCount: 0,
         totalPages: 1,
+        offers,
       },
     };
   }
@@ -214,6 +235,7 @@ export async function getPublicShopPage(
           filters,
           totalCount: 0,
           totalPages: 1,
+          offers,
         },
       };
     }
@@ -246,6 +268,7 @@ export async function getPublicShopPage(
           filters,
           totalCount: 0,
           totalPages: 1,
+          offers,
         },
       };
     }
@@ -270,7 +293,7 @@ export async function getPublicShopPage(
   if (error) return { status: "error" };
 
   const rows = (productData ?? []) as ProductRow[];
-  const productsResult = await loadPublicProducts(supabase, rows);
+  const productsResult = await loadPublicProducts(supabase, rows, offers, 1);
   if (productsResult.status === "error") return productsResult;
 
   const totalCount = count ?? 0;
@@ -284,6 +307,7 @@ export async function getPublicShopPage(
       filters,
       totalCount,
       totalPages: Math.max(1, Math.ceil(totalCount / PRODUCTS_PER_PAGE)),
+      offers,
     },
   };
 }
@@ -307,19 +331,49 @@ export async function getPublicProductBySlug(
   if (error) return { status: "error" };
   if (!data) return { status: "ready", data: null };
 
-  const productsResult = await loadPublicProducts(supabase, [data as ProductRow]);
+  const offersResult = await supabase.rpc("get_active_storefront_offers", { p_limit: 12 });
+  if (offersResult.error) return { status: "error" };
+
+  const offers = (offersResult.data ?? []).map(toPublicStorefrontOffer);
+  const productsResult = await loadPublicProducts(supabase, [data as ProductRow], offers);
   if (productsResult.status === "error") return productsResult;
 
   return { status: "ready", data: productsResult.data[0] ?? null };
 }
 
+export async function getPublicProductsByIds(
+  productIds: readonly string[],
+): Promise<PublicQueryResult<readonly PublicProduct[]>> {
+  if (!isSupabaseServerConfigured()) return { status: "unconfigured" };
+  const ids = [...new Set(productIds.filter((id) => UUID_PATTERN.test(id)))].slice(0, 20);
+  if (ids.length === 0) return { status: "ready", data: [] };
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error, count } = await supabase
+    .from("products")
+    .select(PRODUCT_SELECT, { count: "exact" })
+    .in("id", ids)
+    .eq("status", "published")
+    .limit(ids.length);
+
+  if (error || (count ?? 0) > ids.length) return { status: "error" };
+  const productsResult = await loadPublicProducts(supabase, (data ?? []) as ProductRow[], [], 1);
+  return productsResult.status === "ready" ? productsResult : { status: "error" };
+}
+
 async function loadPublicProducts(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   rows: readonly ProductRow[],
+  offers: readonly PublicStorefrontOffer[] = [],
+  imagesPerProduct = PRODUCT_IMAGES_PER_PRODUCT,
 ): Promise<PublicProductLoadResult> {
   if (rows.length === 0) return { status: "ready", data: [] };
 
   const productIds = rows.map((row) => row.id);
+  const mediaLimit = Math.min(
+    PUBLIC_MEDIA_QUERY_LIMIT,
+    productIds.length * PRODUCT_IMAGES_PER_PRODUCT,
+  );
   const [variantsResult, linksResult, mediaResult] = await Promise.all([
     supabase
       .from("product_variants")
@@ -341,7 +395,7 @@ async function loadPublicProducts(
       .order("product_id", { ascending: true })
       .order("sort_order", { ascending: true })
       .order("id", { ascending: true })
-      .limit(Math.min(PUBLIC_MEDIA_QUERY_LIMIT, productIds.length * PRODUCT_IMAGES_PER_PRODUCT)),
+      .limit(mediaLimit),
   ]);
 
   if (
@@ -350,13 +404,16 @@ async function loadPublicProducts(
     mediaResult.error ||
     (variantsResult.count ?? 0) > 1_000 ||
     (linksResult.count ?? 0) > 1_000 ||
-    (mediaResult.count ?? 0) >
-      Math.min(PUBLIC_MEDIA_QUERY_LIMIT, productIds.length * PRODUCT_IMAGES_PER_PRODUCT)
+    (mediaResult.count ?? 0) > mediaLimit
   ) {
     return { status: "error" };
   }
 
-  const mediaRows = (mediaResult.data ?? []) as PublicMediaRow[];
+  const mediaRows = takeMediaPerOwner(
+    (mediaResult.data ?? []) as PublicMediaRow[],
+    (row) => row.product_id,
+    imagesPerProduct,
+  );
   const signedImages = await signPublicImages(supabase, mediaRows);
   if (!signedImages) return { status: "error" };
   const mediaById = new Map(mediaRows.map((row) => [row.id, row]));
@@ -433,11 +490,30 @@ async function loadPublicProducts(
         deliveryFeeMinor: row.delivery_fee_minor,
         sortOrder: row.sort_order,
         images: imagesByProductId.get(row.id) ?? [],
+        offers: offers.filter(
+          (offer) =>
+            (offer.targetType === "product" && offer.targetSlug === row.slug) ||
+            (offer.targetType === "collection" &&
+              productCollections.some((collection) => collection.slug === offer.targetSlug)),
+        ),
         collections: productCollections,
         variants: variantsByProductId.get(row.id) ?? [],
         isUatFixture,
       };
     }),
+  };
+}
+
+function toPublicStorefrontOffer(row: ActiveOfferRow): PublicStorefrontOffer {
+  return {
+    id: row.id,
+    name: row.name,
+    targetType: row.target_type === "collection" ? "collection" : "product",
+    targetName: row.target_name,
+    targetSlug: row.target_slug,
+    minimumSets: row.minimum_sets,
+    discountBasisPoints: row.discount_basis_points,
+    endsAt: row.ends_at,
   };
 }
 
@@ -456,9 +532,10 @@ function toPublicCollection(row: CollectionRow): PublicCollection {
 async function loadCollectionImages(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   collectionIds: readonly string[],
+  imagesPerCollection = COLLECTION_IMAGES_PER_COLLECTION,
 ): Promise<{ status: "ready"; data: Map<string, PublicImage[]> } | { status: "error" }> {
   if (collectionIds.length === 0) return { status: "ready", data: new Map() };
-  const limit = Math.min(
+  const mediaLimit = Math.min(
     PUBLIC_MEDIA_QUERY_LIMIT,
     collectionIds.length * COLLECTION_IMAGES_PER_COLLECTION,
   );
@@ -470,10 +547,14 @@ async function loadCollectionImages(
     .order("collection_id", { ascending: true })
     .order("sort_order", { ascending: true })
     .order("id", { ascending: true })
-    .limit(limit);
-  if (error || (count ?? 0) > limit) return { status: "error" };
+    .limit(mediaLimit);
+  if (error || (count ?? 0) > mediaLimit) return { status: "error" };
 
-  const rows = (data ?? []) as PublicMediaRow[];
+  const rows = takeMediaPerOwner(
+    (data ?? []) as PublicMediaRow[],
+    (row) => row.collection_id,
+    imagesPerCollection,
+  );
   const images = await signPublicImages(supabase, rows);
   if (!images) return { status: "error" };
   const imagesById = new Map(images.map((image) => [image.id, image]));
@@ -487,6 +568,23 @@ async function loadCollectionImages(
     grouped.set(row.collection_id, current);
   }
   return { status: "ready", data: grouped };
+}
+
+function takeMediaPerOwner(
+  rows: readonly PublicMediaRow[],
+  getOwnerId: (row: PublicMediaRow) => string | undefined,
+  limitPerOwner: number,
+): PublicMediaRow[] {
+  const counts = new Map<string, number>();
+
+  return rows.filter((row) => {
+    const ownerId = getOwnerId(row);
+    if (!ownerId) return false;
+    const count = counts.get(ownerId) ?? 0;
+    if (count >= limitPerOwner) return false;
+    counts.set(ownerId, count + 1);
+    return true;
+  });
 }
 
 async function signPublicImages(

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CommerceSteps } from "@/features/cart/components/commerce-steps";
 import { CheckoutForm } from "@/features/orders/components/checkout-form";
 import { createSupabaseServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server";
 
@@ -17,13 +18,14 @@ export default async function CheckoutPage() {
   }
 
   return (
-    <main className="page-shell account-page" id="main-content">
+    <main className="page-shell checkout-page" id="main-content">
       <p className="eyebrow">WhatsApp-assisted order</p>
       <h1 className="page-heading">Checkout</h1>
       <p className="page-intro">
         Review the current offer, delivery fee and payment choices. Stock is reserved only when
         staff confirm your order.
       </p>
+      <CommerceSteps current="delivery" />
       <CheckoutForm isSignedIn={isSignedIn} />
     </main>
   );

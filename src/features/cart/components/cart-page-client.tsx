@@ -1,13 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { formatLkrPrice } from "@/features/products/domain/product-variant";
 import type { CartQuote } from "../domain/cart";
 import { useCart } from "./cart-provider";
+import { ProductSelectionDialog } from "./product-selection-dialog";
 
 export function CartPageClient() {
-  const { items, hydrated, syncState, setQuantity, removeItem } = useCart();
+  const { items, hydrated, syncState, removeItem } = useCart();
   const itemsKey = JSON.stringify(items);
   const [refreshAttempt, setRefreshAttempt] = useState(0);
   const [quoteState, setQuoteState] = useState<{
@@ -72,44 +74,85 @@ export function CartPageClient() {
       <section aria-label="Cart items" className="cart-list">
         {items.map((item) => {
           const quotedItem = quoteByVariant.get(item.variantId);
+          const preview = quotedItem?.product_preview;
           return (
             <article className="cart-item" key={item.variantId}>
-              <div className="cart-item__details">
-                <h2>{quotedItem?.product_title ?? "Refreshing item details…"}</h2>
-                <p>{quotedItem?.variant_label ?? "Selected size"}</p>
-                {quotedItem && (
-                  <p className="cart-item__price">
-                    {formatLkrPrice(quotedItem.unit_price_minor)} per complete set
-                    {quotedItem.set_count ? ` of ${quotedItem.set_count} bangles` : ""}
-                  </p>
+              <div className="cart-item__product">
+                {preview ? (
+                  <Link
+                    aria-label={`View ${quotedItem?.product_title ?? "design"}`}
+                    className="cart-item__thumbnail"
+                    href={`/products/${preview.slug}`}
+                  >
+                    {preview.images[0] ? (
+                      <Image
+                        alt={preview.images[0].altText}
+                        height={240}
+                        src={preview.images[0].url}
+                        unoptimized
+                        width={240}
+                      />
+                    ) : (
+                      <span
+                        aria-label="Product photo not available"
+                        className="cart-item__thumbnail-placeholder"
+                      >
+                        L
+                      </span>
+                    )}
+                  </Link>
+                ) : (
+                  <span aria-hidden="true" className="cart-item__thumbnail-placeholder">
+                    L
+                  </span>
                 )}
-                {quotedItem && !quotedItem.quantity_available && (
-                  <p className="form-message form-message--error" role="status">
-                    This quantity is not currently available. Reduce it or remove this item.
-                  </p>
-                )}
+                <div className="cart-item__details">
+                  <h2>
+                    {preview ? (
+                      <Link href={`/products/${preview.slug}`}>
+                        {quotedItem?.product_title ?? "Refreshing item details…"}
+                      </Link>
+                    ) : (
+                      (quotedItem?.product_title ?? "Refreshing item details…")
+                    )}
+                  </h2>
+                  <p>{quotedItem?.variant_label ?? "Selected size"}</p>
+                  {quotedItem && (
+                    <p className="cart-item__price">
+                      {formatLkrPrice(quotedItem.unit_price_minor)} per complete set
+                      {quotedItem.set_count ? ` of ${quotedItem.set_count} bangles` : ""}
+                    </p>
+                  )}
+                  {preview && !preview.isUatFixture && quotedItem && (
+                    <ProductSelectionDialog
+                      currentVariantId={item.variantId}
+                      initialQuantity={item.quantity}
+                      mode="edit"
+                      product={{
+                        slug: preview.slug,
+                        title: quotedItem.product_title,
+                        setCount: preview.setCount,
+                        isUatFixture: preview.isUatFixture,
+                        image: preview.images[0] ?? null,
+                        variants: preview.variants,
+                      }}
+                    />
+                  )}
+                  {quotedItem && !quotedItem.quantity_available && (
+                    <p className="form-message form-message--error" role="status">
+                      This quantity is not currently available. Reduce it or remove this item.
+                    </p>
+                  )}
+                </div>
               </div>
-              <label className="cart-item__quantity">
-                Complete sets
-                <input
-                  aria-label={`Quantity for ${quotedItem?.product_title ?? "cart item"}`}
-                  max={99}
-                  min={1}
-                  onChange={(event) =>
-                    setQuantity(
-                      item.variantId,
-                      Math.min(99, Math.max(1, Number(event.target.value))),
-                    )
-                  }
-                  type="number"
-                  value={item.quantity}
-                />
-              </label>
+              <p className="cart-item__quantity">
+                {item.quantity} complete {item.quantity === 1 ? "set" : "sets"}
+              </p>
               <div className="cart-item__total">
                 {quotedItem ? formatLkrPrice(quotedItem.line_total_minor) : "—"}
               </div>
               <button
-                className="text-button"
+                className="text-button cart-item__remove"
                 onClick={() => removeItem(item.variantId)}
                 type="button"
               >

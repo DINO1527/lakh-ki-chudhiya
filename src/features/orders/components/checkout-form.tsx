@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import { useCart } from "@/features/cart/components/cart-provider";
@@ -288,9 +289,28 @@ export function CheckoutForm({ isSignedIn }: { isSignedIn: boolean }) {
           </p>
         )}
         {quote?.items.map((item) => (
-          <div className="cart-summary__line" key={item.variant_id}>
-            <span>
-              {item.product_title} · size {item.variant_label} · {item.quantity} complete sets
+          <div className="checkout-summary-item" key={item.variant_id}>
+            {item.product_preview?.images[0] ? (
+              <Image
+                alt={item.product_preview.images[0].altText}
+                className="checkout-summary-item__image"
+                height={160}
+                src={item.product_preview.images[0].url}
+                unoptimized
+                width={160}
+              />
+            ) : (
+              <span aria-hidden="true" className="checkout-summary-item__placeholder">
+                L
+              </span>
+            )}
+            <span className="checkout-summary-item__description">
+              <strong>{item.product_title}</strong>
+              <small>
+                Size {item.variant_label} · {item.quantity} complete{" "}
+                {item.quantity === 1 ? "set" : "sets"}
+                {item.set_count ? ` of ${item.set_count} bangles` : ""}
+              </small>
             </span>
             <strong>{formatLkrPrice(item.line_total_minor)}</strong>
           </div>

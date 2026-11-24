@@ -21,9 +21,19 @@ export default async function AccountOrdersPage() {
     .limit(50);
 
   return (
-    <main className="page-shell account-page" id="main-content">
-      <p className="eyebrow">Customer account</p>
-      <h1 className="page-heading">Your orders</h1>
+    <main className="page-shell orders-page" id="main-content">
+      <div className="order-history-heading">
+        <div>
+          <p className="eyebrow">Your Lacora account</p>
+          <h1 className="page-heading">Order history</h1>
+          <p className="page-intro">
+            Follow each order and review its saved payment and delivery details.
+          </p>
+        </div>
+        <Link className="button button--quiet" href="/shop">
+          Continue shopping
+        </Link>
+      </div>
       {error ? (
         <p className="form-message form-message--error" role="alert">
           Order history could not be loaded.
@@ -31,32 +41,51 @@ export default async function AccountOrdersPage() {
       ) : orders && orders.length > 0 ? (
         <div className="order-list">
           {orders.map((order) => (
-            <article className="order-list__item" key={order.id}>
-              <div>
-                <h2>
-                  <Link href={`/order/${order.reference}`}>{order.reference}</Link>
-                </h2>
-                <p>
-                  {formatStatus(order.status)} · {formatDate(order.created_at)}
-                </p>
+            <article className="order-history-card" key={order.id}>
+              <div className="order-history-card__heading">
+                <div>
+                  <p className="eyebrow">Order reference</p>
+                  <h2>
+                    <Link href={`/order/${order.reference}`}>{order.reference}</Link>
+                  </h2>
+                  <p>Placed {formatDate(order.created_at)}</p>
+                </div>
+                <span className="order-status-badge" data-status={order.status}>
+                  {formatStatus(order.status)}
+                </span>
               </div>
-              <div className="order-list__amount">
-                {order.total_minor === null
-                  ? `${formatLkrPrice(order.subtotal_minor)} + delivery to be confirmed`
-                  : formatLkrPrice(order.total_minor)}
-                <span>{order.payment_status === "unpaid" ? "Unpaid" : order.payment_status}</span>
+              <div className="order-history-card__footer">
+                <p>
+                  <span>Order total</span>
+                  <strong>
+                    {order.total_minor === null
+                      ? `${formatLkrPrice(order.subtotal_minor)} · delivery to be confirmed`
+                      : formatLkrPrice(order.total_minor)}
+                  </strong>
+                </p>
+                <p>
+                  <span>Payment</span>
+                  <strong>{formatStatus(order.payment_status)}</strong>
+                </p>
+                <Link className="button button--primary" href={`/order/${order.reference}`}>
+                  View order <span aria-hidden="true">→</span>
+                </Link>
               </div>
             </article>
           ))}
         </div>
       ) : (
-        <p className="form-message">
-          No orders yet. Your order history will appear here after checkout.
-        </p>
+        <section className="cart-empty">
+          <span aria-hidden="true" className="cart-empty__mark">
+            L
+          </span>
+          <h2>No orders yet</h2>
+          <p>Your order history will appear here after you save an order.</p>
+          <Link className="button button--primary" href="/shop">
+            Explore the shop
+          </Link>
+        </section>
       )}
-      <Link className="text-link" href="/shop">
-        Continue shopping
-      </Link>
     </main>
   );
 }
