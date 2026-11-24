@@ -1,6 +1,11 @@
 import type { ProductVariant } from "./product-variant";
 
 export const PRODUCTS_PER_PAGE = 12;
+export const UAT_FIXTURE_SLUG_PREFIX = "uat-";
+
+export function isUatFixtureSlug(slug: string): boolean {
+  return slug.startsWith(UAT_FIXTURE_SLUG_PREFIX);
+}
 
 export type CatalogueSearchParams = Record<string, string | string[] | undefined>;
 

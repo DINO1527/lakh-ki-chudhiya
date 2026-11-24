@@ -1,10 +1,40 @@
 // Keep in sync with the checked-in catalogue migration. Replace with
 // `supabase gen types typescript` output when the approved CLI is available.
-type TableDefinition<Row, Insert = Partial<Row>, Update = Partial<Row>> = {
+type RelationshipDefinition = {
+  foreignKeyName: string;
+  columns: string[];
+  isOneToOne: boolean;
+  referencedRelation: string;
+  referencedColumns: string[];
+};
+
+type ProductVariantTableRow = {
+  id: string;
+  product_id: string;
+  sku: string;
+  size_code: string | null;
+  inner_diameter_mm: number | null;
+  colour_name: string | null;
+  price_minor: number;
+  compare_at_price_minor: number | null;
+  stock_on_hand: number;
+  reserved_quantity: number;
+  is_active: boolean;
+  is_available: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+type TableDefinition<
+  Row,
+  Insert = Partial<Row>,
+  Update = Partial<Row>,
+  Relationships extends RelationshipDefinition[] = [],
+> = {
   Row: Row;
   Insert: Insert;
   Update: Update;
-  Relationships: [];
+  Relationships: Relationships;
 };
 
 type CollectionStatus = "draft" | "published" | "archived";
@@ -72,22 +102,20 @@ export type Database = {
         collection_id: string;
         created_at: string;
       }>;
-      product_variants: TableDefinition<{
-        id: string;
-        product_id: string;
-        sku: string;
-        size_code: string | null;
-        inner_diameter_mm: number | null;
-        colour_name: string | null;
-        price_minor: number;
-        compare_at_price_minor: number | null;
-        stock_on_hand: number;
-        reserved_quantity: number;
-        is_active: boolean;
-        is_available: boolean;
-        created_at: string;
-        updated_at: string;
-      }>;
+      product_variants: TableDefinition<
+        ProductVariantTableRow,
+        Partial<ProductVariantTableRow>,
+        Partial<ProductVariantTableRow>,
+        [
+          {
+            foreignKeyName: "product_variants_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ]
+      >;
       product_media: TableDefinition<{
         id: string;
         product_id: string;

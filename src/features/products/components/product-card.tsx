@@ -105,9 +105,15 @@ export function ProductCard({ product }: { product: PublicProduct }) {
   );
 }
 
-export function ProductGrid({ products }: { products: readonly PublicProduct[] }) {
+export function ProductGrid({
+  products,
+  ariaLabel = "Bangle catalogue",
+}: {
+  products: readonly PublicProduct[];
+  ariaLabel?: string;
+}) {
   return (
-    <ul aria-label="Bangle catalogue" className="product-grid">
+    <ul aria-label={ariaLabel} className="product-grid">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

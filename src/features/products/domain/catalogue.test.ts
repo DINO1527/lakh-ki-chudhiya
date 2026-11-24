@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { buildCataloguePageHref, describeOfferTerms, normalizeCatalogueFilters } from "./catalogue";
+import {
+  buildCataloguePageHref,
+  describeOfferTerms,
+  isUatFixtureSlug,
+  normalizeCatalogueFilters,
+} from "./catalogue";
+
+describe("isUatFixtureSlug", () => {
+  it("recognizes reserved UAT-only catalogue slugs", () => {
+    expect(isUatFixtureSlug("uat-sample-bangle")).toBe(true);
+    expect(isUatFixtureSlug("ruby-crimson-set")).toBe(false);
+  });
+});
 
 describe("normalizeCatalogueFilters", () => {
   it("keeps safe, bounded URL-addressable filters", () => {

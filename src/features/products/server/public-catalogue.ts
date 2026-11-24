@@ -3,6 +3,8 @@ import { createSupabaseServerClient, isSupabaseServerConfigured } from "@/lib/su
 import type { Database } from "@/types/database";
 import {
   PRODUCTS_PER_PAGE,
+  isUatFixtureSlug,
+  UAT_FIXTURE_SLUG_PREFIX,
   type CatalogueFilterOptions,
   type CatalogueFilters,
   type PublicCollection,
@@ -72,7 +74,6 @@ export type PublicShopPage = {
 type ActiveOfferRow =
   Database["public"]["Functions"]["get_active_storefront_offers"]["Returns"][number];
 
-const UAT_FIXTURE_COLLECTION = "uat-fixtures-not-for-sale";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const COLLECTION_QUERY_LIMIT = 1_000;
 const MAX_PRODUCTS_PER_COLLECTION = 5_000;
@@ -96,6 +97,7 @@ export async function getPublicCollections(): Promise<
     .from("collections")
     .select(COLLECTION_SELECT, { count: "exact" })
     .eq("status", "published")
+    .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true })
     .limit(COLLECTION_QUERY_LIMIT);
@@ -156,13 +158,16 @@ export async function getPublicShopPage(
       .from("collections")
       .select(COLLECTION_SELECT, { count: "exact" })
       .eq("status", "published")
+      .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true })
       .limit(COLLECTION_QUERY_LIMIT),
     supabase
       .from("product_variants")
-      .select("size_code", { count: "exact" })
+      .select("size_code, products!inner(status, slug)", { count: "exact" })
       .eq("is_available", true)
+      .eq("products.status", "published")
+      .not("products.slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
       .order("size_code", { ascending: true, nullsFirst: true })
       .limit(FILTER_OPTION_QUERY_LIMIT),
     supabase.rpc("get_active_storefront_offers", { p_limit: 12 }),
@@ -192,7 +197,9 @@ export async function getPublicShopPage(
   const filterOptions: CatalogueFilterOptions = {
     sizeCodes: uniqueSorted((filterOptionsResult.data ?? []).flatMap((row) => row.size_code ?? [])),
   };
-  const offers = (offersResult.data ?? []).map(toPublicStorefrontOffer);
+  const offers = (offersResult.data ?? [])
+    .map(toPublicStorefrontOffer)
+    .filter((offer) => !isUatFixtureSlug(offer.targetSlug));
   const selectedCollection = filters.collectionSlug
     ? (collections.find((collection) => collection.slug === filters.collectionSlug) ?? null)
     : null;
@@ -242,14 +249,14 @@ export async function getPublicShopPage(
   }
 
   if (filters.sizeCode) {
-    let variantQuery = supabase
+    const { data, count, error } = await supabase
       .from("product_variants")
-      .select("product_id", { count: "exact" })
-      .eq("is_available", true);
-
-    if (filters.sizeCode) variantQuery = variantQuery.eq("size_code", filters.sizeCode);
-
-    const { data, count, error } = await variantQuery.limit(MAX_VARIANT_FILTER_ROWS);
+      .select("product_id, products!inner(status, slug)", { count: "exact" })
+      .eq("is_available", true)
+      .eq("products.status", "published")
+      .not("products.slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
+      .eq("size_code", filters.sizeCode)
+      .limit(MAX_VARIANT_FILTER_ROWS);
     if (error || (count ?? 0) > MAX_VARIANT_FILTER_ROWS) return { status: "error" };
 
     const matchingIds = new Set((data ?? []).map((row) => row.product_id));
@@ -279,7 +286,8 @@ export async function getPublicShopPage(
   let productQuery = supabase
     .from("products")
     .select(PRODUCT_SELECT, { count: "exact" })
-    .eq("status", "published");
+    .eq("status", "published")
+    .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`);
 
   if (linkedProductIds) productQuery = productQuery.in("id", linkedProductIds);
   if (filters.search) productQuery = productQuery.ilike("title", `%${filters.search}%`);
@@ -318,6 +326,7 @@ export async function getPublicProductBySlug(
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
     return { status: "ready", data: null };
   }
+  if (isUatFixtureSlug(slug)) return { status: "ready", data: null };
   if (!isSupabaseServerConfigured()) return { status: "unconfigured" };
 
   const supabase = await createSupabaseServerClient();
@@ -354,6 +363,7 @@ export async function getPublicProductsByIds(
     .select(PRODUCT_SELECT, { count: "exact" })
     .in("id", ids)
     .eq("status", "published")
+    .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
     .limit(ids.length);
 
   if (error || (count ?? 0) > ids.length) return { status: "error" };
@@ -435,6 +445,7 @@ async function loadPublicProducts(
           .select(COLLECTION_SELECT, { count: "exact" })
           .in("id", collectionIds)
           .eq("status", "published")
+          .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
           .order("sort_order", { ascending: true })
           .limit(COLLECTION_QUERY_LIMIT)
       : null;
@@ -475,8 +486,8 @@ async function loadPublicProducts(
     status: "ready",
     data: rows.map((row) => {
       const productCollections = collectionsByProductId.get(row.id) ?? [];
-      const isUatFixture = productCollections.some(
-        (collection) => collection.slug === UAT_FIXTURE_COLLECTION,
+      const isUatFixture = productCollections.some((collection) =>
+        isUatFixtureSlug(collection.slug),
       );
 
       return {
@@ -498,7 +509,7 @@ async function loadPublicProducts(
         ),
         collections: productCollections,
         variants: variantsByProductId.get(row.id) ?? [],
-        isUatFixture,
+        isUatFixture: isUatFixture || isUatFixtureSlug(row.slug),
       };
     }),
   };
@@ -524,7 +535,7 @@ function toPublicCollection(row: CollectionRow): PublicCollection {
     name: row.name,
     description: row.description,
     sortOrder: row.sort_order,
-    isUatFixture: row.slug === UAT_FIXTURE_COLLECTION,
+    isUatFixture: isUatFixtureSlug(row.slug),
     images: [],
   };
 }
