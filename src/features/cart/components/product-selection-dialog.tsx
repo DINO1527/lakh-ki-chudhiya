@@ -49,12 +49,6 @@ export function ProductSelectionDialog({
     if (!isOpen && dialog.open) dialog.close();
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setSelectedVariantId(currentVariantId ?? "");
-    setQuantity(initialQuantity);
-  }, [currentVariantId, initialQuantity, isOpen]);
-
   const selectedVariant = product.variants.find((variant) => variant.id === selectedVariantId);
   const existingTargetQuantity =
     items.find(
@@ -95,6 +89,8 @@ export function ProductSelectionDialog({
         }
         onClick={() => {
           setNotice("");
+          setSelectedVariantId(currentVariantId ?? "");
+          setQuantity(initialQuantity);
           setIsOpen(true);
         }}
         type="button"
