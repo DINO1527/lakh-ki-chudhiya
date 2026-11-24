@@ -5410,6 +5410,50 @@ main {
 }
 
 @media (max-width: 42rem) {
+  .cart-page,
+  .checkout-page,
+  .order-page,
+  .orders-page {
+    width: calc(100vw - 2rem);
+    max-width: var(--content-width);
+    min-width: 0;
+  }
+
+  .cart-page > .page-intro,
+  .checkout-page > .page-intro {
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .commerce-steps,
+  .commerce-steps ol {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .commerce-steps__step > span,
+  .commerce-steps__step > a {
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-inline: 0.25rem;
+    text-align: center;
+    line-height: 1.25;
+  }
+
+  .commerce-steps__number {
+    flex: 0 0 1.7rem;
+  }
+
+  .commerce-steps__step > span > span:not(.commerce-steps__number),
+  .commerce-steps__step > a > span:not(.commerce-steps__number) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-align: center;
+  }
+
   .shop-intro {
     grid-template-columns: 1fr;
   }
