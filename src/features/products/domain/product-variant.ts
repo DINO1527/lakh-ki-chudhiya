@@ -2,14 +2,12 @@ export type ProductVariant = {
   id: string;
   sizeCode: string | null;
   innerDiameterMm: number | null;
-  colourName: string;
   priceMinor: number;
   isAvailable: boolean;
 };
 
 export type VariantSelection = {
   sizeCode: string | null;
-  colourName: string;
 };
 
 export function resolveAvailableVariant(
@@ -17,12 +15,8 @@ export function resolveAvailableVariant(
   selection: VariantSelection,
 ): ProductVariant | null {
   return (
-    variants.find(
-      (variant) =>
-        variant.sizeCode === selection.sizeCode &&
-        variant.colourName === selection.colourName &&
-        variant.isAvailable,
-    ) ?? null
+    variants.find((variant) => variant.sizeCode === selection.sizeCode && variant.isAvailable) ??
+    null
   );
 }
 
@@ -40,6 +34,5 @@ export function formatLkrPrice(priceMinor: number): string {
 }
 
 export function formatVariantLabel(variant: ProductVariant): string {
-  const size = variant.sizeCode ? `size ${variant.sizeCode}` : "one size";
-  return `${size}, ${variant.colourName}`;
+  return variant.sizeCode ? `Size ${variant.sizeCode}` : "One size";
 }

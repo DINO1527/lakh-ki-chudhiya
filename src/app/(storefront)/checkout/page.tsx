@@ -21,8 +21,8 @@ export default async function CheckoutPage() {
       <p className="eyebrow">WhatsApp-assisted order</p>
       <h1 className="page-heading">Checkout</h1>
       <p className="page-intro">
-        Save your order request first. Staff will confirm stock and delivery; payment stays unpaid
-        until confirmed separately.
+        Review the current offer, delivery fee and payment choices. Stock is reserved only when
+        staff confirm your order.
       </p>
       <CheckoutForm isSignedIn={isSignedIn} />
     </main>

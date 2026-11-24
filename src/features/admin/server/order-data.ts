@@ -6,7 +6,7 @@ export async function getAdminOrders() {
   const { data: orders, error } = await supabase
     .from("orders")
     .select(
-      "id, reference, customer_id, customer_name, customer_email, customer_phone, delivery_address, delivery_city, delivery_postal_code, delivery_note, subtotal_minor, delivery_fee_minor, total_minor, status, payment_status, created_at",
+      "id, reference, customer_id, customer_name, customer_email, customer_phone, delivery_address, delivery_city, delivery_postal_code, delivery_note, subtotal_minor, discount_minor, delivery_fee_minor, total_minor, status, payment_status, payment_method, offer_name_snapshot, offer_discount_basis_points, payment_refunded_at, created_at",
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -17,7 +17,7 @@ export async function getAdminOrders() {
   const { data: items, error: itemError } = await supabase
     .from("order_items")
     .select(
-      "id, order_id, product_title, sku, variant_label, unit_price_minor, quantity, line_total_minor",
+      "id, order_id, product_title, sku, variant_label, unit_price_minor, quantity, set_count_snapshot, line_total_minor",
     )
     .in("order_id", orderIds)
     .order("id", { ascending: true });

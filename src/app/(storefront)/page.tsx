@@ -13,7 +13,6 @@ export default async function HomePage() {
     search: "",
     collectionSlug: "",
     sizeCode: "",
-    colourName: "",
     sort: "featured",
     page: 1,
   });

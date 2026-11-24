@@ -23,13 +23,14 @@ begin
   from pg_policies
   where schemaname = 'storage'
     and tablename = 'objects'
-    and policyname = 'published product media can be signed';
+    and policyname = 'published catalogue media can be signed';
 
   if published_policy is null
     or published_policy not like '%storage.object.sign%'
     or published_policy not like '%published%'
+    or published_policy not like '%collection_media%'
     or published_policy like '%object.list%' then
-    raise exception 'published media policy does not limit signing to published rows';
+    raise exception 'published catalogue media policy does not limit signing to published rows';
   end if;
 
   select qual || coalesce(with_check, '') into staff_policy

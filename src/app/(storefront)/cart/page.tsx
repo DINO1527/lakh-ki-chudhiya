@@ -13,7 +13,7 @@ export default function CartPage() {
       <p className="eyebrow">Your selections</p>
       <h1 className="page-heading">Shopping cart</h1>
       <p className="page-intro">
-        Review your selected variants and current prices before checkout.
+        Review your selected sizes, current offer and delivery estimate before checkout.
       </p>
       <CartPageClient />
     </main>

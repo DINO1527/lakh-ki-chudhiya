@@ -22,7 +22,7 @@ export default async function PrivateProductPreviewPage({
         .maybeSingle(),
       supabase
         .from("product_variants")
-        .select("id, size_code, colour_name, price_minor, is_available")
+        .select("id, size_code, price_minor, is_available")
         .eq("product_id", id)
         .eq("is_active", true)
         .order("size_code", { ascending: true, nullsFirst: true })
@@ -111,8 +111,7 @@ export default async function PrivateProductPreviewPage({
             </p>
           ) : null}
           <p>
-            <strong>Sellable unit</strong> · {productResult.data.set_count} piece
-            {productResult.data.set_count === 1 ? "" : "s"}
+            <strong>One sellable set</strong> · {productResult.data.set_count} bangles
           </p>
           {productResult.data.care_instructions ? (
             <p>
@@ -130,10 +129,7 @@ export default async function PrivateProductPreviewPage({
             <ul className="admin-preview__variants">
               {variantsResult.data.map((variant) => (
                 <li key={variant.id}>
-                  <span>
-                    {variant.size_code ? `Size ${variant.size_code}` : "One size"} ·{" "}
-                    {variant.colour_name}
-                  </span>
+                  <span>{variant.size_code ? `Size ${variant.size_code}` : "One size"} · </span>
                   <span>
                     {formatLkrPrice(variant.price_minor)} ·{" "}
                     {variant.is_available ? "In stock" : "Unavailable"}

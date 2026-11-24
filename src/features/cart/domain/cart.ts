@@ -9,8 +9,10 @@ export type CartItem = {
 
 export type CartQuoteItem = {
   variant_id: string;
+  product_id?: string;
   product_title: string;
   variant_label: string;
+  set_count?: number;
   unit_price_minor: number;
   quantity: number;
   line_total_minor: number;
@@ -20,6 +22,16 @@ export type CartQuoteItem = {
 export type CartQuote = {
   items: CartQuoteItem[];
   subtotal_minor: number;
+  discount_minor?: number;
+  delivery_fee_minor?: number;
+  total_minor?: number;
+  offer_id?: string | null;
+  offer_name?: string | null;
+  offer_discount_basis_points?: number | null;
+  delivery_fee_configured?: boolean;
+  cod_available?: boolean;
+  online_payment_available?: false;
+  whatsapp_configured?: boolean;
   all_available: boolean;
   quote_hash: string;
 };

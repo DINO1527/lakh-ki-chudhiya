@@ -10,6 +10,7 @@ export type OrderStatus =
   | "packed"
   | "dispatched"
   | "delivered"
+  | "delivery_failed"
   | "cancelled";
 
 export type OrderSummary = {
@@ -23,8 +24,12 @@ export type OrderSummary = {
   delivery_postal_code: string;
   delivery_note: string;
   subtotal_minor: number;
+  discount_minor: number;
   delivery_fee_minor: number | null;
   total_minor: number | null;
+  payment_method: "manual" | "cod";
+  offer_name_snapshot: string | null;
+  whatsapp_number: string | null;
   status: OrderStatus;
   payment_status: string;
   created_at: string;
@@ -34,6 +39,7 @@ export type OrderSummary = {
     variant_label: string;
     unit_price_minor: number;
     quantity: number;
+    set_count_snapshot: number;
     line_total_minor: number;
   }[];
 };
@@ -44,7 +50,7 @@ export type OrderSummaryResult =
   | { status: "error" };
 
 const ORDER_SELECT =
-  "id, reference, customer_name, customer_email, customer_phone, delivery_address, delivery_city, delivery_postal_code, delivery_note, subtotal_minor, delivery_fee_minor, total_minor, status, payment_status, created_at";
+  "id, reference, customer_name, customer_email, customer_phone, delivery_address, delivery_city, delivery_postal_code, delivery_note, subtotal_minor, discount_minor, delivery_fee_minor, total_minor, payment_method, offer_name_snapshot, status, payment_status, created_at";
 
 export async function getOrderSummaryByReference(reference: string): Promise<OrderSummaryResult> {
   if (!/^[A-Z0-9-]{8,32}$/.test(reference) || !isSupabaseServerConfigured()) {
@@ -65,11 +71,17 @@ export async function getOrderSummaryByReference(reference: string): Promise<Ord
     if (order) {
       const { data: items, error: itemsError } = await supabase
         .from("order_items")
-        .select("id, product_title, variant_label, unit_price_minor, quantity, line_total_minor")
+        .select(
+          "id, product_title, variant_label, unit_price_minor, quantity, set_count_snapshot, line_total_minor",
+        )
         .eq("order_id", order.id)
         .order("id", { ascending: true });
       if (itemsError) return { status: "error" };
-      return { status: "ready", order: { ...order, items: items ?? [] } };
+      const whatsappNumber = await getStoreWhatsAppNumber(supabase);
+      return {
+        status: "ready",
+        order: { ...order, whatsapp_number: whatsappNumber, items: items ?? [] },
+      };
     }
   }
 
@@ -82,7 +94,20 @@ export async function getOrderSummaryByReference(reference: string): Promise<Ord
   });
   if (error) return { status: "error" };
   const parsed = parseGuestSummary(data);
-  return parsed ? { status: "ready", order: parsed } : { status: "not_found" };
+  if (!parsed) return { status: "not_found" };
+  parsed.whatsapp_number = await getStoreWhatsAppNumber(supabase);
+  return { status: "ready", order: parsed };
+}
+
+async function getStoreWhatsAppNumber(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("store_settings")
+    .select("whatsapp_number")
+    .eq("singleton", true)
+    .maybeSingle();
+  return data?.whatsapp_number ?? null;
 }
 
 function parseGuestSummary(value: unknown): OrderSummary | null {
@@ -126,6 +151,7 @@ function parseGuestSummary(value: unknown): OrderSummary | null {
       typeof item.variant_label !== "string" ||
       !Number.isSafeInteger(item.unit_price_minor) ||
       !Number.isSafeInteger(item.quantity) ||
+      !Number.isSafeInteger(item.set_count_snapshot) ||
       !Number.isSafeInteger(item.line_total_minor)
     )
       return [];
@@ -136,6 +162,7 @@ function parseGuestSummary(value: unknown): OrderSummary | null {
         variant_label: item.variant_label,
         unit_price_minor: item.unit_price_minor as number,
         quantity: item.quantity as number,
+        set_count_snapshot: item.set_count_snapshot as number,
         line_total_minor: item.line_total_minor as number,
       },
     ];
@@ -145,10 +172,17 @@ function parseGuestSummary(value: unknown): OrderSummary | null {
   return {
     ...(order as unknown as Omit<OrderSummary, "items">),
     subtotal_minor: order.subtotal_minor as number,
+    discount_minor: Number.isSafeInteger(order.discount_minor)
+      ? (order.discount_minor as number)
+      : 0,
     delivery_fee_minor:
       typeof order.delivery_fee_minor === "number" ? order.delivery_fee_minor : null,
     total_minor: typeof order.total_minor === "number" ? order.total_minor : null,
     status: order.status as OrderStatus,
+    payment_method: order.payment_method === "cod" ? "cod" : "manual",
+    offer_name_snapshot:
+      typeof order.offer_name_snapshot === "string" ? order.offer_name_snapshot : null,
+    whatsapp_number: null,
     items,
   };
 }

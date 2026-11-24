@@ -81,17 +81,6 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
               </select>
             </div>
             <div className="catalogue-filters__field">
-              <label htmlFor="catalogue-colour">Colour</label>
-              <select defaultValue={filters.colourName} id="catalogue-colour" name="colour">
-                <option value="">All colours</option>
-                {result.data.filterOptions.colourNames.map((colourName) => (
-                  <option key={colourName} value={colourName}>
-                    {colourName}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="catalogue-filters__field">
               <label htmlFor="catalogue-sort">Sort by</label>
               <select defaultValue={filters.sort} id="catalogue-sort" name="sort">
                 <option value="featured">Featured</option>

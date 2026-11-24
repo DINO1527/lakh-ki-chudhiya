@@ -8,14 +8,19 @@ export type CatalogueFilters = {
   search: string;
   collectionSlug: string;
   sizeCode: string;
-  colourName: string;
   sort: "featured" | "name";
   page: number;
 };
 
 export type CatalogueFilterOptions = {
   sizeCodes: readonly string[];
-  colourNames: readonly string[];
+};
+
+export type PublicImage = {
+  id: string;
+  url: string;
+  altText: string;
+  sortOrder: number;
 };
 
 export type PublicCollection = {
@@ -25,6 +30,7 @@ export type PublicCollection = {
   description: string;
   sortOrder: number;
   isUatFixture: boolean;
+  images: readonly PublicImage[];
 };
 
 export type PublicProduct = {
@@ -35,10 +41,11 @@ export type PublicProduct = {
   material: string;
   careInstructions: string;
   setCount: number;
+  deliveryFeeMinor: number | null;
   sortOrder: number;
+  images: readonly PublicImage[];
   collections: readonly PublicCollection[];
   variants: readonly ProductVariant[];
-  images: readonly { url: string; altText: string }[];
   isUatFixture: boolean;
 };
 
@@ -53,12 +60,6 @@ export function normalizeCatalogueFilters(searchParams: CatalogueSearchParams): 
   const collectionSlug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(rawCollection) ? rawCollection : "";
   const rawSizeCode = firstValue(searchParams.size).normalize("NFKC").trim().slice(0, 16);
   const sizeCode = /^[\p{L}\p{N}-]+$/u.test(rawSizeCode) ? rawSizeCode : "";
-  const rawColourName = firstValue(searchParams.colour)
-    .normalize("NFKC")
-    .slice(0, 40)
-    .replace(/[^\p{L}\p{N}\s'-]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
   const rawPage = firstValue(searchParams.page);
   const pageNumber = /^[0-9]{1,6}$/.test(rawPage) ? Number(rawPage) : 1;
   const page =
@@ -68,7 +69,6 @@ export function normalizeCatalogueFilters(searchParams: CatalogueSearchParams): 
     search: rawSearch,
     collectionSlug,
     sizeCode,
-    colourName: rawColourName,
     sort: firstValue(searchParams.sort) === "name" ? "name" : "featured",
     page,
   };
@@ -86,7 +86,6 @@ export function buildCataloguePageHref(
     params.set("collection", filters.collectionSlug);
   }
   if (filters.sizeCode) params.set("size", filters.sizeCode);
-  if (filters.colourName) params.set("colour", filters.colourName);
   if (filters.sort !== "featured") params.set("sort", filters.sort);
   if (page > 1) params.set("page", String(page));
 

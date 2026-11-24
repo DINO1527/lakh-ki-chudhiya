@@ -56,7 +56,7 @@ export function CartPageClient() {
     return (
       <section className="cart-empty">
         <h2>Your cart is empty</h2>
-        <p>Choose a size and colour from a published design to begin.</p>
+        <p>Choose a size from a published design to begin.</p>
         <Link className="button button--primary" href="/shop">
           Browse bangles
         </Link>
@@ -76,10 +76,11 @@ export function CartPageClient() {
             <article className="cart-item" key={item.variantId}>
               <div className="cart-item__details">
                 <h2>{quotedItem?.product_title ?? "Refreshing item details…"}</h2>
-                <p>{quotedItem?.variant_label ?? "Selected size and colour"}</p>
+                <p>{quotedItem?.variant_label ?? "Selected size"}</p>
                 {quotedItem && (
                   <p className="cart-item__price">
-                    {formatLkrPrice(quotedItem.unit_price_minor)} each
+                    {formatLkrPrice(quotedItem.unit_price_minor)} per complete set
+                    {quotedItem.set_count ? ` of ${quotedItem.set_count} bangles` : ""}
                   </p>
                 )}
                 {quotedItem && !quotedItem.quantity_available && (
@@ -89,7 +90,7 @@ export function CartPageClient() {
                 )}
               </div>
               <label className="cart-item__quantity">
-                Quantity
+                Complete sets
                 <input
                   aria-label={`Quantity for ${quotedItem?.product_title ?? "cart item"}`}
                   max={99}
@@ -138,7 +139,27 @@ export function CartPageClient() {
         </div>
         <div className="cart-summary__line">
           <span>Delivery</span>
-          <strong>To be confirmed</strong>
+          <strong>
+            {quote?.delivery_fee_configured === false
+              ? "Not configured"
+              : quote?.delivery_fee_minor === undefined
+                ? "Refreshing…"
+                : quote.delivery_fee_minor === 0
+                  ? "Free"
+                  : formatLkrPrice(quote.delivery_fee_minor)}
+          </strong>
+        </div>
+        {quote?.discount_minor ? (
+          <div className="cart-summary__line">
+            <span>{quote.offer_name ?? "Offer"}</span>
+            <strong>−{formatLkrPrice(quote.discount_minor)}</strong>
+          </div>
+        ) : null}
+        <div className="cart-summary__line cart-summary__line--total">
+          <span>Estimated total</span>
+          <strong>
+            {quote?.total_minor === undefined ? "—" : formatLkrPrice(quote.total_minor)}
+          </strong>
         </div>
         <p className="cart-summary__note">
           Adding items does not reserve stock. Staff confirm availability and delivery before

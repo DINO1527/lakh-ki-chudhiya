@@ -23,6 +23,7 @@ type CheckoutBody = {
   deliveryCity: string;
   deliveryPostalCode: string;
   deliveryNote: string;
+  paymentMethod: "manual" | "cod";
   confirmedSubtotalMinor: number;
   confirmedQuoteHash: string;
 };
@@ -77,6 +78,7 @@ export async function POST(request: Request): Promise<Response> {
     p_confirmed_subtotal_minor: body.confirmedSubtotalMinor,
     p_confirmed_quote_hash: body.confirmedQuoteHash,
     p_guest_access_hash: guestAccessHash,
+    p_payment_method: body.paymentMethod,
   });
 
   if (error) {
@@ -145,7 +147,8 @@ function isCheckoutBody(value: unknown): value is CheckoutBody {
     (body.deliveryAddress as string).length <= 300 &&
     (body.deliveryCity as string).length <= 100 &&
     (body.deliveryPostalCode as string).length <= 24 &&
-    (body.deliveryNote as string).length <= 500
+    (body.deliveryNote as string).length <= 500 &&
+    (body.paymentMethod === "manual" || body.paymentMethod === "cod")
   );
 }
 

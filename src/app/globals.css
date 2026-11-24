@@ -2302,6 +2302,180 @@ main {
   }
 }
 
+.collection-card__image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+
+.product-gallery {
+  display: grid;
+  width: 100%;
+  gap: 0.75rem;
+}
+
+.product-gallery__main {
+  display: grid;
+  min-width: 0;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid rgb(80 13 27 / 14%);
+  background: var(--color-muted);
+}
+
+.product-gallery__image,
+.product-gallery__thumbnail img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.product-gallery__empty {
+  padding: 2rem;
+  color: var(--color-ink-muted);
+  text-align: center;
+}
+
+.product-gallery__thumbnails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.product-gallery__thumbnail {
+  width: 4.5rem;
+  height: 4.5rem;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid rgb(80 13 27 / 24%);
+  background: var(--color-muted);
+  cursor: pointer;
+}
+
+.product-gallery__thumbnail[aria-pressed="true"] {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.product-detail__media {
+  display: block;
+  min-height: 0;
+  aspect-ratio: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.collection-detail__gallery {
+  width: min(100%, 56rem);
+  margin: 1.5rem 0 2rem;
+}
+
+.collection-detail__gallery .product-gallery__main {
+  aspect-ratio: 16 / 8;
+}
+
+.admin-offer-list,
+.order-admin-summary {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-offer-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem;
+  border: 1px solid rgb(80 13 27 / 16%);
+  background: var(--color-surface-raised);
+}
+
+.admin-offer-card__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-offer-card h3 {
+  margin: 0;
+  color: var(--color-brand);
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.admin-offer-card details summary {
+  color: var(--color-brand);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.offer-form {
+  margin-top: 1rem;
+}
+
+.order-admin-summary {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  margin: 0;
+}
+
+.order-admin-summary > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.order-admin-summary > div > span {
+  color: var(--color-ink-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.return-inspection {
+  display: grid;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgb(80 13 27 / 14%);
+}
+
+.return-inspection h3 {
+  margin: 0;
+  color: var(--color-brand);
+}
+
+.checkout-payment-options {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgb(80 13 27 / 18%);
+}
+
+.checkout-payment-options label {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.checkout-payment-options input {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.collection-detail__gallery {
+  margin-block: 1.5rem 2rem;
+}
+
+@media (max-width: 48rem) {
+  .admin-offer-card__heading {
+    flex-direction: column;
+  }
+}
+
 /* Lacora customer storefront */
 .storefront-shell {
   --color-brand: #5b0b20;

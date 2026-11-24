@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { notFound } from "next/navigation";
 import { CatalogueNotice, UatFixtureNotice } from "@/features/products/components/catalogue-notice";
+import { ProductGallery } from "@/features/products/components/product-gallery";
 import { VariantPicker } from "@/features/products/components/variant-picker";
+import { formatLkrPrice } from "@/features/products/domain/product-variant";
 import { getPublicProductBySlug } from "@/features/products/server/public-catalogue";
 
 type ProductPageProps = {
@@ -62,21 +63,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
       </nav>
 
       <div className="product-detail">
-        <figure className="product-detail__media">
-          {product.images[0] ? (
-            <Image
-              alt={product.images[0].altText}
-              className="product-detail__image"
-              height={1_000}
-              priority
-              src={product.images[0].url}
-              unoptimized
-              width={1_000}
-            />
-          ) : (
-            <span>Verified product photography will appear here.</span>
-          )}
-        </figure>
+        <ProductGallery
+          className="product-detail__media"
+          images={product.images}
+          label={product.title}
+        />
 
         <section aria-labelledby="product-title" className="product-detail__content">
           <p className="eyebrow">{product.collections[0]?.name ?? "Handcrafted lac bangles"}</p>
@@ -92,10 +83,18 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <dl className="product-facts">
             <div>
               <dt>Sold as</dt>
-              <dd>
-                {product.setCount === 1 ? "One sellable unit" : `Set of ${product.setCount} units`}
-              </dd>
+              <dd>{`Set of ${product.setCount} bangles`}</dd>
             </div>
+            {product.deliveryFeeMinor !== null ? (
+              <div>
+                <dt>Delivery</dt>
+                <dd>
+                  {product.deliveryFeeMinor === 0
+                    ? "Free"
+                    : formatLkrPrice(product.deliveryFeeMinor)}
+                </dd>
+              </div>
+            ) : null}
             {product.material && (
               <div>
                 <dt>Material</dt>
@@ -108,7 +107,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
             <VariantPicker isUatFixture={product.isUatFixture} variants={product.variants} />
           ) : (
             <p className="product-detail__availability" role="status">
-              Available sizes and colours are being confirmed.
+              Available sizes are being confirmed.
             </p>
           )}
 
@@ -120,7 +119,8 @@ export default async function ProductPage({ params }: ProductPageProps) {
           )}
 
           <p className="product-detail__note">
-            Adding to the cart does not reserve stock. Availability is confirmed before fulfilment.
+            Availability is confirmed before fulfilment. Product details are published after they
+            are verified.
           </p>
           <Link className="text-link" href="/size-guide">
             Read the size guide <span aria-hidden="true">→</span>

@@ -1,12 +1,22 @@
 import type { Metadata } from "next";
 import { formatLkrPrice } from "@/features/products/domain/product-variant";
-import { setOrderDeliveryFee, transitionOrderStatus } from "@/features/admin/server/order-actions";
+import {
+  inspectReturn,
+  markOrderDeliveryFailed,
+  recordOrderPayment,
+  recordOrderRefund,
+  setOrderDeliveryFee,
+  transitionOrderStatus,
+} from "@/features/admin/server/order-actions";
 import { getAdminOrders } from "@/features/admin/server/order-data";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Orders" };
 
-export default async function AdminOrdersPage() {
+export default async function AdminOrdersPage({
+  searchParams,
+}: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
+  const params = await searchParams;
   const result = await getAdminOrders();
   return (
     <div className="admin-page-stack">
@@ -19,6 +29,12 @@ export default async function AdminOrdersPage() {
           </p>
         </div>
       </header>
+      {params.saved ? <p className="admin-notice admin-notice--success">Order updated.</p> : null}
+      {params.error ? (
+        <p className="admin-notice admin-notice--error" role="alert">
+          The order action could not be saved. Check payment, status, fee or return quantities.
+        </p>
+      ) : null}
       {result.status === "error" ? (
         <p className="admin-notice admin-notice--error" role="alert">
           Orders could not be loaded.
@@ -62,6 +78,7 @@ export default async function AdminOrdersPage() {
                       <li key={item.id}>
                         {item.product_title} · {item.variant_label} · {item.quantity} ×{" "}
                         {formatLkrPrice(item.unit_price_minor)}
+                        {` · ${item.set_count_snapshot} bangles per set`}
                       </li>
                     ))}
                   </ul>
@@ -80,15 +97,59 @@ export default async function AdminOrdersPage() {
                 </section>
               </div>
 
+              <dl className="order-admin-summary">
+                <div>
+                  <span>Items</span>
+                  <strong>{formatLkrPrice(order.subtotal_minor)}</strong>
+                </div>
+                {order.discount_minor > 0 ? (
+                  <div>
+                    <span>{order.offer_name_snapshot ?? "Offer"}</span>
+                    <strong>−{formatLkrPrice(order.discount_minor)}</strong>
+                  </div>
+                ) : null}
+                <div>
+                  <span>Delivery</span>
+                  <strong>
+                    {order.delivery_fee_minor === null
+                      ? "Not set"
+                      : order.delivery_fee_minor === 0
+                        ? "Free"
+                        : formatLkrPrice(order.delivery_fee_minor)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Total</span>
+                  <strong>
+                    {order.total_minor === null
+                      ? "Needs delivery fee"
+                      : formatLkrPrice(order.total_minor)}
+                  </strong>
+                </div>
+                <div>
+                  <span>Payment choice</span>
+                  <strong>
+                    {order.payment_method === "cod" ? "Cash on delivery" : "Arrange manually"} ·{" "}
+                    {formatStatus(order.payment_status)}
+                  </strong>
+                </div>
+              </dl>
+
               {order.status !== "cancelled" && order.status !== "delivered" && (
                 <div className="admin-order-card__controls">
-                  {nextStatuses(order.status).length > 0 && (
+                  {nextStatuses(
+                    order.status,
+                    order.payment_status !== "paid" && order.payment_status !== "pending",
+                  ).length > 0 && (
                     <form action={transitionOrderStatus} className="admin-order-action">
                       <input name="order_id" type="hidden" value={order.id} />
                       <label>
                         Next status
                         <select name="next_status" required>
-                          {nextStatuses(order.status).map((status) => (
+                          {nextStatuses(
+                            order.status,
+                            order.payment_status !== "paid" && order.payment_status !== "pending",
+                          ).map((status) => (
                             <option key={status} value={status}>
                               {formatStatus(status)}
                             </option>
@@ -109,6 +170,18 @@ export default async function AdminOrdersPage() {
                       </button>
                     </form>
                   )}
+                  {order.status === "dispatched" ? (
+                    <form action={markOrderDeliveryFailed} className="admin-order-action">
+                      <input name="order_id" type="hidden" value={order.id} />
+                      <label>
+                        Delivery failure reason
+                        <input maxLength={500} name="reason" required />
+                      </label>
+                      <button className="admin-button" type="submit">
+                        Mark delivery failed
+                      </button>
+                    </form>
+                  ) : null}
                   {order.status !== "dispatched" && (
                     <form
                       action={setOrderDeliveryFee}
@@ -147,8 +220,122 @@ export default async function AdminOrdersPage() {
                       </button>
                     </form>
                   )}
+                  {order.payment_status !== "paid" &&
+                  order.payment_status !== "refunded" &&
+                  order.status !== "pending_confirmation" &&
+                  order.total_minor !== null ? (
+                    <form action={recordOrderPayment} className="admin-order-action">
+                      <input name="order_id" type="hidden" value={order.id} />
+                      <label>
+                        Amount received (LKR)
+                        <input
+                          defaultValue={(order.total_minor / 100).toFixed(2)}
+                          inputMode="decimal"
+                          min="0.01"
+                          name="amount_lkr"
+                          required
+                          step="0.01"
+                          type="number"
+                        />
+                      </label>
+                      <label>
+                        Receipt or collection note
+                        <input maxLength={200} name="reference" required />
+                      </label>
+                      <button className="admin-button" type="submit">
+                        Record received payment
+                      </button>
+                    </form>
+                  ) : null}
+                  {order.payment_status === "paid" && order.total_minor !== null ? (
+                    <form action={recordOrderRefund} className="admin-order-action">
+                      <input name="order_id" type="hidden" value={order.id} />
+                      <label>
+                        Full refund (LKR)
+                        <input
+                          defaultValue={(order.total_minor / 100).toFixed(2)}
+                          inputMode="decimal"
+                          min="0.01"
+                          name="amount_lkr"
+                          required
+                          step="0.01"
+                          type="number"
+                        />
+                      </label>
+                      <label>
+                        Refund reference and reason
+                        <input maxLength={500} name="note" required />
+                      </label>
+                      <button className="admin-button" type="submit">
+                        Record full refund
+                      </button>
+                    </form>
+                  ) : null}
                 </div>
               )}
+              {order.status === "delivery_failed" || order.status === "delivered" ? (
+                <section aria-label="Inspect returned sets" className="return-inspection">
+                  <h3>Inspect returned stock</h3>
+                  <p>
+                    Only sellable sets are added back to stock. Damaged or missing sets remain
+                    unavailable.
+                  </p>
+                  {order.items.map((item) => (
+                    <form action={inspectReturn} className="admin-order-action" key={item.id}>
+                      <input name="order_id" type="hidden" value={order.id} />
+                      <input name="order_item_id" type="hidden" value={item.id} />
+                      <input name="idempotency_key" type="hidden" value={crypto.randomUUID()} />
+                      <strong>
+                        {item.product_title} · size {item.variant_label} · {item.quantity} sets
+                        dispatched
+                      </strong>
+                      <label>
+                        Sellable
+                        <input
+                          inputMode="numeric"
+                          max={item.quantity}
+                          min="0"
+                          name="sellable_quantity"
+                          required
+                          type="number"
+                          defaultValue="0"
+                        />
+                      </label>
+                      <label>
+                        Damaged
+                        <input
+                          inputMode="numeric"
+                          max={item.quantity}
+                          min="0"
+                          name="damaged_quantity"
+                          required
+                          type="number"
+                          defaultValue="0"
+                        />
+                      </label>
+                      <label>
+                        Missing
+                        <input
+                          inputMode="numeric"
+                          max={item.quantity}
+                          min="0"
+                          name="missing_quantity"
+                          required
+                          type="number"
+                          defaultValue="0"
+                        />
+                      </label>
+                      <label>
+                        Inspection note
+                        <input maxLength={500} name="reason" required />
+                      </label>
+                      <button className="admin-button" type="submit">
+                        Save inspection and restock sellable sets
+                      </button>
+                    </form>
+                  ))}
+                </section>
+              ) : null}
             </article>
           ))}
         </div>
@@ -157,12 +344,12 @@ export default async function AdminOrdersPage() {
   );
 }
 
-function nextStatuses(status: string): string[] {
+function nextStatuses(status: string, canCancel: boolean): string[] {
   const transitions: Record<string, string[]> = {
-    pending_confirmation: ["confirmed", "cancelled"],
-    confirmed: ["processing", "cancelled"],
-    processing: ["packed", "cancelled"],
-    packed: ["dispatched", "cancelled"],
+    pending_confirmation: canCancel ? ["confirmed", "cancelled"] : ["confirmed"],
+    confirmed: canCancel ? ["processing", "cancelled"] : ["processing"],
+    processing: canCancel ? ["packed", "cancelled"] : ["packed"],
+    packed: canCancel ? ["dispatched", "cancelled"] : ["dispatched"],
     dispatched: ["delivered"],
   };
   return transitions[status] ?? [];

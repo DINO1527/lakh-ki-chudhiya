@@ -7,12 +7,18 @@ set local role anon;
 
 do $$
 begin
+  if has_column_privilege('anon', 'public.product_variants', 'colour_name', 'select')
+    or has_column_privilege('authenticated', 'public.product_variants', 'colour_name', 'select') then
+    raise exception 'Colour is still exposed as a selectable variant dimension';
+  end if;
+
   if not exists (
     select 1
     from public.products
     where slug = 'uat-sample-bangle-not-for-sale'
+      and title ilike '%Synthetic Ruby%'
   ) then
-    raise exception 'Published UAT fixture is not visible to anon';
+    raise exception 'Colour is not represented by the UAT product name or the product is not visible';
   end if;
 
   if exists (

@@ -16,6 +16,7 @@ declare
   replayed_order jsonb;
   changed_replay_rejected boolean := false;
   changed_quote_rejected boolean := false;
+  paid_cancellation_blocked boolean := false;
   checkout_key uuid := gen_random_uuid();
   quote_change_key uuid := gen_random_uuid();
 begin
@@ -27,7 +28,7 @@ begin
   if not has_function_privilege('anon',
     'public.quote_cart(jsonb)', 'execute')
     or not has_function_privilege('anon',
-    'public.create_order_with_quote(jsonb,uuid,text,text,text,text,text,text,text,bigint,text,text)', 'execute')
+    'public.create_order_with_quote(jsonb,uuid,text,text,text,text,text,text,text,bigint,text,text,text)', 'execute')
     or has_function_privilege('anon',
     'public.create_order(jsonb,uuid,text,text,text,text,text,text,text,bigint,text)', 'execute') then
     raise exception 'Guest quote and order RPCs are not executable';
@@ -72,8 +73,8 @@ begin
   );
   if created_order ->> 'status' <> 'pending_confirmation'
     or created_order ->> 'payment_status' <> 'unpaid'
-    or created_order ->> 'total_minor' is not null then
-    raise exception 'Order was not persisted as pending, unpaid, with delivery pending';
+    or (created_order ->> 'total_minor')::bigint <> test_price then
+    raise exception 'Order was not saved pending and unpaid with its complete delivery quote';
   end if;
 
   replayed_order := public.create_order_with_quote(
@@ -183,6 +184,20 @@ begin
   end;
   if not changed_quote_rejected then
     raise exception 'Changed item prices with an unchanged subtotal were accepted';
+  end if;
+
+  update public.orders
+  set payment_status = 'paid'
+  where id = (created_order ->> 'id')::uuid;
+  begin
+    update public.orders
+    set status = 'cancelled'
+    where id = (created_order ->> 'id')::uuid;
+  exception when check_violation then
+    paid_cancellation_blocked := true;
+  end;
+  if not paid_cancellation_blocked then
+    raise exception 'A paid order was cancelled before its full refund was recorded';
   end if;
 end;
 $test$;

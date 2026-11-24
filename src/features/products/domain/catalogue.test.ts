@@ -8,7 +8,6 @@ describe("normalizeCatalogueFilters", () => {
         q: "  Ruby% bangles  ",
         collection: "bridal-edit",
         size: "2-6",
-        colour: "Ruby",
         sort: "name",
         page: "3",
       }),
@@ -16,7 +15,6 @@ describe("normalizeCatalogueFilters", () => {
       search: "Ruby bangles",
       collectionSlug: "bridal-edit",
       sizeCode: "2-6",
-      colourName: "Ruby",
       sort: "name",
       page: 3,
     });
@@ -34,7 +32,6 @@ describe("normalizeCatalogueFilters", () => {
       search: "",
       collectionSlug: "",
       sizeCode: "",
-      colourName: "",
       sort: "featured",
       page: 1,
     });
@@ -50,12 +47,11 @@ describe("buildCataloguePageHref", () => {
           search: "ruby bangles",
           collectionSlug: "bridal-edit",
           sizeCode: "2-6",
-          colourName: "Ruby",
           sort: "name",
           page: 1,
         },
         2,
       ),
-    ).toBe("/shop?q=ruby+bangles&collection=bridal-edit&size=2-6&colour=Ruby&sort=name&page=2");
+    ).toBe("/shop?q=ruby+bangles&collection=bridal-edit&size=2-6&sort=name&page=2");
   });
 });

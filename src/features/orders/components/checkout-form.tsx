@@ -41,6 +41,7 @@ export function CheckoutForm({ isSignedIn }: { isSignedIn: boolean }) {
   const quoteError = currentQuoteState?.error ?? "";
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"manual" | "cod">("manual");
   const [values, setValues] = useState(EMPTY_VALUES);
 
   useEffect(() => {
@@ -72,7 +73,14 @@ export function CheckoutForm({ isSignedIn }: { isSignedIn: boolean }) {
 
   async function submitOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!quote || !quote.all_available || submitting) return;
+    if (
+      !quote ||
+      !quote.all_available ||
+      quote.delivery_fee_configured === false ||
+      (paymentMethod === "cod" && !quote.cod_available) ||
+      submitting
+    )
+      return;
     setSubmitting(true);
     setMessage("");
 
@@ -97,6 +105,7 @@ export function CheckoutForm({ isSignedIn }: { isSignedIn: boolean }) {
           ...values,
           confirmedSubtotalMinor: quote.subtotal_minor,
           confirmedQuoteHash: quote.quote_hash,
+          paymentMethod,
         }),
       });
       const result = (await response.json()) as {
@@ -221,6 +230,34 @@ export function CheckoutForm({ isSignedIn }: { isSignedIn: boolean }) {
             value={values.deliveryNote}
           />
         </label>
+        <fieldset className="checkout-payment-options">
+          <legend>Payment arrangement</legend>
+          <label>
+            <input
+              checked={paymentMethod === "manual"}
+              name="payment_method"
+              onChange={() => setPaymentMethod("manual")}
+              type="radio"
+              value="manual"
+            />
+            <span>Arrange payment after order confirmation</span>
+          </label>
+          <label>
+            <input
+              checked={paymentMethod === "cod"}
+              disabled={!quote?.cod_available}
+              name="payment_method"
+              onChange={() => setPaymentMethod("cod")}
+              type="radio"
+              value="cod"
+            />
+            <span>Cash on delivery{!quote?.cod_available ? " · unavailable" : ""}</span>
+          </label>
+          <p className="field-hint">
+            Online payment is not available yet. No gateway is connected and this site will not
+            collect card details.
+          </p>
+        </fieldset>
         {message && (
           <p className="form-message form-message--error" role="alert">
             {message}
@@ -228,14 +265,19 @@ export function CheckoutForm({ isSignedIn }: { isSignedIn: boolean }) {
         )}
         <button
           className="button button--primary"
-          disabled={submitting || !quote || !quote.all_available || Boolean(quoteError)}
+          disabled={
+            submitting ||
+            !quote ||
+            !quote.all_available ||
+            quote.delivery_fee_configured === false ||
+            (paymentMethod === "cod" && !quote.cod_available) ||
+            Boolean(quoteError)
+          }
           type="submit"
         >
           {submitting ? "Saving order…" : "Save order and continue"}
         </button>
-        <p className="field-hint">
-          This saves an unpaid order request. It does not send a WhatsApp message or reserve stock.
-        </p>
+        <p className="field-hint">This saves the order and quote. It does not reserve stock.</p>
       </form>
 
       <aside aria-labelledby="checkout-summary-title" className="cart-summary">
@@ -248,7 +290,7 @@ export function CheckoutForm({ isSignedIn }: { isSignedIn: boolean }) {
         {quote?.items.map((item) => (
           <div className="cart-summary__line" key={item.variant_id}>
             <span>
-              {item.product_title} · {item.variant_label} × {item.quantity}
+              {item.product_title} · size {item.variant_label} · {item.quantity} complete sets
             </span>
             <strong>{formatLkrPrice(item.line_total_minor)}</strong>
           </div>
@@ -257,10 +299,36 @@ export function CheckoutForm({ isSignedIn }: { isSignedIn: boolean }) {
           <span>Items subtotal</span>
           <strong>{quote ? formatLkrPrice(quote.subtotal_minor) : "Refreshing…"}</strong>
         </div>
+        {quote?.discount_minor ? (
+          <div className="cart-summary__line">
+            <span>{quote.offer_name ? `${quote.offer_name} discount` : "Offer discount"}</span>
+            <strong>−{formatLkrPrice(quote.discount_minor)}</strong>
+          </div>
+        ) : null}
         <div className="cart-summary__line">
           <span>Delivery</span>
-          <strong>To be confirmed</strong>
+          <strong>
+            {quote?.delivery_fee_configured === false
+              ? "Fee needs admin setup"
+              : quote?.delivery_fee_minor !== undefined
+                ? quote.delivery_fee_minor === 0
+                  ? "Free"
+                  : formatLkrPrice(quote.delivery_fee_minor)
+                : "Refreshing…"}
+          </strong>
         </div>
+        <div className="cart-summary__line cart-summary__line--total">
+          <span>Order total</span>
+          <strong>
+            {quote?.total_minor !== undefined ? formatLkrPrice(quote.total_minor) : "—"}
+          </strong>
+        </div>
+        {quote?.delivery_fee_configured === false ? (
+          <p className="form-message form-message--error" role="alert">
+            Delivery fees have not been set for every product. The store team needs to complete that
+            setup before checkout.
+          </p>
+        ) : null}
         {quote && !quote.all_available && (
           <p className="form-message form-message--error" role="alert">
             A quantity is no longer available. Return to your cart to change it.
