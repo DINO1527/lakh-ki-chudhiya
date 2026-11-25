@@ -55,16 +55,23 @@ export async function saveCollection(formData: FormData): Promise<never> {
     redirect("/admin/collections?saved=1");
   }
 
-  const result = existingCollectionId
-    ? await supabase
-        .from("collections")
-        .update({ name, slug, description, sort_order: sortOrder, status })
-        .eq("id", existingCollectionId)
-    : await supabase
-        .from("collections")
-        .insert({ name, slug, description, sort_order: sortOrder, status: "draft" });
+  if (!existingCollectionId) {
+    const { data: created, error } = await supabase
+      .from("collections")
+      .insert({ name, slug, description, sort_order: sortOrder, status: "draft" })
+      .select("id")
+      .single();
+    if (error || !created) redirect("/admin/collections?error=save");
 
-  if (result.error) redirect("/admin/collections?error=save");
+    revalidateCollectionPages();
+    redirect(`/admin/collections?created=${created.id}#collection-${created.id}`);
+  }
+
+  const { error } = await supabase
+    .from("collections")
+    .update({ name, slug, description, sort_order: sortOrder, status })
+    .eq("id", existingCollectionId);
+  if (error) redirect("/admin/collections?error=save");
   revalidatePath("/collections");
   revalidatePath("/shop");
   revalidatePath("/");
@@ -129,7 +136,7 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
   }
 
   revalidateCollectionPages();
-  redirect("/admin/collections?saved=1&image=uploaded");
+  redirect("/admin/collections?image=uploaded");
 }
 
 export async function archiveCollectionImage(formData: FormData): Promise<never> {
@@ -156,7 +163,7 @@ export async function archiveCollectionImage(formData: FormData): Promise<never>
   }
 
   revalidateCollectionPages();
-  redirect("/admin/collections?saved=1&image=archived");
+  redirect("/admin/collections?image=archived");
 }
 
 export async function updateCollectionImage(formData: FormData): Promise<never> {
@@ -184,7 +191,7 @@ export async function updateCollectionImage(formData: FormData): Promise<never> 
   if (error) redirect("/admin/collections?error=image");
 
   revalidateCollectionPages();
-  redirect("/admin/collections?saved=1&image=updated");
+  redirect("/admin/collections?image=updated");
 }
 
 function revalidateCollectionPages(): void {

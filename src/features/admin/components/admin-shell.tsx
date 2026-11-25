@@ -1,35 +1,14 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { AdminNavigation } from "./admin-navigation";
 import { signOutAdmin } from "../server/auth-actions";
 import type { StaffRole } from "../server/access";
-
-const navigation = [
-  { href: "/admin", label: "Overview" },
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/collections", label: "Collections" },
-  { href: "/admin/inventory", label: "Inventory" },
-  { href: "/admin/orders", label: "Orders" },
-  { href: "/admin/offers", label: "Offers" },
-  { href: "/admin/customers", label: "Customers" },
-  { href: "/admin/content", label: "Homepage content" },
-  { href: "/admin/security", label: "Account security" },
-] as const;
 
 export function AdminShell({
   children,
   email,
   role,
 }: Readonly<{ children: ReactNode; email: string; role: StaffRole }>) {
-  const links =
-    role === "owner"
-      ? [
-          ...navigation,
-          { href: "/admin/settings/commerce", label: "Commerce settings" },
-          { href: "/admin/team", label: "Team access" },
-          { href: "/admin/activity", label: "Activity" },
-        ]
-      : navigation;
-
   return (
     <div className="admin-shell">
       <aside aria-label="Administration" className="admin-sidebar">
@@ -37,13 +16,7 @@ export function AdminShell({
           <span className="admin-brand__name">Lakh Ki Chudhiya</span>
           <span className="admin-brand__caption">Store administration</span>
         </Link>
-        <nav aria-label="Admin navigation" className="admin-navigation">
-          {links.map((item) => (
-            <Link className="admin-navigation__link" href={item.href} key={item.href}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
+        <AdminNavigation isOwner={role === "owner"} />
         <p className="admin-sidebar__note">Catalogue and stock changes are recorded for review.</p>
       </aside>
 

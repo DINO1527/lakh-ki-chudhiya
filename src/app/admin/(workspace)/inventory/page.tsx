@@ -65,7 +65,7 @@ export default async function AdminInventoryPage({
       <AdminPageHeader
         eyebrow="Stock control"
         title="Inventory"
-        description="Adjust on-hand quantities by SKU. Every change needs a reason and creates an immutable movement record."
+        description="Manage how many complete sets are physically in stock for each size. Every change needs a reason and is recorded."
       />
       {params.saved ? <AdminNotice tone="success">Stock adjustment recorded.</AdminNotice> : null}
       {params.error ? (
@@ -80,8 +80,10 @@ export default async function AdminInventoryPage({
         <AdminNotice tone="error">Some inventory data could not be loaded.</AdminNotice>
       ) : null}
       <AdminNotice>
-        Availability is on hand minus reserved. Orders reserve stock when confirmed, dispatch
-        consumes it, and pre-dispatch cancellation releases it. Cart activity never reserves stock.
+        Available stock is on hand minus reserved. Orders reserve stock when confirmed, dispatch
+        consumes it, and cancellation before dispatch releases it. Carts and pending orders do not
+        reserve stock. Enter a positive change to add complete sets or a negative change to remove
+        them; changes below the reserved quantity are rejected.
       </AdminNotice>
 
       <section aria-labelledby="inventory-list-heading" className="admin-panel">
@@ -93,7 +95,7 @@ export default async function AdminInventoryPage({
         </div>
         <form action="/admin/inventory" className="admin-filter" method="get">
           <label className="admin-field admin-field--compact">
-            <span>Search SKU</span>
+            <span>Search by SKU</span>
             <input defaultValue={search} maxLength={64} name="q" />
           </label>
           <label className="admin-checkbox">
@@ -106,7 +108,7 @@ export default async function AdminInventoryPage({
             <span>Unavailable only</span>
           </label>
           <button className="admin-button admin-button--secondary" type="submit">
-            Filter
+            Apply filters
           </button>
           <Link className="admin-text-link" href="/admin/inventory">
             Clear
@@ -124,7 +126,7 @@ export default async function AdminInventoryPage({
                   <th scope="col">On hand</th>
                   <th scope="col">Reserved</th>
                   <th scope="col">Available</th>
-                  <th scope="col">Adjustment</th>
+                  <th scope="col">Add or remove stock</th>
                 </tr>
               </thead>
               <tbody>
@@ -155,14 +157,20 @@ export default async function AdminInventoryPage({
                         <form action={adjustInventory} className="admin-adjust-form">
                           <input name="variant_id" type="hidden" value={variant.id} />
                           <label className="admin-field">
-                            <span>Change by</span>
+                            <span>Quantity change</span>
                             <input
                               aria-label={`Quantity change for ${variant.sku}`}
+                              aria-describedby={`quantity-help-${variant.id}`}
                               inputMode="numeric"
                               name="quantity_delta"
-                              placeholder="5 or -1"
+                              placeholder="e.g. 5"
                               required
+                              step="1"
+                              type="number"
                             />
+                            <small id={`quantity-help-${variant.id}`}>
+                              Use a minus sign to remove sets.
+                            </small>
                           </label>
                           <label className="admin-field">
                             <span>Reason</span>
@@ -170,12 +178,12 @@ export default async function AdminInventoryPage({
                               aria-label={`Reason for ${variant.sku} adjustment`}
                               maxLength={500}
                               name="reason"
-                              placeholder="Stock count, received…"
+                              placeholder="Stock count or delivery received"
                               required
                             />
                           </label>
                           <button className="admin-button admin-button--secondary" type="submit">
-                            Adjust
+                            Save stock adjustment
                           </button>
                         </form>
                       </td>
