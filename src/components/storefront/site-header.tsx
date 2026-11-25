@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { CartIndicator } from "@/features/cart/components/cart-indicator";
 import { StorefrontIcon } from "./storefront-icon";
 
 const navigation = [
@@ -8,7 +9,7 @@ const navigation = [
   { href: "/size-guide", label: "Size guide" },
 ];
 
-export function SiteHeader() {
+export function SiteHeader({ isSignedIn }: { isSignedIn: boolean }) {
   return (
     <header className="site-header">
       <div className="site-header__inner">
@@ -44,6 +45,14 @@ export function SiteHeader() {
           >
             <StorefrontIcon name="search" />
           </Link>
+          <Link
+            aria-label={isSignedIn ? "Your account" : "Sign in to your account"}
+            className="icon-link icon-link--account"
+            href={isSignedIn ? "/account" : "/account/login"}
+          >
+            <StorefrontIcon name="user" />
+          </Link>
+          <CartIndicator />
           <details className="mobile-menu">
             <summary aria-label="Navigation menu" className="icon-link mobile-menu__toggle">
               <span aria-hidden="true" className="mobile-menu__bars" />
@@ -54,6 +63,9 @@ export function SiteHeader() {
                   {label}
                 </Link>
               ))}
+              <Link className="mobile-menu__link" href={isSignedIn ? "/account" : "/account/login"}>
+                {isSignedIn ? "Your account" : "Sign in"}
+              </Link>
             </nav>
           </details>
         </div>

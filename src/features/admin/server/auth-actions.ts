@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server";
+import { requireStaff } from "./access";
 
 export async function signInAdmin(formData: FormData): Promise<never> {
   if (!isSupabaseServerConfigured()) redirect("/admin/login?error=setup");
@@ -53,4 +54,36 @@ export async function signOutAdmin(): Promise<never> {
     await supabase.auth.signOut();
   }
   redirect("/admin/login");
+}
+
+export async function changeAdminPassword(formData: FormData): Promise<never> {
+  const { supabase, user } = await requireStaff();
+  const currentPassword = formData.get("current_password");
+  const newPassword = formData.get("new_password");
+  const confirmPassword = formData.get("confirm_password");
+
+  if (
+    !user.email ||
+    typeof currentPassword !== "string" ||
+    currentPassword.length === 0 ||
+    currentPassword.length > 1_024 ||
+    typeof newPassword !== "string" ||
+    newPassword.length < 12 ||
+    newPassword.length > 128 ||
+    typeof confirmPassword !== "string" ||
+    newPassword !== confirmPassword
+  ) {
+    redirect("/admin/security?error=invalid");
+  }
+
+  const { error: reauthenticationError } = await supabase.auth.signInWithPassword({
+    email: user.email,
+    password: currentPassword,
+  });
+  if (reauthenticationError) redirect("/admin/security?error=current");
+
+  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+  if (updateError) redirect("/admin/security?error=update");
+
+  redirect("/admin/security?status=updated");
 }

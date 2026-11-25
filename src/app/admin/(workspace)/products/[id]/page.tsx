@@ -7,8 +7,10 @@ import {
   archiveProduct,
   archiveProductImage,
   publishProduct,
+  publishProductImage,
   saveProductVariant,
   setProductCollections,
+  updateProductImage,
   updateProduct,
   uploadProductImage,
 } from "@/features/admin/server/product-actions";
@@ -23,6 +25,8 @@ const statusMessages: Record<string, string> = {
   archived: "Product archived and removed from public catalogue results.",
   "media=uploaded": "Image uploaded privately as a draft asset.",
   "media=archived": "Image archived. It can no longer be signed for public viewing.",
+  "media=updated": "Image details saved.",
+  "media=published": "Image published to the product gallery.",
 };
 
 export default async function AdminProductEditorPage({
@@ -40,14 +44,14 @@ export default async function AdminProductEditorPage({
       supabase
         .from("products")
         .select(
-          "id, slug, title, description, material, care_instructions, set_count, status, sort_order, updated_at",
+          "id, slug, title, description, material, care_instructions, set_count, delivery_fee_minor, cod_enabled, status, sort_order, updated_at",
         )
         .eq("id", id)
         .maybeSingle(),
       supabase
         .from("product_variants")
         .select(
-          "id, sku, size_code, inner_diameter_mm, colour_name, price_minor, compare_at_price_minor, stock_on_hand, reserved_quantity, is_active, is_available",
+          "id, sku, size_code, inner_diameter_mm, price_minor, compare_at_price_minor, stock_on_hand, reserved_quantity, is_active, is_available",
         )
         .eq("product_id", id)
         .order("sku", { ascending: true })
@@ -114,9 +118,16 @@ export default async function AdminProductEditorPage({
       {query.media === "archived" ? (
         <AdminNotice tone="success">{statusMessages["media=archived"]}</AdminNotice>
       ) : null}
+      {query.media === "updated" || query.media === "published" ? (
+        <AdminNotice tone="success">{statusMessages[`media=${query.media}`]}</AdminNotice>
+      ) : null}
       {errorValue ? (
         <AdminNotice tone="error">
-          The change could not be saved. Check required fields and try again.
+          {errorValue === "media_limit"
+            ? "A product can have up to 20 active gallery images. Archive one before adding another."
+            : errorValue === "last_image"
+              ? "Keep one published image on a published product. Archive the product first to remove the last image."
+              : "The change could not be saved. Check required fields and try again."}
         </AdminNotice>
       ) : null}
       {productResult.error ||
@@ -173,6 +184,7 @@ export default async function AdminProductEditorPage({
             <label className="admin-field">
               <span>Product name</span>
               <input defaultValue={product.title} maxLength={160} name="title" required />
+              <small>Include the colour in the name. Each colour is a separate product.</small>
             </label>
             <label className="admin-field">
               <span>Slug</span>
@@ -203,11 +215,11 @@ export default async function AdminProductEditorPage({
           </label>
           <div className="admin-form__row">
             <label className="admin-field">
-              <span>Pieces per sellable unit</span>
+              <span>Bangles in each set</span>
               <input
                 defaultValue={product.set_count}
                 max="32"
-                min="1"
+                min="2"
                 name="set_count"
                 required
                 type="number"
@@ -218,6 +230,34 @@ export default async function AdminProductEditorPage({
               <input defaultValue={product.sort_order} name="sort_order" type="number" />
             </label>
           </div>
+          <label className="admin-field">
+            <span>Delivery fee per order (LKR)</span>
+            <input
+              defaultValue={
+                product.delivery_fee_minor === null
+                  ? ""
+                  : formatMinorInput(product.delivery_fee_minor)
+              }
+              inputMode="decimal"
+              min="0"
+              name="delivery_fee_lkr"
+              placeholder="Enter 0 for free delivery"
+              step="0.01"
+              type="number"
+            />
+            <small>
+              {product.delivery_fee_minor === null
+                ? "Required before publishing."
+                : "The highest fee in a cart is charged once."}
+            </small>
+          </label>
+          <label className="admin-checkbox">
+            <input defaultChecked={product.cod_enabled} name="cod_enabled" type="checkbox" />
+            <span>
+              Allow cash on delivery for this product
+              <small>Cash on delivery also needs to be enabled in Commerce settings.</small>
+            </span>
+          </label>
           <button className="admin-button admin-button--secondary" type="submit">
             Save details
           </button>
@@ -263,15 +303,15 @@ export default async function AdminProductEditorPage({
         <div className="admin-section-heading">
           <div>
             <p className="admin-eyebrow">Sellable SKUs</p>
-            <h2 id="product-variants-heading">Variants</h2>
+            <h2 id="product-variants-heading">Sizes and prices</h2>
           </div>
           <Link className="admin-text-link" href="/admin/inventory">
             Open inventory
           </Link>
         </div>
         <p className="admin-muted">
-          Prices are entered in LKR. New variants start with zero stock; adjust quantities from
-          Inventory with a reason.
+          Each size is one SKU for this named product. Stock and price are for complete sets. New
+          sizes start with zero stock; adjust quantities from Inventory with a reason.
         </p>
         {variants.length ? (
           <div className="admin-variant-list">
@@ -317,8 +357,8 @@ export default async function AdminProductEditorPage({
           </div>
         </div>
         <p className="admin-muted">
-          JPEG, PNG, WebP or AVIF, up to 5 MiB each. Uploads stay private until the product is
-          published.
+          Add up to 20 angle photos. JPEG, PNG, WebP or AVIF, up to 5 MiB each. New uploads stay
+          private until you publish the image or product.
         </p>
         <form
           action={uploadProductImage}
@@ -339,6 +379,10 @@ export default async function AdminProductEditorPage({
             <span>Alternative text</span>
             <input maxLength={250} name="alt_text" required />
           </label>
+          <label className="admin-field">
+            <span>Photo order</span>
+            <input defaultValue="0" name="sort_order" type="number" />
+          </label>
           <button className="admin-button admin-button--secondary" type="submit">
             Upload private image
           </button>
@@ -358,8 +402,31 @@ export default async function AdminProductEditorPage({
                 ) : (
                   <div className="admin-media-card__missing">Private image unavailable</div>
                 )}
-                <p>{item.alt_text}</p>
+                <form action={updateProductImage} className="admin-form">
+                  <input name="product_id" type="hidden" value={id} />
+                  <input name="media_id" type="hidden" value={item.id} />
+                  <label className="admin-field">
+                    <span>Alternative text</span>
+                    <input defaultValue={item.alt_text} maxLength={250} name="alt_text" required />
+                  </label>
+                  <label className="admin-field">
+                    <span>Photo order</span>
+                    <input defaultValue={item.sort_order} name="sort_order" type="number" />
+                  </label>
+                  <button className="admin-button admin-button--secondary" type="submit">
+                    Save photo details
+                  </button>
+                </form>
                 <StatusBadge>{item.status}</StatusBadge>
+                {product.status === "published" && item.status === "draft" ? (
+                  <form action={publishProductImage}>
+                    <input name="product_id" type="hidden" value={id} />
+                    <input name="media_id" type="hidden" value={item.id} />
+                    <button className="admin-button admin-button--secondary" type="submit">
+                      Publish image
+                    </button>
+                  </form>
+                ) : null}
                 {item.status !== "archived" ? (
                   <form action={archiveProductImage}>
                     <input name="product_id" type="hidden" value={id} />
@@ -391,7 +458,6 @@ function VariantFields({
     sku: string;
     size_code: string | null;
     inner_diameter_mm: number | null;
-    colour_name: string;
     price_minor: number;
     compare_at_price_minor: number | null;
     is_active: boolean;
@@ -417,10 +483,6 @@ function VariantFields({
           step="0.01"
           type="number"
         />
-      </label>
-      <label className="admin-field">
-        <span>Colour or design</span>
-        <input defaultValue={variant?.colour_name} maxLength={80} name="colour_name" required />
       </label>
       <label className="admin-field">
         <span>Price (LKR)</span>

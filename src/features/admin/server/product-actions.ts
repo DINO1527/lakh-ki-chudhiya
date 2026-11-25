@@ -4,9 +4,11 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./access";
 import { formText, integer, lkrToMinor, positiveInteger, productSlug } from "./form-values";
+import { detectImageMime } from "./media-validation";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_MEDIA_BYTES = 5 * 1024 * 1024;
+const MAX_PRODUCT_IMAGES = 20;
 
 export async function createProduct(formData: FormData): Promise<never> {
   const title = formText(formData, "title", 160);
@@ -16,6 +18,8 @@ export async function createProduct(formData: FormData): Promise<never> {
   const careInstructions = formText(formData, "care_instructions", 2_000);
   const setCount = positiveInteger(formText(formData, "set_count", 8), 32);
   const sortOrder = integer(formText(formData, "sort_order", 12));
+  const deliveryFeeMinor = parseOptionalDeliveryFee(formData);
+  const codEnabled = formData.get("cod_enabled") === "on";
   if (
     !title ||
     !slug ||
@@ -23,7 +27,9 @@ export async function createProduct(formData: FormData): Promise<never> {
     material === null ||
     careInstructions === null ||
     !setCount ||
-    sortOrder === null
+    setCount < 2 ||
+    sortOrder === null ||
+    deliveryFeeMinor === undefined
   ) {
     redirect("/admin/products/new?error=invalid");
   }
@@ -38,6 +44,8 @@ export async function createProduct(formData: FormData): Promise<never> {
       material,
       care_instructions: careInstructions,
       set_count: setCount,
+      delivery_fee_minor: deliveryFeeMinor,
+      cod_enabled: codEnabled,
       sort_order: sortOrder,
     })
     .select("id")
@@ -57,6 +65,8 @@ export async function updateProduct(formData: FormData): Promise<never> {
   const careInstructions = formText(formData, "care_instructions", 2_000);
   const setCount = positiveInteger(formText(formData, "set_count", 8), 32);
   const sortOrder = integer(formText(formData, "sort_order", 12));
+  const deliveryFeeMinor = parseOptionalDeliveryFee(formData);
+  const codEnabled = formData.get("cod_enabled") === "on";
   if (
     typeof productId !== "string" ||
     !UUID_PATTERN.test(productId) ||
@@ -66,7 +76,9 @@ export async function updateProduct(formData: FormData): Promise<never> {
     material === null ||
     careInstructions === null ||
     !setCount ||
-    sortOrder === null
+    setCount < 2 ||
+    sortOrder === null ||
+    deliveryFeeMinor === undefined
   ) {
     redirect("/admin/products?error=invalid");
   }
@@ -81,6 +93,8 @@ export async function updateProduct(formData: FormData): Promise<never> {
       material,
       care_instructions: careInstructions,
       set_count: setCount,
+      delivery_fee_minor: deliveryFeeMinor,
+      cod_enabled: codEnabled,
       sort_order: sortOrder,
     })
     .eq("id", productId);
@@ -96,7 +110,6 @@ export async function saveProductVariant(formData: FormData): Promise<never> {
   const sku = formText(formData, "sku", 64)?.toUpperCase() ?? null;
   const sizeCode = formText(formData, "size_code", 16);
   const diameterText = formText(formData, "inner_diameter_mm", 16);
-  const colourName = formText(formData, "colour_name", 80);
   const priceMinor = lkrToMinor(formText(formData, "price_lkr", 12));
   const compareAtInput = formText(formData, "compare_at_price_lkr", 12);
   const compareAtPriceMinor = compareAtInput === "" ? 0 : lkrToMinor(compareAtInput);
@@ -117,7 +130,6 @@ export async function saveProductVariant(formData: FormData): Promise<never> {
         !Number.isFinite(diameter) ||
         diameter <= 0 ||
         diameter > 999.99)) ||
-    !colourName ||
     priceMinor === null ||
     priceMinor <= 0 ||
     compareAtPriceMinor === null ||
@@ -133,7 +145,6 @@ export async function saveProductVariant(formData: FormData): Promise<never> {
     sku,
     size_code: sizeCode || null,
     inner_diameter_mm: diameter,
-    colour_name: colourName,
     price_minor: priceMinor,
     compare_at_price_minor: compareAtPriceMinor || null,
     is_active: isActive,
@@ -200,11 +211,13 @@ export async function archiveProduct(formData: FormData): Promise<never> {
 export async function uploadProductImage(formData: FormData): Promise<never> {
   const productId = formData.get("product_id");
   const altText = formText(formData, "alt_text", 250);
+  const sortOrder = integer(formText(formData, "sort_order", 12));
   const file = formData.get("file");
   if (
     typeof productId !== "string" ||
     !UUID_PATTERN.test(productId) ||
     !altText ||
+    sortOrder === null ||
     !(file instanceof File) ||
     file.size === 0 ||
     file.size > MAX_MEDIA_BYTES
@@ -213,6 +226,16 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
   }
 
   const { supabase } = await requireStaff();
+  const { count, error: countError } = await supabase
+    .from("product_media")
+    .select("id", { count: "exact", head: true })
+    .eq("product_id", productId)
+    .eq("media_type", "image")
+    .neq("status", "archived");
+  if (countError || (count ?? 0) >= MAX_PRODUCT_IMAGES) {
+    redirect(`/admin/products/${productId}?error=media_limit`);
+  }
+
   const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   const detected = detectImageMime(signature);
   if (!detected || detected !== file.type) redirect(`/admin/products/${productId}?error=media`);
@@ -229,7 +252,7 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
     storage_path: storagePath,
     alt_text: altText,
     media_type: "image",
-    status: "draft",
+    sort_order: sortOrder,
   });
 
   if (metadataError) {
@@ -257,43 +280,61 @@ export async function archiveProductImage(formData: FormData): Promise<never> {
     p_media_id: mediaId,
     p_product_id: productId,
   });
-  if (error) redirect(`/admin/products/${productId}?error=media`);
+  if (error) {
+    const reason = error.code === "23514" ? "last_image" : "media";
+    redirect(`/admin/products/${productId}?error=${reason}`);
+  }
   revalidateCatalogue(productId);
   redirect(`/admin/products/${productId}?media=archived`);
 }
 
-function detectImageMime(bytes: Uint8Array): string | null {
-  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) {
-    return "image/jpeg";
-  }
+export async function updateProductImage(formData: FormData): Promise<never> {
+  const productId = formData.get("product_id");
+  const mediaId = formData.get("media_id");
+  const altText = formText(formData, "alt_text", 250);
+  const sortOrder = integer(formText(formData, "sort_order", 12));
   if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47 &&
-    bytes[4] === 0x0d &&
-    bytes[5] === 0x0a &&
-    bytes[6] === 0x1a &&
-    bytes[7] === 0x0a
+    typeof productId !== "string" ||
+    !UUID_PATTERN.test(productId) ||
+    typeof mediaId !== "string" ||
+    !UUID_PATTERN.test(mediaId) ||
+    !altText ||
+    sortOrder === null
   ) {
-    return "image/png";
+    redirect("/admin/products?error=invalid");
   }
+
+  const { supabase } = await requireStaff();
+  const { error } = await supabase
+    .from("product_media")
+    .update({ alt_text: altText, sort_order: sortOrder })
+    .eq("id", mediaId)
+    .eq("product_id", productId);
+  if (error) redirect(`/admin/products/${productId}?error=media`);
+  revalidateCatalogue(productId);
+  redirect(`/admin/products/${productId}?media=updated`);
+}
+
+export async function publishProductImage(formData: FormData): Promise<never> {
+  const productId = formData.get("product_id");
+  const mediaId = formData.get("media_id");
   if (
-    bytes.length >= 12 &&
-    String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
-    String.fromCharCode(...bytes.slice(8, 12)) === "WEBP"
+    typeof productId !== "string" ||
+    !UUID_PATTERN.test(productId) ||
+    typeof mediaId !== "string" ||
+    !UUID_PATTERN.test(mediaId)
   ) {
-    return "image/webp";
+    redirect("/admin/products?error=invalid");
   }
-  if (
-    bytes.length >= 12 &&
-    String.fromCharCode(...bytes.slice(4, 8)) === "ftyp" &&
-    ["avif", "avis"].includes(String.fromCharCode(...bytes.slice(8, 12)))
-  ) {
-    return "image/avif";
-  }
-  return null;
+
+  const { supabase } = await requireStaff();
+  const { error } = await supabase.rpc("publish_product_media", {
+    p_media_id: mediaId,
+    p_product_id: productId,
+  });
+  if (error) redirect(`/admin/products/${productId}?error=media`);
+  revalidateCatalogue(productId);
+  redirect(`/admin/products/${productId}?media=published`);
 }
 
 function revalidateCatalogue(productId: string): void {
@@ -302,4 +343,12 @@ function revalidateCatalogue(productId: string): void {
   revalidatePath("/collections");
   revalidatePath(`/admin/products/${productId}`);
   revalidatePath("/admin/products");
+}
+
+function parseOptionalDeliveryFee(formData: FormData): number | null | undefined {
+  const value = formText(formData, "delivery_fee_lkr", 12);
+  if (value === null) return undefined;
+  if (value === "") return null;
+  const minor = lkrToMinor(value);
+  return minor === null ? undefined : minor;
 }

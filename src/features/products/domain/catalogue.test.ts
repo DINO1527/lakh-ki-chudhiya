@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { buildCataloguePageHref, normalizeCatalogueFilters } from "./catalogue";
+import {
+  buildCataloguePageHref,
+  describeOfferTerms,
+  isUatFixtureSlug,
+  normalizeCatalogueFilters,
+} from "./catalogue";
+
+describe("isUatFixtureSlug", () => {
+  it("recognizes reserved UAT-only catalogue slugs", () => {
+    expect(isUatFixtureSlug("uat-sample-bangle")).toBe(true);
+    expect(isUatFixtureSlug("ruby-crimson-set")).toBe(false);
+  });
+});
 
 describe("normalizeCatalogueFilters", () => {
   it("keeps safe, bounded URL-addressable filters", () => {
@@ -8,7 +20,6 @@ describe("normalizeCatalogueFilters", () => {
         q: "  Ruby% bangles  ",
         collection: "bridal-edit",
         size: "2-6",
-        colour: "Ruby",
         sort: "name",
         page: "3",
       }),
@@ -16,7 +27,6 @@ describe("normalizeCatalogueFilters", () => {
       search: "Ruby bangles",
       collectionSlug: "bridal-edit",
       sizeCode: "2-6",
-      colourName: "Ruby",
       sort: "name",
       page: 3,
     });
@@ -34,7 +44,6 @@ describe("normalizeCatalogueFilters", () => {
       search: "",
       collectionSlug: "",
       sizeCode: "",
-      colourName: "",
       sort: "featured",
       page: 1,
     });
@@ -50,12 +59,43 @@ describe("buildCataloguePageHref", () => {
           search: "ruby bangles",
           collectionSlug: "bridal-edit",
           sizeCode: "2-6",
-          colourName: "Ruby",
           sort: "name",
           page: 1,
         },
         2,
       ),
-    ).toBe("/shop?q=ruby+bangles&collection=bridal-edit&size=2-6&colour=Ruby&sort=name&page=2");
+    ).toBe("/shop?q=ruby+bangles&collection=bridal-edit&size=2-6&sort=name&page=2");
+  });
+});
+
+describe("describeOfferTerms", () => {
+  it("describes a product offer using complete-set quantities", () => {
+    expect(
+      describeOfferTerms({
+        id: "offer-1",
+        name: "Ruby Weekend",
+        targetType: "product",
+        targetName: "Ruby Crimson Set",
+        targetSlug: "ruby-crimson-set",
+        minimumSets: 3,
+        discountBasisPoints: 1_000,
+        endsAt: null,
+      }),
+    ).toBe("Save 10% when you buy 3 or more complete sets of Ruby Crimson Set.");
+  });
+
+  it("keeps fractional collection discounts accurate and singular quantities grammatical", () => {
+    expect(
+      describeOfferTerms({
+        id: "offer-2",
+        name: "Pastel Edit",
+        targetType: "collection",
+        targetName: "Pastel",
+        targetSlug: "pastel",
+        minimumSets: 1,
+        discountBasisPoints: 1_250,
+        endsAt: null,
+      }),
+    ).toBe("Save 12.5% when you buy 1 or more complete set from the Pastel collection.");
   });
 });

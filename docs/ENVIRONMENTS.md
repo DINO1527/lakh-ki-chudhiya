@@ -44,7 +44,7 @@ Cloudflare Workers Editor can deploy code to an existing Worker; initial Worker 
 
 ## Supabase Storage and database setup
 
-The repository declares one private bucket, `product-media`, in `supabase/config.toml`. It accepts JPEG, PNG, WebP and AVIF images up to 5 MiB. The bucket and all four migrations are applied in UAT and live; the live changes followed the owner's explicit request to deploy both environments after UAT hosted smoke checks passed. The Stage 1 migration limits anonymous signed-URL creation to published images attached to published products and denies public object listing and draft access. The Stage 2 migration replaces the earlier `app_metadata.role=admin` Storage check with an active database-backed owner/staff membership check. Live has no copied UAT fixtures.
+The repository declares one private bucket, `product-media`, in `supabase/config.toml`. It accepts JPEG, PNG, WebP and AVIF images up to 5 MiB. The private bucket is configured in UAT and live. As of the 2026-11-25 homepage release preflight, all nine checked-in migrations are applied in UAT; live has the original four and five later migrations are pending. The Stage 1 migration limits anonymous signed-URL creation to published images attached to published products and denies public object listing and draft access. The Stage 2 migration replaces the earlier `app_metadata.role=admin` Storage check with an active database-backed owner/staff membership check. Live has no copied UAT fixtures.
 
 Use Supabase CLI v3.2.0 with an authenticated owner account. Always specify the project reference explicitly and inspect the command's printed target and diff:
 
@@ -69,7 +69,12 @@ Supabase GitHub integration can watch repository branches, but it is not the cur
 
 - `.env.example` contains placeholder values only. No Supabase credentials belong in the repository.
 - Supabase CLI identifies the projects as `lakh-ki-chudhiya-uat` (UAT) and `lakh-ki-chudhiya-live` (live). Their project references are kept outside the repository.
-- The private `product-media` bucket and all four checked-in migrations are applied in both projects. The synthetic fixture is loaded only in UAT. Rollback-only Stage 1 RLS/Storage and Stage 2 authorization/stock assertions pass in UAT; the updated Storage-policy and Stage 2 checks pass in live.
+- The private `product-media` bucket is configured in both projects. UAT has all nine checked-in migrations; live has the original four, with five catalogue/commerce migrations pending. UAT has a synthetic fixture; live has no UAT fixture data. The latest live read-only preflight found zero products, collections and variants, and no `public.orders` table. Rollback-only checks previously passed on both environments for their then-current schemas.
 - The Stage 2 UAT and live Worker deployments and hosted smoke checks pass. Live was deployed by GitHub Actions run `45035581147`, version `8ccbc69e-bb77-42b7-855f-639240345e68`, to `https://lakh-ki-chudhiya-live.dinoshan-theiventhiran.workers.dev`. The hosted live smoke verified the homepage, catalogue routes, health, private no-store headers, manifest/service-worker exclusions and empty catalogue; `/admin/inventory` redirects unauthenticated visitors to staff sign-in. No local Worker preview was run.
 - The GitHub workflow maps `develop` to UAT and offers a separate manual live deployment from `main`. Both `main` and `develop` exist. Runs `45034814757` and `45035581147` completed their respective deployments; verify environment secrets before future releases. GitHub currently reports `main` as unprotected; enable branch protection and verify the live environment restriction before the next live release.
 - Supabase CLI v3.2.0 is authenticated. No credentials or project references are stored in the repository. The Stage 2 code passes local lint, formatting, typecheck, 16 unit tests, Next.js build and Cloudflare Worker bundle build. UAT and live have no active staff memberships, so first-owner bootstrap and positive authenticated workflow checks remain pending.
+
+## Homepage release note (2026-11-25)
+
+- GitHub Actions run `45527595435` (run 44, commit `c1fc117`) passed verification and deployed the static footer SVG and scroll-reveal fixes to UAT. The live deployment job was skipped.
+- The live Supabase preflight still shows five catalogue/commerce migrations pending, zero products/collections/variants, and no `public.orders` table. UAT has all nine checked-in migrations. No migration or fixture was written to live.

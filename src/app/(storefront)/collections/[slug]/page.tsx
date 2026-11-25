@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CatalogueNotice, UatFixtureNotice } from "@/features/products/components/catalogue-notice";
+import { ProductGallery } from "@/features/products/components/product-gallery";
 import { CataloguePagination } from "@/features/products/components/catalogue-pagination";
 import { ProductGrid } from "@/features/products/components/product-card";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/features/products/domain/catalogue";
 import {
   getPublicShopPage,
+  getPublicCollectionImages,
   type PublicQueryResult,
   type PublicShopPage,
 } from "@/features/products/server/public-catalogue";
@@ -38,12 +40,14 @@ async function loadPageData(props: CollectionPageProps): Promise<CollectionPageR
   const result = await getPublicShopPage(filters);
   if (result.status !== "ready") return { status: result.status };
   if (!result.data.selectedCollection) return { status: "ready", data: null };
+  const imagesResult = await getPublicCollectionImages(result.data.selectedCollection.id);
+  if (imagesResult.status !== "ready") return { status: imagesResult.status };
 
   return {
     status: "ready",
     data: {
       ...result.data,
-      selectedCollection: result.data.selectedCollection,
+      selectedCollection: { ...result.data.selectedCollection, images: imagesResult.data },
     },
   };
 }
@@ -88,6 +92,13 @@ export default async function CollectionPage(props: CollectionPageProps) {
         <p className="eyebrow">Collection</p>
         <h1 className="page-heading">{collection.name}</h1>
         {collection.description && <p className="page-intro">{collection.description}</p>}
+        {collection.images.length > 0 ? (
+          <ProductGallery
+            className="collection-detail__gallery"
+            images={collection.images}
+            label={collection.name}
+          />
+        ) : null}
         {collection.isUatFixture && <UatFixtureNotice />}
         <p aria-live="polite" className="catalogue-result-count" role="status">
           {page.totalCount} {page.totalCount === 1 ? "design" : "designs"}

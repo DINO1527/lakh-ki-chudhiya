@@ -6,7 +6,6 @@ const variants: readonly ProductVariant[] = [
     id: "test-variant-a",
     sizeCode: "2-4",
     innerDiameterMm: null,
-    colourName: "Test colour A",
     priceMinor: 125000,
     isAvailable: true,
   },
@@ -14,33 +13,25 @@ const variants: readonly ProductVariant[] = [
     id: "test-variant-b",
     sizeCode: "2-6",
     innerDiameterMm: null,
-    colourName: "Test colour A",
     priceMinor: 135000,
     isAvailable: false,
   },
 ];
 
 describe("resolveAvailableVariant", () => {
-  it("returns only the exact available size and colour combination", () => {
-    expect(
-      resolveAvailableVariant(variants, {
-        sizeCode: "2-4",
-        colourName: "Test colour A",
-      })?.id,
-    ).toBe("test-variant-a");
+  it("returns the available SKU for the selected size", () => {
+    expect(resolveAvailableVariant(variants, { sizeCode: "2-4" })?.id).toBe("test-variant-a");
   });
 
   it("does not fall back to another size or select an unavailable variant", () => {
     expect(
       resolveAvailableVariant(variants, {
         sizeCode: "2-8",
-        colourName: "Test colour A",
       }),
     ).toBeNull();
     expect(
       resolveAvailableVariant(variants, {
         sizeCode: "2-6",
-        colourName: "Test colour A",
       }),
     ).toBeNull();
   });

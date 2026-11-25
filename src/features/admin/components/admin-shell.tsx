@@ -8,7 +8,11 @@ const navigation = [
   { href: "/admin/products", label: "Products" },
   { href: "/admin/collections", label: "Collections" },
   { href: "/admin/inventory", label: "Inventory" },
+  { href: "/admin/orders", label: "Orders" },
+  { href: "/admin/offers", label: "Offers" },
+  { href: "/admin/customers", label: "Customers" },
   { href: "/admin/content", label: "Homepage content" },
+  { href: "/admin/security", label: "Account security" },
 ] as const;
 
 export function AdminShell({
@@ -20,6 +24,7 @@ export function AdminShell({
     role === "owner"
       ? [
           ...navigation,
+          { href: "/admin/settings/commerce", label: "Commerce settings" },
           { href: "/admin/team", label: "Team access" },
           { href: "/admin/activity", label: "Activity" },
         ]

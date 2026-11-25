@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { PublicCollection } from "@/features/products/domain/catalogue";
 
@@ -5,6 +6,22 @@ export function CollectionCard({ collection }: { collection: PublicCollection })
   return (
     <li className="collection-card">
       <Link className="collection-card__link" href={`/collections/${collection.slug}`}>
+        <span className="collection-card__media">
+          {collection.images[0] ? (
+            <Image
+              alt={collection.images[0].altText}
+              className="collection-card__image"
+              height={600}
+              src={collection.images[0].url}
+              unoptimized
+              width={900}
+            />
+          ) : (
+            <span aria-hidden="true" className="collection-card__image-placeholder">
+              <span>L</span>
+            </span>
+          )}
+        </span>
         {collection.isUatFixture && (
           <span className="fixture-badge">UAT example · not for sale</span>
         )}
