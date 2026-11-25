@@ -15,11 +15,11 @@ The target is $0 recurring platform cost only within verified free quotas; it is
 
 ## Environment setup and operations
 
-Development and testing use the UAT Supabase project; `main` targets the separate live project. GitHub Actions maps `develop` pushes to the UAT Worker. Live uses a separate manual `workflow_dispatch` from `main` after UAT inspection; pull requests run checks only. Wrangler names the Workers `lakh-ki-chudhiya-uat` and `lakh-ki-chudhiya-live`.
+Development and testing use the UAT Supabase project; `main` targets the separate live project. The intended Git path is `codex/*` → `dev` → `uat` → `main`: `dev` runs CI only, `uat` pushes deploy to the UAT Worker, and live uses a separate manual `workflow_dispatch` from `main` after UAT acceptance. Pull requests run checks only. Wrangler names the Workers `lakh-ki-chudhiya-uat` and `lakh-ki-chudhiya-live`; there is no third development Worker.
 
 Product media is stored in Supabase Storage. The two Supabase projects each receive the same private bucket definition and RLS policies; bucket objects are isolated per project. The GitHub Cloudflare workflow does not apply database migrations, load fixtures or sync Storage buckets.
 
-Before Cloudflare deployments can succeed, create the named Workers, set up the `uat` and `live` GitHub environments and secrets listed in [ENVIRONMENTS.md](ENVIRONMENTS.md), configure least-privilege Cloudflare API tokens and protect `main`. The repository's existing GitHub Actions workflow is the deployment path; do not configure a second Cloudflare Workers Builds integration. Do not add secrets to Wrangler vars or commit local env files.
+Before Cloudflare deployments can succeed, create the named Workers, set up the `uat` and `live` GitHub environments and secrets listed in [ENVIRONMENTS.md](ENVIRONMENTS.md), configure least-privilege Cloudflare API tokens and protect `dev`, `uat` and `main`. Allow only `uat` to use the UAT environment and only `main` to use the live environment; require live reviewer approval. The repository's GitHub Actions workflow is the only deployment path; do not configure a second Cloudflare Workers Builds integration. Do not add secrets to Wrangler vars or commit local env files. During the branch migration, `develop` remains the legacy UAT deploy source until a successful `uat` deployment is confirmed and the environment restriction is moved.
 
 ## Supabase setup path
 
