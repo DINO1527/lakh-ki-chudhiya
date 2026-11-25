@@ -68,7 +68,7 @@
   z-index: 1;
   top: 0;
   bottom: auto;
-  height: clamp(4.7rem, 8vw, 7.2rem);
+  height: var(--footer-wave-height);
   transform: translateY(-100%);
 }
 
