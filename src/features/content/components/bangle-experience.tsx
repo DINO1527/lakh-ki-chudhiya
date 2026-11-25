@@ -50,7 +50,7 @@ class BangleSceneBoundary extends Component<
   }
 }
 
-function BangleFallback() {
+export function BangleFallback({ className = "bangle-stage__fallback" }: { className?: string }) {
   const palette = LACORA_BANGLE_PALETTE;
   const idPrefix = useId().replaceAll(":", "");
   const ids = {
@@ -70,7 +70,7 @@ function BangleFallback() {
   ];
 
   return (
-    <svg aria-hidden="true" className="bangle-stage__fallback" viewBox="0 0 680 580">
+    <svg aria-hidden="true" className={className} viewBox="0 0 680 580">
       <defs>
         <linearGradient id={ids.burgundy} x1="0" x2="1" y1="0" y2="1">
           <stop offset="0" stopColor="#e89991" />

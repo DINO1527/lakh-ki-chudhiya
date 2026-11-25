@@ -38,7 +38,7 @@
 .hero {
   z-index: 2;
   bottom: -1px;
-  height: clamp(5.4rem, 10vw, 8.8rem);
+  height: clamp(2.5rem, 4vw, 4rem);
 }
 
 .hero .shadow {
@@ -47,7 +47,13 @@
 }
 
 .hero .base {
-  fill: #450817;
+  fill: var(--color-surface);
+}
+
+@media (max-width: 46rem) {
+  .hero {
+    height: clamp(1.5rem, 7vw, 2.5rem);
+  }
 }
 
 .hero .line {
