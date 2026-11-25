@@ -25,6 +25,7 @@
   --color-status-delivered: #e2efe3;
   --color-status-exception: #f5e3df;
   --content-width: 76rem;
+  --footer-wave-height: clamp(3rem, 5vw, 4rem);
   --font-display: Georgia, "Times New Roman", serif;
   --font-body: "Segoe UI", Arial, sans-serif;
   background: var(--color-surface);
@@ -4426,6 +4427,7 @@ main {
   :root {
     --home-gutter: clamp(1rem, 5vw, 1.5rem);
     --home-section-space: 3rem;
+    --footer-wave-height: clamp(1.75rem, 7vw, 2.5rem);
   }
 
   .home-section-heading {
