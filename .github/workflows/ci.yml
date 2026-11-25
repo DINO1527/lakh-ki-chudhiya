@@ -2,8 +2,9 @@ name: CI
 
 on:
   pull_request:
+    branches: [dev, uat, main]
   push:
-    branches: [main, develop]
+    branches: [dev, uat, main]
   workflow_dispatch:
     inputs:
       target:
@@ -20,6 +21,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Enforce the promotion path
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          case "$BASE_BRANCH:$HEAD_BRANCH" in
+            dev:codex/*|uat:dev|main:uat) ;;
+            *)
+              echo "PRs must follow codex/* -> dev -> uat -> main; received $HEAD_BRANCH -> $BASE_BRANCH" >&2
+              exit 1
+              ;;
+          esac
       - uses: pnpm/action-setup@v4
         with:
           version: 10.34.5
@@ -37,7 +51,7 @@ jobs:
       - run: pnpm cf:build
 
   deploy-uat:
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/develop') || (github.event_name == 'workflow_dispatch' && inputs.target == 'uat' && github.ref == 'refs/heads/develop')
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/uat') || (github.event_name == 'workflow_dispatch' && inputs.target == 'uat' && github.ref == 'refs/heads/uat')
     needs: verify
     runs-on: ubuntu-latest
     environment: uat
