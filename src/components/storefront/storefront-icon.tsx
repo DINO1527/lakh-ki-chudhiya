@@ -1,6 +1,15 @@
 import type { ReactNode } from "react";
 
-type StorefrontIconName = "search" | "user" | "bag" | "home" | "grid";
+type StorefrontIconName =
+  | "search"
+  | "user"
+  | "bag"
+  | "home"
+  | "grid"
+  | "gem"
+  | "ruler"
+  | "truck"
+  | "message";
 
 const iconPaths: Record<StorefrontIconName, ReactNode> = {
   search: (
@@ -32,6 +41,26 @@ const iconPaths: Record<StorefrontIconName, ReactNode> = {
       <rect x="14" y="4" width="6" height="6" rx="1" />
       <rect x="4" y="14" width="6" height="6" rx="1" />
       <rect x="14" y="14" width="6" height="6" rx="1" />
+    </>
+  ),
+  gem: <path d="m12 2 8 7-8 13L4 9l8-7Zm-8 7h16M8 5l4 4 4-4m-4 4v13" />,
+  ruler: (
+    <>
+      <path d="M4 17 17 4l3 3L7 20l-3-3Z" />
+      <path d="m13 8 2 2m-5 1 2 2m-5 1 2 2" />
+    </>
+  ),
+  truck: (
+    <>
+      <path d="M3 6h11v11H3zM14 10h4l3 3v4h-7z" />
+      <circle cx="7.5" cy="18" r="1.5" />
+      <circle cx="17.5" cy="18" r="1.5" />
+    </>
+  ),
+  message: (
+    <>
+      <path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l1.2-3.4A7.5 7.5 0 1 1 20 11.5Z" />
+      <path d="M9 11h.01M13 11h.01M17 11h.01" />
     </>
   ),
 };
