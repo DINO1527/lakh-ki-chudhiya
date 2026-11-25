@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { AdminNotice, AdminPageHeader, StatusBadge } from "@/features/admin/components/admin-ui";
 import { ConfirmButton } from "@/features/admin/components/confirm-button";
 import {
@@ -13,6 +14,7 @@ export default async function AdminCollectionsPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const [params, { supabase }] = await Promise.all([searchParams, requireStaff()]);
+  const createdId = Array.isArray(params.created) ? params.created[0] : params.created;
   const [collectionsResult, linksResult] = await Promise.all([
     supabase
       .from("collections")
@@ -59,9 +61,22 @@ export default async function AdminCollectionsPage({
       <AdminPageHeader
         eyebrow="Catalogue"
         title="Collections"
-        description="Organize products into public collections or keep working collections in draft."
+        description="Group related products for shoppers. A collection stays private until you publish it."
+        action={
+          <Link className="admin-button admin-button--primary" href="#new-collection">
+            Create collection
+          </Link>
+        }
       />
-      {params.saved ? <AdminNotice tone="success">Collection saved.</AdminNotice> : null}
+      {createdId ? (
+        <AdminNotice tone="success">
+          Draft created. Add its images, then set visibility to Published and save to show it in the
+          storefront.
+        </AdminNotice>
+      ) : null}
+      {params.saved && !createdId && !params.image ? (
+        <AdminNotice tone="success">Collection changes saved.</AdminNotice>
+      ) : null}
       {params.error ? (
         <AdminNotice tone="error">
           {params.error === "image_required"
@@ -74,75 +89,91 @@ export default async function AdminCollectionsPage({
         </AdminNotice>
       ) : null}
       {params.image === "uploaded" ? (
-        <AdminNotice tone="success">Collection image uploaded privately.</AdminNotice>
+        <AdminNotice tone="success">
+          Image added as a private draft. Publishing the collection makes its draft images public.
+        </AdminNotice>
       ) : null}
       {params.image === "archived" ? (
         <AdminNotice tone="success">Collection image archived.</AdminNotice>
+      ) : null}
+      {params.image === "updated" ? (
+        <AdminNotice tone="success">Collection image details saved.</AdminNotice>
       ) : null}
       {collectionsResult.error || linksResult.error || mediaResult.error || signedMedia.error ? (
         <AdminNotice tone="error">Collection data could not be loaded.</AdminNotice>
       ) : null}
 
-      <section aria-labelledby="new-collection-heading" className="admin-panel">
+      <section aria-labelledby="new-collection-heading" className="admin-panel" id="new-collection">
         <div className="admin-section-heading">
           <div>
-            <p className="admin-eyebrow">Start here</p>
+            <p className="admin-eyebrow">Step 1 · Create</p>
             <h2 id="new-collection-heading">Create a collection</h2>
           </div>
         </div>
+        <p className="admin-muted">
+          Begin with a name. Add collection images here, then assign products from each
+          product&apos;s editor.
+        </p>
         <form action={saveCollection} className="admin-form">
           <input name="collection_id" type="hidden" value="" />
-          <div className="admin-form__row">
-            <label className="admin-field">
-              <span>Name</span>
-              <input maxLength={120} name="name" required />
-            </label>
-            <label className="admin-field">
-              <span>
-                Slug <small>Leave blank to derive from the name.</small>
-              </span>
-              <input maxLength={100} name="slug" />
-            </label>
-          </div>
           <label className="admin-field">
-            <span>Description</span>
-            <textarea maxLength={2_000} name="description" rows={3} />
+            <span>Collection name</span>
+            <input maxLength={120} name="name" required />
           </label>
-          <div className="admin-form__row admin-form__row--small">
-            <label className="admin-field">
-              <span>Display order</span>
-              <input defaultValue="0" name="sort_order" type="number" />
-            </label>
-          </div>
-          <p className="admin-muted">
-            New collections start as drafts. Add an image, then publish from the collection editor.
-          </p>
+          <details className="admin-form-details">
+            <summary>Add optional details now</summary>
+            <div className="admin-form-details__content">
+              <label className="admin-field">
+                <span>
+                  URL slug <small>Leave blank to derive it from the name.</small>
+                </span>
+                <input maxLength={100} name="slug" />
+              </label>
+              <label className="admin-field">
+                <span>Description</span>
+                <textarea maxLength={2_000} name="description" rows={3} />
+              </label>
+              <label className="admin-field">
+                <span>Display order</span>
+                <input defaultValue="0" name="sort_order" type="number" />
+              </label>
+            </div>
+          </details>
           <button className="admin-button admin-button--primary" type="submit">
-            Create collection
+            Create draft and continue
           </button>
         </form>
       </section>
 
-      <section aria-labelledby="existing-collections-heading" className="admin-panel">
+      <section
+        aria-labelledby="existing-collections-heading"
+        className="admin-panel"
+        id="existing-collections"
+      >
         <div className="admin-section-heading">
           <div>
-            <p className="admin-eyebrow">Current catalogue</p>
-            <h2 id="existing-collections-heading">Edit collections</h2>
+            <p className="admin-eyebrow">Step 2 · Images and visibility</p>
+            <h2 id="existing-collections-heading">Existing collections</h2>
           </div>
         </div>
         {collections.length ? (
           <div className="admin-collection-list">
             {collections.map((collection) => (
-              <details className="admin-collection" key={collection.id}>
+              <details
+                className="admin-collection"
+                id={`collection-${collection.id}`}
+                key={collection.id}
+                open={createdId === collection.id}
+              >
                 <summary>
                   <span>
                     <strong>{collection.name}</strong>
                     <StatusBadge>{collection.status}</StatusBadge>
                     <span className="admin-muted">
-                      {counts.get(collection.id) ?? 0} product links
+                      {counts.get(collection.id) ?? 0} products assigned
                     </span>
                   </span>
-                  <span aria-hidden="true">Edit</span>
+                  <span>Edit collection</span>
                 </summary>
                 <form action={saveCollection} className="admin-form">
                   <input name="collection_id" type="hidden" value={collection.id} />
@@ -177,10 +208,14 @@ export default async function AdminCollectionsPage({
                         <option value="published">Published</option>
                         <option value="archived">Archived</option>
                       </select>
+                      <small>
+                        Publishing requires an image and makes the collection&apos;s draft images
+                        public.
+                      </small>
                     </label>
                   </div>
                   <button className="admin-button admin-button--secondary" type="submit">
-                    Save collection
+                    Save collection and visibility
                   </button>
                 </form>
                 <div className="admin-collection__images">
@@ -213,7 +248,7 @@ export default async function AdminCollectionsPage({
                       <input defaultValue="0" name="sort_order" type="number" />
                     </label>
                     <button className="admin-button admin-button--secondary" type="submit">
-                      Upload private image
+                      Add collection image
                     </button>
                   </form>
                   {imagesByCollectionId.get(collection.id)?.length ? (

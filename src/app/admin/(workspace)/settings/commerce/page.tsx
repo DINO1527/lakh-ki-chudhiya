@@ -18,8 +18,8 @@ export default async function CommerceSettingsPage({
     <>
       <AdminPageHeader
         eyebrow="Store setup"
-        title="Commerce settings"
-        description="Set the verified store contact and decide whether COD can be offered. Product eligibility is controlled on each product."
+        title="Checkout settings"
+        description="Set the verified store contact and decide whether cash on delivery can be offered. Online payments are not available yet."
       />
       {notice ? <AdminNotice tone="success">Commerce settings saved.</AdminNotice> : null}
       {errorCode ? (
@@ -63,8 +63,11 @@ export default async function CommerceSettingsPage({
             <label className="admin-checkbox">
               <input defaultChecked={data.cod_enabled} name="cod_enabled" type="checkbox" />
               <span>
-                Enable cash on delivery
-                <small>COD is offered only when every product in the order also allows COD.</small>
+                Allow cash on delivery (COD) at checkout
+                <small>
+                  COD is available only when this setting, the verified WhatsApp number and every
+                  product in the order allow it.
+                </small>
               </span>
             </label>
             <button className="admin-button admin-button--primary" type="submit">
