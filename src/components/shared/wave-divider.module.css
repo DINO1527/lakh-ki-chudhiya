@@ -59,9 +59,11 @@
 }
 
 .footer {
-  z-index: 0;
-  bottom: calc(100% - 1px);
+  z-index: 1;
+  top: 0;
+  bottom: auto;
   height: clamp(4.7rem, 8vw, 7.2rem);
+  transform: translateY(-100%);
 }
 
 .footer .shadow {
