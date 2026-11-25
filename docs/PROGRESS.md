@@ -1,6 +1,6 @@
 # Development progress
 
-**Last updated:** 2026-11-23
+**Last updated:** 2026-11-25
 
 **Current milestone:** Stage 3/4 — customer, cart and orders (in progress by owner direction; Stage 0, 1, 2, 3 and 4 exit gates remain incomplete)
 
@@ -250,3 +250,4 @@ Brand/logo, product photos/models, size chart, LKR prices, inventory, verified W
 - Local verification: full ESLint and TypeScript checks passed; Vitest passed 30 tests. The local Next preview returned the homepage and visually showed the static hero wave, burgundy image cards, and static footer wave. The isolated worktree has no local Supabase environment variables, so local catalogue sections show the disconnected-environment state. The browser viewport override did not take effect, so mobile was reviewed from responsive CSS breakpoints rather than a mobile screenshot.
 - UAT Supabase health endpoint returns status OK with querySucceeded true. GitHub Actions run `45507226651` passed verification and deployed commit `9ea5ce7` to UAT; the live job was skipped. Hosted UAT catalogue checks show no real published products, collections, collection links/media, or active offers after filtering out the synthetic fixture, so the page uses empty states rather than fabricated merchandise. The latest read-only live preflight found zero products, collections and variants, no `public.orders` table, and five pending catalogue/commerce migrations. No live migration has been applied; exact migration approval remains pending.
 - GitHub Actions run `45523102361` verified and deployed the footer wave positioning CSS to UAT. The hosted follow-up showed the SVG render call was still only in the local footer component; this correction wires that component into the deployed page. The same inspection found a fast-scroll case that could leave a reveal section hidden, so the reveal wrapper now also checks passed sections on scroll.
+- GitHub Actions run `45527595435` (run 44, commit `c1fc117`) passed verification and deployed the footer component and scroll-reveal fix to UAT; live was skipped. Hosted UAT now shows the static SVG footer wave, full Lacora footer, photo-led burgundy story cards, and the lower shopping CTA after a quick scroll. Supabase health returned `status: ok` and `querySucceeded: true`; offers, collections and products correctly show empty states because no real published records exist. Visual QA was at the default 1280 × 720 viewport; the in-app browser ignored the requested 390 × 844 override, so a mobile screenshot remains unverified.
