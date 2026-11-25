@@ -37,9 +37,21 @@ export function ScrollReveal({ children, className, delayMs = 0 }: ScrollRevealP
       { rootMargin: "0px 0px -8% 0px", threshold: 0.08 },
     );
 
-    observer.observe(element);
+    const revealPassedSection = () => {
+      if (element.getBoundingClientRect().top <= window.innerHeight * 0.92) {
+        setVisible(true);
+        observer.unobserve(element);
+        window.removeEventListener("scroll", revealPassedSection);
+      }
+    };
 
-    return () => observer.disconnect();
+    observer.observe(element);
+    window.addEventListener("scroll", revealPassedSection, { passive: true });
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", revealPassedSection);
+    };
   }, []);
 
   return (
