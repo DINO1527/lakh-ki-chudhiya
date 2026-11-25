@@ -14,6 +14,7 @@ type SnapPoint = { index: number; left: number };
 export function ResponsiveCarousel({ label, children, className }: ResponsiveCarouselProps) {
   const trackRef = useRef<HTMLUListElement>(null);
   const dotRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const snapPointsRef = useRef<readonly SnapPoint[]>([]);
   const [snapPoints, setSnapPoints] = useState<readonly SnapPoint[]>([]);
   const [activePage, setActivePage] = useState(0);
 
@@ -25,6 +26,7 @@ export function ResponsiveCarousel({ label, children, className }: ResponsiveCar
       const cards = Array.from(track.children) as HTMLElement[];
       const maxScroll = Math.max(0, track.scrollWidth - track.clientWidth);
       if (cards.length < 2 || maxScroll < 2 || track.clientWidth === 0) {
+        snapPointsRef.current = [];
         setSnapPoints([]);
         setActivePage(0);
         return;
@@ -49,6 +51,7 @@ export function ResponsiveCarousel({ label, children, className }: ResponsiveCar
         points.push({ index: cards.length - 1, left: maxScroll });
       }
 
+      snapPointsRef.current = points;
       setSnapPoints((current) => {
         const unchanged =
           current.length === points.length &&
@@ -89,9 +92,6 @@ export function ResponsiveCarousel({ label, children, className }: ResponsiveCar
       window.removeEventListener("resize", measure);
     };
   }, [children]);
-
-  const snapPointsRef = useRef(snapPoints);
-  snapPointsRef.current = snapPoints;
 
   const goToPage = (index: number, focus = false) => {
     const point = snapPoints[index];
