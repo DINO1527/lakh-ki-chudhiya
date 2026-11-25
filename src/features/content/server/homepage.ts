@@ -36,3 +36,16 @@ export async function getPublishedHomepageHero(): Promise<HomepageHero> {
     ctaHref: data.cta_href || "/shop",
   };
 }
+
+export async function getPublicStoreWhatsAppNumber(): Promise<string | null> {
+  if (!isSupabaseServerConfigured()) return null;
+
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("store_settings")
+    .select("whatsapp_number")
+    .eq("singleton", true)
+    .maybeSingle();
+
+  return error ? null : (data?.whatsapp_number ?? null);
+}

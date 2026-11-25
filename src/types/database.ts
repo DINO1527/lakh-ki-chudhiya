@@ -94,6 +94,7 @@ export type Database = {
         cod_enabled: boolean;
         status: ProductStatus;
         sort_order: number;
+        published_at: string | null;
         created_at: string;
         updated_at: string;
       }>;

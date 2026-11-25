@@ -25,7 +25,7 @@ type ProductRow = Pick<
   | "set_count"
   | "delivery_fee_minor"
   | "sort_order"
->;
+> & { published_at?: string | null };
 
 type CollectionRow = Pick<
   Database["public"]["Tables"]["collections"]["Row"],
@@ -84,6 +84,7 @@ const PRODUCT_IMAGES_PER_PRODUCT = 20;
 const COLLECTION_IMAGES_PER_COLLECTION = 20;
 const PRODUCT_SELECT =
   "id, slug, title, description, material, care_instructions, set_count, delivery_fee_minor, sort_order";
+const LATEST_PRODUCTS_LIMIT = 12;
 const COLLECTION_SELECT = "id, slug, name, description, sort_order";
 const VARIANT_SELECT = "id, product_id, size_code, inner_diameter_mm, price_minor, is_available";
 
@@ -119,6 +120,40 @@ export async function getPublicCollections(): Promise<
       ...toPublicCollection(row),
       images: imagesByCollectionId.get(row.id) ?? [],
     })),
+  };
+}
+
+export async function getLatestPublicProducts(
+  limit = 8,
+): Promise<PublicQueryResult<readonly PublicProduct[]>> {
+  if (!isSupabaseServerConfigured()) return { status: "unconfigured" };
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > LATEST_PRODUCTS_LIMIT) {
+    return { status: "error" };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const [{ data, error }, offersResult] = await Promise.all([
+    supabase
+      .from("products")
+      .select(`${PRODUCT_SELECT}, published_at`)
+      .eq("status", "published")
+      .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .limit(limit),
+    supabase.rpc("get_active_storefront_offers", { p_limit: 12 }),
+  ]);
+
+  if (error || offersResult.error) return { status: "error" };
+  const offers = (offersResult.data ?? [])
+    .map(toPublicStorefrontOffer)
+    .filter((offer) => !isUatFixtureSlug(offer.targetSlug));
+  const result = await loadPublicProducts(supabase, (data ?? []) as ProductRow[], offers, 1);
+  if (result.status === "error") return result;
+
+  return {
+    status: "ready",
+    data: result.data.filter((product) => !product.isUatFixture).slice(0, limit),
   };
 }
 

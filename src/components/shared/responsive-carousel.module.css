@@ -1,0 +1,102 @@
+.carousel {
+  width: 100%;
+  min-width: 0;
+}
+
+.track {
+  display: flex;
+  width: 100%;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-behavior: smooth;
+  scroll-padding-inline: 1px;
+  scroll-snap-type: inline mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.track::-webkit-scrollbar {
+  display: none;
+}
+
+.track > * {
+  min-width: 0;
+  flex: 0 0 calc((100% - 3 * clamp(1rem, 2vw, 1.5rem)) / 4);
+  scroll-snap-align: start;
+  scroll-snap-stop: normal;
+}
+
+.dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 1rem;
+}
+
+.dot {
+  display: grid;
+  min-width: 2.5rem;
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dot:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 0;
+}
+
+.dotMark {
+  display: block;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: rgb(80 13 27 / 40%);
+  transition:
+    width 200ms ease,
+    background-color 200ms ease;
+}
+
+.dot[aria-current="step"] .dotMark {
+  width: 1.35rem;
+  background: var(--color-brand);
+}
+
+@media (max-width: 63.99rem) {
+  .track > * {
+    flex-basis: calc((100% - 2 * clamp(1rem, 2vw, 1.5rem)) / 3);
+  }
+}
+
+@media (max-width: 46rem) {
+  .track {
+    gap: 0.875rem;
+    scroll-behavior: auto;
+  }
+
+  .track > * {
+    flex-basis: calc((100% - 0.875rem) / 2);
+  }
+}
+
+@media (max-width: 22.49rem) {
+  .track > * {
+    flex-basis: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    scroll-behavior: auto;
+  }
+
+  .dotMark {
+    transition: none;
+  }
+}

@@ -18,30 +18,38 @@ export function SiteFooter() {
                 <small>Handcrafted lac bangles</small>
               </span>
             </Link>
-            <p>A romance in the circles.</p>
+            <p>Explore published designs, confirmed sizes, and clear ordering details.</p>
           </div>
 
-          <nav aria-label="Footer navigation" className={styles.navigation}>
-            <p className={styles.navHeading}>Explore</p>
-            <Link href="/shop">Shop all designs</Link>
-            <Link href="/collections">Collections</Link>
-            <Link href="/size-guide">Find your size</Link>
-            <Link href="/craft">The craft</Link>
-          </nav>
+          <details className={styles.navigation} open>
+            <summary className={styles.navHeading}>Shop</summary>
+            <nav aria-label="Shop links">
+              <Link href="/shop">Shop all designs</Link>
+              <Link href="/collections">Collections</Link>
+              <Link href="/#latest-arrivals">Latest arrivals</Link>
+            </nav>
+          </details>
 
-          <div className={styles.story}>
-            <p className={styles.storyEyebrow}>Made by hand. Made to be yours.</p>
-            <h2>Every circle carries a story.</h2>
-            <p>Meet the craft, colour, and patient detail behind handcrafted lac bangles.</p>
-            <Link className={styles.storyLink} href="/craft">
-              Explore the craft <span aria-hidden="true">↗</span>
-            </Link>
-          </div>
+          <details className={styles.navigation} open>
+            <summary className={styles.navHeading}>Customer care</summary>
+            <nav aria-label="Customer care links">
+              <Link href="/size-guide">Bangle size guide</Link>
+              <Link href="/#whatsapp-help">Ordering assistance</Link>
+            </nav>
+          </details>
+
+          <details className={styles.navigation} open>
+            <summary className={styles.navHeading}>Our story</summary>
+            <nav aria-label="Story and contact links">
+              <Link href="/#craftsmanship">Our craftsmanship</Link>
+              <Link href="/#whatsapp-help">Contact the store</Link>
+            </nav>
+          </details>
         </div>
 
         <div className={styles.bottom}>
           <p>© {new Date().getFullYear()} Lacora</p>
-          <p>Handcrafted lac bangles · A romance in the circles.</p>
+          <p>Handcrafted lac bangles by Lacora</p>
         </div>
       </div>
     </footer>

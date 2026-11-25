@@ -41,8 +41,8 @@ export function HomeHero({ eyebrow, title, body, ctaLabel, ctaHref }: HomeHeroPr
             {ctaLabel}
             <span aria-hidden="true">↗</span>
           </Link>
-          <Link className="home-hero__story-link" href="#our-story">
-            The Lacora story <span aria-hidden="true">↓</span>
+          <Link className="home-hero__story-link" href="#craftsmanship">
+            Our craftsmanship <span aria-hidden="true">↓</span>
           </Link>
         </div>
         <div className="home-hero__footnote">
