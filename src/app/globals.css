@@ -1050,7 +1050,25 @@ main {
 
 .admin-navigation {
   display: grid;
-  gap: 0.3rem;
+  gap: 1.15rem;
+}
+
+.admin-navigation__group-title {
+  margin: 0 0 0.35rem;
+  padding-inline: 0.85rem;
+  color: #d6c49d;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-navigation__list {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .admin-navigation__link {
@@ -1063,9 +1081,14 @@ main {
 }
 
 .admin-navigation__link:hover,
-.admin-navigation__link:focus-visible {
+.admin-navigation__link:focus-visible,
+.admin-navigation__link[aria-current="page"] {
   background: #403539;
   color: #fff;
+}
+
+.admin-navigation__link[aria-current="page"] {
+  box-shadow: inset 3px 0 0 #d6b66d;
 }
 
 .admin-sidebar__note {
@@ -1238,6 +1261,115 @@ main {
   max-width: 56rem;
 }
 
+.admin-workflow {
+  margin-block: 1.25rem;
+  padding: clamp(1rem, 2vw, 1.6rem);
+  border: 1px solid var(--admin-line);
+  background: #fffdf9;
+}
+
+.admin-workflow__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.admin-workflow__heading h2 {
+  margin: 0.3rem 0 0;
+  color: var(--color-brand);
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 500;
+}
+
+.admin-workflow__heading > p {
+  max-width: 32rem;
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
+.admin-workflow__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-workflow__steps a {
+  display: grid;
+  min-height: 4.4rem;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border: 1px solid var(--admin-line);
+  background: #fff;
+  color: var(--admin-ink);
+  text-decoration: none;
+}
+
+.admin-workflow__steps a:hover,
+.admin-workflow__steps a:focus-visible {
+  border-color: #8c7377;
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.admin-workflow__steps strong,
+.admin-workflow__steps small {
+  display: block;
+}
+
+.admin-workflow__steps strong {
+  color: var(--color-brand);
+  font-size: 0.82rem;
+}
+
+.admin-workflow__steps small {
+  margin-top: 0.2rem;
+  color: var(--admin-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.admin-workflow__number {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #f4ecdc;
+  color: var(--color-brand);
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.admin-form-details {
+  border-top: 1px solid var(--admin-line);
+}
+
+.admin-form-details summary {
+  min-height: 2.8rem;
+  padding-block: 0.75rem;
+  color: var(--color-brand);
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.admin-form-details__content {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--admin-line);
+}
+
 .admin-section-heading {
   margin-bottom: 1rem;
 }
@@ -1318,6 +1450,11 @@ main {
   color: #84251f;
 }
 
+.admin-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .admin-form {
   display: grid;
   gap: 1rem;
@@ -1394,12 +1531,25 @@ main {
   margin-block: 1rem;
 }
 
-.admin-product-toolbar > p {
+.admin-product-status {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.admin-product-status > div {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
+}
+
+.admin-product-status > p:last-child {
+  max-width: 32rem;
   margin: 0;
   color: var(--admin-muted);
+  font-size: 0.82rem;
+  line-height: 1.5;
 }
 
 .admin-inline-actions {
@@ -1854,9 +2004,22 @@ main {
 
   .admin-navigation {
     display: flex;
-    gap: 0.15rem;
-    overflow-x: auto;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    overflow-x: visible;
     padding-bottom: 0.2rem;
+  }
+
+  .admin-navigation__group {
+    display: contents;
+  }
+
+  .admin-navigation__group-title {
+    display: none;
+  }
+
+  .admin-navigation__list {
+    display: contents;
   }
 
   .admin-navigation__link {
@@ -1911,6 +2074,19 @@ main {
   .admin-upload-form,
   .admin-preview {
     grid-template-columns: 1fr;
+  }
+
+  .admin-workflow__heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-workflow__steps {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-product-status {
+    width: 100%;
   }
 
   .admin-upload-form button {

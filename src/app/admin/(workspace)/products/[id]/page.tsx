@@ -101,7 +101,7 @@ export default async function AdminProductEditorPage({
       <AdminPageHeader
         eyebrow={`Product · ${product.slug}`}
         title={product.title}
-        description="Edit catalogue details, variants and private product images. Publishing checks happen in the database."
+        description="Follow the setup guide below. Each section saves on its own; publish only when the product is ready for shoppers."
         action={
           <Link
             className="admin-button admin-button--secondary"
@@ -140,10 +140,85 @@ export default async function AdminProductEditorPage({
         </AdminNotice>
       ) : null}
 
+      <section aria-labelledby="product-setup-heading" className="admin-workflow">
+        <div className="admin-workflow__heading">
+          <div>
+            <p className="admin-eyebrow">Suggested order</p>
+            <h2 id="product-setup-heading">Product setup</h2>
+          </div>
+          <p>
+            Save each section with its own button. Stock is managed separately by size in Inventory.
+          </p>
+        </div>
+        <ol className="admin-workflow__steps">
+          <li>
+            <a href="#product-details">
+              <span className="admin-workflow__number">1</span>
+              <span>
+                <strong>Product details</strong>
+                <small>Name, set size, delivery and COD</small>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a href="#product-collections">
+              <span className="admin-workflow__number">2</span>
+              <span>
+                <strong>Collections</strong>
+                <small>Group the product for browsing</small>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a href="#product-variants">
+              <span className="admin-workflow__number">3</span>
+              <span>
+                <strong>Sizes and prices</strong>
+                <small>Each size is a separate SKU</small>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a href="/admin/inventory">
+              <span className="admin-workflow__number">4</span>
+              <span>
+                <strong>Stock by size</strong>
+                <small>Add or remove complete sets</small>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a href="#product-images">
+              <span className="admin-workflow__number">5</span>
+              <span>
+                <strong>Product photos</strong>
+                <small>Upload real product images</small>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a href="#product-actions">
+              <span className="admin-workflow__number">6</span>
+              <span>
+                <strong>Preview and publish</strong>
+                <small>Publishing makes it public</small>
+              </span>
+            </a>
+          </li>
+        </ol>
+      </section>
+
       <div className="admin-product-toolbar">
-        <p>
-          Current status <StatusBadge>{product.status}</StatusBadge>
-        </p>
+        <div className="admin-product-status" id="product-actions">
+          <div>
+            <p className="admin-eyebrow">Product status</p>
+            <StatusBadge>{product.status}</StatusBadge>
+          </div>
+          <p>
+            Only published products appear in the storefront. Save section changes before
+            publishing.
+          </p>
+        </div>
         <div className="admin-inline-actions">
           {product.status !== "published" ? (
             <form action={publishProduct}>
@@ -171,7 +246,11 @@ export default async function AdminProductEditorPage({
         </div>
       </div>
 
-      <section aria-labelledby="product-details-heading" className="admin-panel">
+      <section
+        aria-labelledby="product-details-heading"
+        className="admin-panel"
+        id="product-details"
+      >
         <div className="admin-section-heading">
           <div>
             <p className="admin-eyebrow">Catalogue copy</p>
@@ -259,12 +338,16 @@ export default async function AdminProductEditorPage({
             </span>
           </label>
           <button className="admin-button admin-button--secondary" type="submit">
-            Save details
+            Save product details
           </button>
         </form>
       </section>
 
-      <section aria-labelledby="product-collections-heading" className="admin-panel">
+      <section
+        aria-labelledby="product-collections-heading"
+        className="admin-panel"
+        id="product-collections"
+      >
         <div className="admin-section-heading">
           <div>
             <p className="admin-eyebrow">Discovery</p>
@@ -291,7 +374,7 @@ export default async function AdminProductEditorPage({
               ))}
             </div>
             <button className="admin-button admin-button--secondary" type="submit">
-              Save collections
+              Save collection assignments
             </button>
           </form>
         ) : (
@@ -299,7 +382,11 @@ export default async function AdminProductEditorPage({
         )}
       </section>
 
-      <section aria-labelledby="product-variants-heading" className="admin-panel">
+      <section
+        aria-labelledby="product-variants-heading"
+        className="admin-panel"
+        id="product-variants"
+      >
         <div className="admin-section-heading">
           <div>
             <p className="admin-eyebrow">Sellable SKUs</p>
@@ -320,15 +407,24 @@ export default async function AdminProductEditorPage({
                 <input name="product_id" type="hidden" value={id} />
                 <input name="variant_id" type="hidden" value={variant.id} />
                 <div className="admin-variant-card__heading">
-                  <strong>{variant.sku}</strong>
-                  <span>
-                    {variant.is_active ? "Active" : "Inactive"} · On hand {variant.stock_on_hand} ·
-                    Reserved {variant.reserved_quantity}
-                  </span>
+                  <div>
+                    <strong>{variant.sku}</strong>
+                    <span>
+                      {variant.is_active ? "Active" : "Inactive"} · On hand {variant.stock_on_hand}{" "}
+                      · Reserved {variant.reserved_quantity} · Available{" "}
+                      {variant.stock_on_hand - variant.reserved_quantity}
+                    </span>
+                  </div>
+                  <Link
+                    className="admin-text-link"
+                    href={`/admin/inventory?q=${encodeURIComponent(variant.sku)}`}
+                  >
+                    Manage this size&apos;s stock
+                  </Link>
                 </div>
                 <VariantFields variant={variant} />
                 <button className="admin-button admin-button--secondary" type="submit">
-                  Save variant
+                  Save size and price
                 </button>
               </form>
             ))}
@@ -344,12 +440,12 @@ export default async function AdminProductEditorPage({
           <h3>Add a variant</h3>
           <VariantFields />
           <button className="admin-button admin-button--primary" type="submit">
-            Add variant
+            Add size and price
           </button>
         </form>
       </section>
 
-      <section aria-labelledby="product-images-heading" className="admin-panel">
+      <section aria-labelledby="product-images-heading" className="admin-panel" id="product-images">
         <div className="admin-section-heading">
           <div>
             <p className="admin-eyebrow">Private media</p>
@@ -384,7 +480,7 @@ export default async function AdminProductEditorPage({
             <input defaultValue="0" name="sort_order" type="number" />
           </label>
           <button className="admin-button admin-button--secondary" type="submit">
-            Upload private image
+            Upload product image
           </button>
         </form>
         {media.length ? (
@@ -423,7 +519,7 @@ export default async function AdminProductEditorPage({
                     <input name="product_id" type="hidden" value={id} />
                     <input name="media_id" type="hidden" value={item.id} />
                     <button className="admin-button admin-button--secondary" type="submit">
-                      Publish image
+                      Publish image to gallery
                     </button>
                   </form>
                 ) : null}

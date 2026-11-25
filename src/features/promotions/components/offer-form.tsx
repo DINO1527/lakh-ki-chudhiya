@@ -33,6 +33,7 @@ export function OfferForm({
   return (
     <form action={saveOffer} className="admin-form offer-form">
       <input name="offer_id" type="hidden" value={offer?.id ?? ""} />
+      <p className="admin-eyebrow">1 · Name the offer and choose what it applies to</p>
       <label className="admin-field">
         <span>Offer name</span>
         <input defaultValue={offer?.name ?? ""} maxLength={120} name="name" required />
@@ -68,45 +69,52 @@ export function OfferForm({
           </select>
         </label>
       </div>
+      <p className="admin-eyebrow">2 · Set the discount rule</p>
       <div className="admin-form__row">
         <label className="admin-field">
           <span>Minimum complete sets</span>
           <input
-            defaultValue={offer?.minimumSets ?? 3}
+            defaultValue={offer?.minimumSets ?? undefined}
             max="1000"
             min="1"
             name="minimum_sets"
+            placeholder="3"
             required
             type="number"
           />
+          <small>
+            For a collection offer, quantities from that collection are combined in one order.
+          </small>
         </label>
         <label className="admin-field">
           <span>Discount percent</span>
           <input
-            defaultValue={offer ? formatPercent(offer.discountBasisPoints ?? 0) : "10"}
+            defaultValue={offer ? formatPercent(offer.discountBasisPoints ?? 0) : undefined}
             max="100"
             min="0.01"
             name="discount_percent"
+            placeholder="10"
             required
             step="0.01"
             type="number"
           />
         </label>
       </div>
+      <p className="admin-eyebrow">3 · Choose when it is available</p>
       <p className="admin-muted">
-        For a collection offer, the qualifying quantity is the combined number of complete sets from
-        that collection in one order. The best single valid offer is applied; offers never stack.
+        Leave the start blank to begin immediately and the end blank for no expiry. Entered times
+        use Colombo time.
       </p>
       <div className="admin-form__row">
         <label className="admin-field">
           <span>
-            Starts (Colombo time) <small>Optional</small>
+            Starts in Colombo time <small>Optional</small>
           </span>
           <input defaultValue={offer?.startsAt ?? ""} name="starts_at" type="datetime-local" />
         </label>
         <label className="admin-field">
           <span>
-            Ends (Colombo time) <small>Optional</small>
+            Ends in Colombo time <small>Optional</small>
           </span>
           <input defaultValue={offer?.endsAt ?? ""} name="ends_at" type="datetime-local" />
         </label>
@@ -114,13 +122,23 @@ export function OfferForm({
       <label className="admin-checkbox">
         <input defaultChecked={offer?.isEnabled ?? false} name="is_enabled" type="checkbox" />
         <span>
-          Offer is on
-          <small>Future and expired offers remain stored but do not discount orders.</small>
+          Enable this offer
+          <small>
+            Checkout uses the best single eligible offer; discounts do not stack. Scheduled or
+            expired offers do not apply.
+          </small>
         </span>
       </label>
-      <button className="admin-button admin-button--secondary" type="submit">
-        {offer ? "Save offer" : "Create offer"}
+      <button
+        className="admin-button admin-button--secondary"
+        disabled={!targets.length}
+        type="submit"
+      >
+        {offer ? "Save offer changes" : "Create offer"}
       </button>
+      {!targets.length ? (
+        <p className="admin-muted">Create a {targetType} before you can attach an offer to it.</p>
+      ) : null}
     </form>
   );
 }
