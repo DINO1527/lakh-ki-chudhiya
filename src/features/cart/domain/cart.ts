@@ -26,7 +26,6 @@ export type CartQuoteItem = {
 export type CartProductPreview = {
   slug: string;
   setCount: number;
-  isUatFixture: boolean;
   images: readonly PublicImage[];
   variants: readonly ProductVariant[];
 };

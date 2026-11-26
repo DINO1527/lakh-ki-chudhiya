@@ -12,9 +12,8 @@ export function CatalogueNotice({ state }: { state: "unconfigured" | "error" }) 
     >
       {state === "unconfigured" ? (
         <>
-          Connect this development environment to the UAT Supabase project to preview the synthetic
-          catalogue. Until then, no products are shown. You can still read the{" "}
-          <Link href="/size-guide"> size guide</Link>.
+          Our collection is being prepared. No products are available to browse just yet. You can
+          still read the <Link href="/size-guide"> size guide</Link>.
         </>
       ) : (
         <>
@@ -23,14 +22,5 @@ export function CatalogueNotice({ state }: { state: "unconfigured" | "error" }) 
         </>
       )}
     </EmptyState>
-  );
-}
-
-export function UatFixtureNotice() {
-  return (
-    <aside className="fixture-notice" aria-label="UAT test listing notice">
-      <strong>UAT example — not for sale.</strong> This synthetic listing is for development checks;
-      it is not a real product or offer.
-    </aside>
   );
 }

@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { signInAdmin } from "@/features/admin/server/auth-actions";
 import { isSupabaseServerConfigured } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
-  title: "Staff sign in | Lakh Ki Chudhiya",
+  title: "Staff sign in | Lacora",
   robots: { index: false, follow: false },
 };
 
@@ -27,7 +28,8 @@ export default async function AdminLoginPage({
     <main className="admin-login" id="main-content">
       <section aria-labelledby="admin-login-title" className="admin-login__card">
         <Link className="admin-login__brand" href="/">
-          Lakh Ki Chudhiya
+          <Image alt="Lacora" height={56} src="/brand/lacora-mark.webp" width={56} />
+          <span>Lacora</span>
         </Link>
         <p className="admin-eyebrow">Staff access</p>
         <h1 id="admin-login-title">Sign in to the store desk</h1>

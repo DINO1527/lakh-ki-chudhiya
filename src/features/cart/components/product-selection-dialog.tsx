@@ -15,7 +15,6 @@ export type SelectableProduct = {
   slug: string;
   title: string;
   setCount: number;
-  isUatFixture: boolean;
   image: PublicImage | null;
   variants: readonly ProductVariant[];
 };
@@ -61,7 +60,6 @@ export function ProductSelectionDialog({
     items.length < CART_ITEM_LIMIT;
   const canSave =
     Boolean(selectedVariant?.isAvailable) &&
-    !product.isUatFixture &&
     Number.isSafeInteger(quantity) &&
     quantity >= 1 &&
     quantity <= maxQuantity &&
@@ -199,11 +197,6 @@ export function ProductSelectionDialog({
             <p className="field-hint">
               This change will combine with the {existingTargetQuantity} set
               {existingTargetQuantity === 1 ? "" : "s"} already in your bag for this size.
-            </p>
-          )}
-          {product.isUatFixture && (
-            <p className="fixture-notice" role="note">
-              This is a testing example and cannot be purchased.
             </p>
           )}
           {!canAddAnotherVariant && (

@@ -14,18 +14,14 @@ type HomeHeroProps = {
 };
 
 export function HomeHero({ eyebrow, title, body, ctaLabel, ctaHref }: HomeHeroProps) {
-  const [introStarted, setIntroStarted] = useState(false);
-  const [introComplete, setIntroComplete] = useState(true);
-  const handleIntroStart = useCallback(() => {
-    setIntroStarted(true);
-    setIntroComplete(false);
-  }, []);
+  const [introComplete, setIntroComplete] = useState(false);
+  const handleIntroStart = useCallback(() => {}, []);
   const handleIntroComplete = useCallback(() => setIntroComplete(true), []);
 
   return (
     <section
       aria-labelledby="home-title"
-      className={`home-hero${!introStarted && !introComplete ? " is-intro-pending" : ""}${introStarted && !introComplete ? " is-intro-running" : ""}${introComplete ? " is-intro-complete" : ""}`}
+      className={`home-hero${introComplete ? " is-intro-complete" : " is-intro-pending"}`}
     >
       <div className="home-hero__copy">
         <p className="home-hero__eyebrow">

@@ -33,22 +33,102 @@ const BRAID_COLORS = [
   LACORA_BANGLE_PALETTE.burgundyDeep,
 ] as const;
 const MODEL_SEGMENTS = 448;
-const INTRO_SECONDS = 5.2;
-const COPY_REVEAL_SECONDS = 3.1;
-const OPENING_SCALE_LANDSCAPE = 2.95;
-const OPENING_SCALE_PORTRAIT = 2.85;
-const RESTING_SCALE_LANDSCAPE = 1.18;
-const RESTING_SCALE_PORTRAIT = 1.7;
-const COMPACT_RESTING_SCALE_PORTRAIT = 1.65;
-const RESTING_X_LANDSCAPE = 0.42;
+const INTRO_SECONDS = 3.6;
+const COPY_REVEAL_SECONDS = 3.8;
+const OPENING_SCALE_LANDSCAPE = 1.05;
+const OPENING_SCALE_PORTRAIT = 0.98;
+const RESTING_SCALE_LANDSCAPE = 1.82;
+const RESTING_SCALE_PORTRAIT = 1.85;
+const COMPACT_RESTING_SCALE_PORTRAIT = 1.9;
+const RESTING_X_LANDSCAPE = 0.32;
 const RESTING_Y_PORTRAIT = -0.16;
-const ENTRANCE_START_SCALE = 0.88;
+const STACK_ENTRANCE_Y = 1.55;
+const RING_ENTRANCE_START_SCALE = 0.82;
 const BANGLE_ROTATION_SECONDS = 42;
-const EXPLODED_CYCLE_SECONDS = 28;
 const OUTER_RING_Y = 0.25;
 const SPACER_RING_Y = 0.15;
-const OUTER_EXPLODE_DISTANCE = 0.11;
-const SPACER_EXPLODE_DISTANCE = 0.055;
+
+type RingEntrance = {
+  delay: number;
+  duration: number;
+  start: [number, number, number];
+  arc: [number, number, number];
+  tilt: [number, number, number];
+};
+
+const RING_ARRIVAL: Record<
+  "outerTop" | "spacerTop" | "centre" | "spacerBottom" | "outerBottom",
+  RingEntrance
+> = {
+  outerTop: {
+    delay: 0.04,
+    duration: 1.55,
+    start: [-0.11, 0.1, 0.03],
+    arc: [0.025, 0.04, 0],
+    tilt: [-0.12, 0.08, 0.1],
+  },
+  spacerTop: {
+    delay: 0.16,
+    duration: 1.45,
+    start: [0.1, 0.06, -0.03],
+    arc: [-0.02, -0.025, 0],
+    tilt: [0.06, -0.06, 0.08],
+  },
+  centre: {
+    delay: 0.08,
+    duration: 1.7,
+    start: [-0.08, -0.05, 0.03],
+    arc: [0.02, 0.025, 0],
+    tilt: [0.09, 0.04, -0.1],
+  },
+  spacerBottom: {
+    delay: 0.24,
+    duration: 1.4,
+    start: [0.09, -0.06, 0.03],
+    arc: [0.015, 0.025, 0],
+    tilt: [-0.06, 0.06, -0.08],
+  },
+  outerBottom: {
+    delay: 0.32,
+    duration: 1.5,
+    start: [-0.05, -0.1, -0.03],
+    arc: [-0.02, 0.015, 0],
+    tilt: [0.11, -0.03, 0.1],
+  },
+};
+
+function ringPosition(targetY: number, entrance: RingEntrance, animateIntro: boolean) {
+  if (!animateIntro) return [0, targetY, 0] as [number, number, number];
+  return [entrance.start[0], targetY + entrance.start[1], entrance.start[2]] as [
+    number,
+    number,
+    number,
+  ];
+}
+
+function animateRingArrival(
+  ring: Group,
+  targetY: number,
+  entrance: RingEntrance,
+  elapsed: number,
+  animateIntro: boolean,
+) {
+  const progress = animateIntro
+    ? MathUtils.smoothstep(elapsed - entrance.delay, 0, entrance.duration)
+    : 1;
+  const arc = Math.sin(progress * Math.PI);
+  ring.position.set(
+    entrance.start[0] * (1 - progress) + entrance.arc[0] * arc,
+    targetY + entrance.start[1] * (1 - progress) + entrance.arc[1] * arc,
+    entrance.start[2] * (1 - progress) + entrance.arc[2] * arc,
+  );
+  ring.rotation.set(
+    entrance.tilt[0] * (1 - progress),
+    entrance.tilt[1] * (1 - progress),
+    entrance.tilt[2] * (1 - progress),
+  );
+  ring.scale.setScalar(RING_ENTRANCE_START_SCALE + progress * (1 - RING_ENTRANCE_START_SCALE));
+}
 
 type RingProfile = { radial: number; vertical: number };
 
@@ -378,103 +458,15 @@ function CentreBraid() {
   );
 }
 
-type EntranceMotion = {
-  delay: number;
-  duration: number;
-  start: [number, number, number];
-  arc: [number, number, number];
-  tilt: [number, number, number];
-};
-
-const RING_ENTRANCE: Record<
-  "outerTop" | "spacerTop" | "centre" | "spacerBottom" | "outerBottom",
-  EntranceMotion
-> = {
-  outerTop: {
-    delay: 0.05,
-    duration: 2.75,
-    start: [-0.3, 0.16, 0.07],
-    arc: [0.04, 0.07, -0.02],
-    tilt: [-0.18, 0.1, 0.2],
-  },
-  spacerTop: {
-    delay: 0.22,
-    duration: 2.55,
-    start: [0.32, 0.07, -0.08],
-    arc: [-0.04, -0.03, 0.02],
-    tilt: [0.09, -0.08, 0.14],
-  },
-  centre: {
-    delay: 0.12,
-    duration: 2.9,
-    start: [-0.24, -0.11, 0.05],
-    arc: [0.03, 0.04, -0.01],
-    tilt: [0.12, 0.05, -0.15],
-  },
-  spacerBottom: {
-    delay: 0.38,
-    duration: 2.5,
-    start: [0.27, -0.07, 0.09],
-    arc: [0.02, 0.05, -0.03],
-    tilt: [-0.1, 0.08, -0.16],
-  },
-  outerBottom: {
-    delay: 0.54,
-    duration: 2.45,
-    start: [-0.09, -0.16, -0.11],
-    arc: [-0.03, 0.01, 0.04],
-    tilt: [0.16, -0.04, 0.18],
-  },
-};
-
-function animateRingEntrance(
-  ring: Group,
-  targetY: number,
-  motion: EntranceMotion,
-  elapsed: number,
-  separation: number,
-) {
-  const progress = MathUtils.smoothstep(elapsed - motion.delay, 0, motion.duration);
-  const arc = Math.sin(progress * Math.PI);
-
-  ring.position.set(
-    motion.start[0] * (1 - progress) + motion.arc[0] * arc,
-    targetY + motion.start[1] * (1 - progress) + motion.arc[1] * arc + separation,
-    motion.start[2] * (1 - progress) + motion.arc[2] * arc,
-  );
-  ring.rotation.set(
-    motion.tilt[0] * (1 - progress),
-    motion.tilt[1] * (1 - progress),
-    motion.tilt[2] * (1 - progress),
-  );
-  ring.scale.setScalar(ENTRANCE_START_SCALE + progress * (1 - ENTRANCE_START_SCALE));
-}
-
-function entranceStartPosition(targetY: number, motion: EntranceMotion): [number, number, number] {
-  return [motion.start[0], targetY + motion.start[1], motion.start[2]];
-}
-
-function explodedProgress(seconds: number) {
-  const phase = seconds % EXPLODED_CYCLE_SECONDS;
-  const ease = (value: number) => {
-    const bounded = MathUtils.clamp(value, 0, 1);
-    return bounded * bounded * (3 - 2 * bounded);
-  };
-
-  if (phase < 10) return 0;
-  if (phase < 12) return ease((phase - 10) / 2);
-  if (phase < 15) return 1;
-  if (phase < 17) return 1 - ease((phase - 15) / 2);
-  return 0;
-}
-
 function BangleSet({
   active,
+  animateIntro,
   onIntroStart,
   onIntroComplete,
   onReady,
 }: {
   active: boolean;
+  animateIntro: boolean;
   onIntroStart: () => void;
   onIntroComplete: () => void;
   onReady: () => void;
@@ -490,7 +482,8 @@ function BangleSet({
   const introStarted = useRef(false);
   const copyRevealed = useRef(false);
   const aspectRatio = size.width / Math.max(size.height, 1);
-  const horizontalSettle = MathUtils.smoothstep(aspectRatio, 0.76, 1.28);
+  const compactViewport = size.width < 640;
+  const horizontalSettle = compactViewport ? 0 : MathUtils.smoothstep(aspectRatio, 0.76, 1.28);
   const openingScale = MathUtils.lerp(
     OPENING_SCALE_PORTRAIT,
     OPENING_SCALE_LANDSCAPE,
@@ -507,7 +500,7 @@ function BangleSet({
     horizontalSettle,
   );
   const restingX = RESTING_X_LANDSCAPE * horizontalSettle;
-  const restingY = RESTING_Y_PORTRAIT * (1 - horizontalSettle);
+  const restingY = compactViewport ? 0 : RESTING_Y_PORTRAIT * (1 - horizontalSettle);
 
   useEffect(() => onReady(), [onReady]);
 
@@ -523,56 +516,59 @@ function BangleSet({
     elapsed.current += stableDelta;
     const flightProgress = MathUtils.smoothstep(elapsed.current, 0, INTRO_SECONDS);
     const showcaseTime = Math.max(0, elapsed.current - INTRO_SECONDS);
-    const separation = explodedProgress(showcaseTime);
 
     if (stack.current) {
       stack.current.position.x = MathUtils.lerp(0, restingX, flightProgress);
       stack.current.position.y =
-        MathUtils.lerp(0, restingY, flightProgress) +
+        MathUtils.lerp(animateIntro ? STACK_ENTRANCE_Y : restingY, restingY, flightProgress) +
         Math.sin((showcaseTime * Math.PI * 2) / 14) * 0.008;
-      stack.current.scale.setScalar(MathUtils.lerp(openingScale, restingScale, flightProgress));
+      stack.current.scale.setScalar(
+        MathUtils.lerp(animateIntro ? openingScale : restingScale, restingScale, flightProgress),
+      );
       stack.current.rotation.y =
         -0.22 * (1 - flightProgress) + (showcaseTime * Math.PI * 2) / BANGLE_ROTATION_SECONDS;
+      stack.current.rotation.z =
+        Math.sin(elapsed.current * 4.6) * Math.pow(1 - flightProgress, 1.5) * 0.24;
       stack.current.rotation.x = 0.035 + Math.sin((showcaseTime * Math.PI * 2) / 18) * 0.004;
     }
 
     if (outerTop.current) {
-      animateRingEntrance(
+      animateRingArrival(
         outerTop.current,
         OUTER_RING_Y,
-        RING_ENTRANCE.outerTop,
+        RING_ARRIVAL.outerTop,
         elapsed.current,
-        separation * OUTER_EXPLODE_DISTANCE,
+        animateIntro,
       );
     }
     if (spacerTop.current) {
-      animateRingEntrance(
+      animateRingArrival(
         spacerTop.current,
         SPACER_RING_Y,
-        RING_ENTRANCE.spacerTop,
+        RING_ARRIVAL.spacerTop,
         elapsed.current,
-        separation * SPACER_EXPLODE_DISTANCE,
+        animateIntro,
       );
     }
     if (centre.current) {
-      animateRingEntrance(centre.current, 0, RING_ENTRANCE.centre, elapsed.current, 0);
+      animateRingArrival(centre.current, 0, RING_ARRIVAL.centre, elapsed.current, animateIntro);
     }
     if (spacerBottom.current) {
-      animateRingEntrance(
+      animateRingArrival(
         spacerBottom.current,
         -SPACER_RING_Y,
-        RING_ENTRANCE.spacerBottom,
+        RING_ARRIVAL.spacerBottom,
         elapsed.current,
-        -separation * SPACER_EXPLODE_DISTANCE,
+        animateIntro,
       );
     }
     if (outerBottom.current) {
-      animateRingEntrance(
+      animateRingArrival(
         outerBottom.current,
         -OUTER_RING_Y,
-        RING_ENTRANCE.outerBottom,
+        RING_ARRIVAL.outerBottom,
         elapsed.current,
-        -separation * OUTER_EXPLODE_DISTANCE,
+        animateIntro,
       );
     }
 
@@ -596,44 +592,48 @@ function BangleSet({
       <pointLight color="#fff3e3" intensity={17} position={[2.8, 2.1, 3.2]} />
       <pointLight color="#b33451" intensity={7} position={[-3.2, 0.1, -2.4]} />
 
-      <group ref={stack} scale={openingScale}>
+      <group
+        ref={stack}
+        position={[0, animateIntro ? STACK_ENTRANCE_Y : restingY, 0]}
+        scale={animateIntro ? openingScale : restingScale}
+      >
         <group
           ref={outerTop}
-          position={entranceStartPosition(OUTER_RING_Y, RING_ENTRANCE.outerTop)}
-          rotation={RING_ENTRANCE.outerTop.tilt}
-          scale={ENTRANCE_START_SCALE}
+          position={ringPosition(OUTER_RING_Y, RING_ARRIVAL.outerTop, animateIntro)}
+          rotation={animateIntro ? RING_ARRIVAL.outerTop.tilt : [0, 0, 0]}
+          scale={animateIntro ? RING_ENTRANCE_START_SCALE : 1}
         >
           <OrnamentedOuterRing profile={OUTER_RING_PROFILE} />
         </group>
         <group
           ref={spacerTop}
-          position={entranceStartPosition(SPACER_RING_Y, RING_ENTRANCE.spacerTop)}
-          rotation={RING_ENTRANCE.spacerTop.tilt}
-          scale={ENTRANCE_START_SCALE}
+          position={ringPosition(SPACER_RING_Y, RING_ARRIVAL.spacerTop, animateIntro)}
+          rotation={animateIntro ? RING_ARRIVAL.spacerTop.tilt : [0, 0, 0]}
+          scale={animateIntro ? RING_ENTRANCE_START_SCALE : 1}
         >
           <SmoothSpacerRing profile={SPACER_RING_PROFILE} />
         </group>
         <group
           ref={centre}
-          position={entranceStartPosition(0, RING_ENTRANCE.centre)}
-          rotation={RING_ENTRANCE.centre.tilt}
-          scale={ENTRANCE_START_SCALE}
+          position={ringPosition(0, RING_ARRIVAL.centre, animateIntro)}
+          rotation={animateIntro ? RING_ARRIVAL.centre.tilt : [0, 0, 0]}
+          scale={animateIntro ? RING_ENTRANCE_START_SCALE : 1}
         >
           <CentreBraid />
         </group>
         <group
           ref={spacerBottom}
-          position={entranceStartPosition(-SPACER_RING_Y, RING_ENTRANCE.spacerBottom)}
-          rotation={RING_ENTRANCE.spacerBottom.tilt}
-          scale={ENTRANCE_START_SCALE}
+          position={ringPosition(-SPACER_RING_Y, RING_ARRIVAL.spacerBottom, animateIntro)}
+          rotation={animateIntro ? RING_ARRIVAL.spacerBottom.tilt : [0, 0, 0]}
+          scale={animateIntro ? RING_ENTRANCE_START_SCALE : 1}
         >
           <SmoothSpacerRing profile={SPACER_RING_PROFILE} />
         </group>
         <group
           ref={outerBottom}
-          position={entranceStartPosition(-OUTER_RING_Y, RING_ENTRANCE.outerBottom)}
-          rotation={RING_ENTRANCE.outerBottom.tilt}
-          scale={ENTRANCE_START_SCALE}
+          position={ringPosition(-OUTER_RING_Y, RING_ARRIVAL.outerBottom, animateIntro)}
+          rotation={animateIntro ? RING_ARRIVAL.outerBottom.tilt : [0, 0, 0]}
+          scale={animateIntro ? RING_ENTRANCE_START_SCALE : 1}
         >
           <OrnamentedOuterRing profile={OUTER_RING_PROFILE} />
         </group>
@@ -644,11 +644,13 @@ function BangleSet({
 
 export function BangleScene({
   active,
+  animateIntro,
   onIntroStart,
   onIntroComplete,
   onReady,
 }: {
   active: boolean;
+  animateIntro: boolean;
   onIntroStart: () => void;
   onIntroComplete: () => void;
   onReady: () => void;
@@ -663,6 +665,7 @@ export function BangleScene({
     >
       <BangleSet
         active={active}
+        animateIntro={animateIntro}
         onIntroStart={onIntroStart}
         onIntroComplete={onIntroComplete}
         onReady={onReady}

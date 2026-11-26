@@ -52,7 +52,6 @@ export async function POST(request: Request): Promise<Response> {
       product_preview: {
         slug: product.slug,
         setCount: product.setCount,
-        isUatFixture: product.isUatFixture,
         images: product.images,
         variants: product.variants,
       },

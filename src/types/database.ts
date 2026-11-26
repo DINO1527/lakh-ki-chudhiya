@@ -51,7 +51,9 @@ type AdminResourceType =
   | "staff_member"
   | "store_settings"
   | "offer"
-  | "order";
+  | "offer_media"
+  | "order"
+  | "product_review";
 type OrderStatus =
   | "pending_confirmation"
   | "confirmed"
@@ -92,6 +94,7 @@ export type Database = {
         set_count: number;
         delivery_fee_minor: number | null;
         cod_enabled: boolean;
+        reviews_enabled: boolean;
         status: ProductStatus;
         sort_order: number;
         published_at: string | null;
@@ -154,6 +157,16 @@ export type Database = {
         starts_at: string | null;
         ends_at: string | null;
         is_enabled: boolean;
+        created_at: string;
+        updated_at: string;
+      }>;
+      offer_media: TableDefinition<{
+        id: string;
+        offer_id: string;
+        storage_path: string;
+        alt_text: string;
+        status: ProductStatus;
+        sort_order: number;
         created_at: string;
         updated_at: string;
       }>;
@@ -289,9 +302,36 @@ export type Database = {
         reason: string;
         created_at: string;
       }>;
+      product_reviews: TableDefinition<{
+        id: string;
+        order_item_id: string;
+        order_id: string;
+        product_id: string;
+        user_id: string;
+        rating: number;
+        comment: string;
+        status: "pending" | "approved" | "rejected";
+        moderated_by: string | null;
+        moderated_at: string | null;
+        created_at: string;
+        updated_at: string;
+      }>;
     };
     Views: { [_ in never]: never };
     Functions: {
+      move_product_display_order: {
+        Args: { p_product_id: string; p_sort_order: number };
+        Returns: undefined;
+      };
+      get_public_low_stock_variants: {
+        Args: { p_product_ids: string[] };
+        Returns: {
+          product_id: string;
+          variant_id: string;
+          size_code: string | null;
+          available_quantity: number;
+        }[];
+      };
       has_admin_role: {
         Args: { p_roles?: string[] };
         Returns: boolean;
@@ -434,6 +474,18 @@ export type Database = {
           p_reason: string;
         };
         Returns: undefined;
+      };
+      submit_product_review: {
+        Args: { p_order_item_id: string; p_rating: number; p_comment: string };
+        Returns: string;
+      };
+      moderate_product_review: {
+        Args: { p_review_id: string; p_status: string };
+        Returns: undefined;
+      };
+      get_product_review_summary: {
+        Args: { p_product_id: string };
+        Returns: { average_rating: number; review_count: number }[];
       };
     };
     Enums: { [_ in never]: never };

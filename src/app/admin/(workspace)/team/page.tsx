@@ -1,6 +1,8 @@
 import { AdminNotice, AdminPageHeader, StatusBadge } from "@/features/admin/components/admin-ui";
+import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { saveStaffMember } from "@/features/admin/server/staff-actions";
 import { requireStaff } from "@/features/admin/server/access";
+import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
 
 export default async function AdminTeamPage({
   searchParams,
@@ -11,6 +13,7 @@ export default async function AdminTeamPage({
     .select("user_id, role, is_active, created_at")
     .order("created_at", { ascending: true })
     .limit(100);
+  if (error) logAdminQueryFailure("loadStaffMembers", "staff_members", error.code);
 
   return (
     <>
@@ -37,7 +40,7 @@ export default async function AdminTeamPage({
             <h2>Members</h2>
           </div>
         </div>
-        {data?.length ? (
+        {error ? null : data?.length ? (
           <div className="admin-table-wrap">
             <table className="admin-table">
               <caption className="admin-sr-only">
@@ -111,9 +114,7 @@ export default async function AdminTeamPage({
               </select>
             </label>
           </div>
-          <button className="admin-button admin-button--primary" type="submit">
-            Save access
-          </button>
+          <AdminSubmitButton>Save access</AdminSubmitButton>
         </form>
       </section>
     </>

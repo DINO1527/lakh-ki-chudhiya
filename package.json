@@ -22,6 +22,7 @@
     "cf:typegen": "wrangler types --env-interface CloudflareEnv --include-runtime=false --include-main-module=false src/types/cloudflare-env.generated.d.ts && prettier --write src/types/cloudflare-env.generated.d.ts"
   },
   "dependencies": {
+    "@lottiefiles/dotlottie-react": "0.22.3",
     "@react-three/fiber": "9.8.2",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.119.0",

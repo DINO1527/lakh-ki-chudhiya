@@ -19,6 +19,8 @@ const BangleScene = dynamic(() => import("./bangle-scene").then((module) => modu
   loading: () => null,
 });
 
+const HERO_COPY_REVEAL_DELAY_MS = 3_800;
+
 function canUseWebGL() {
   try {
     const canvas = document.createElement("canvas");
@@ -266,7 +268,7 @@ export function BangleExperience({
   useEffect(() => {
     if (!motionPreferenceReady || !webGlCheckComplete) return;
 
-    if (reducedMotion || !motionEnabled || sceneFailed) {
+    if (!motionEnabled || sceneFailed) {
       onIntroComplete();
     }
   }, [
@@ -278,34 +280,43 @@ export function BangleExperience({
     webGlCheckComplete,
   ]);
 
-  const shouldRenderScene = motionEnabled && sceneRequested && !reducedMotion && !sceneFailed;
-  const isSceneActive = shouldRenderScene && visible && pageVisible && sceneReady && backdropReady;
+  const shouldRenderScene = motionEnabled && sceneRequested && !sceneFailed;
+  const isSceneActive =
+    shouldRenderScene && visible && pageVisible && !reducedMotion && sceneReady && backdropReady;
   const showScene = shouldRenderScene && sceneReady && backdropReady;
-  const showStaticFallback =
-    motionPreferenceReady && webGlCheckComplete && (reducedMotion || !motionEnabled || sceneFailed);
   const showLoader =
     !motionPreferenceReady ||
     !webGlCheckComplete ||
-    (motionEnabled && !reducedMotion && !sceneFailed && (!sceneReady || !backdropReady));
+    (motionEnabled && !sceneFailed && (!sceneReady || !backdropReady));
   const handleSceneReady = useCallback(() => setSceneReady(true), []);
   const handleSceneFailure = useCallback(() => setSceneFailed(true), []);
+
+  useEffect(() => {
+    if (!showScene) return;
+    if (reducedMotion) {
+      onIntroComplete();
+      return;
+    }
+
+    const revealTimer = window.setTimeout(onIntroComplete, HERO_COPY_REVEAL_DELAY_MS);
+    return () => window.clearTimeout(revealTimer);
+  }, [onIntroComplete, reducedMotion, showScene]);
 
   return (
     <div className="bangle-experience">
       <div className={`bangle-stage__viewer${showScene ? " is-live" : ""}`} ref={stageRef}>
         <div aria-hidden="true" className="bangle-stage__glow" />
         <div
-          aria-label="Five Lacora bangles: ruby outer rings with fine stripes, smooth ivory spacers and a dense interwoven ruby centre"
+          aria-label="Three-dimensional preview of five Lacora bangles"
           className="bangle-stage__visual"
           role="img"
-        >
-          {showStaticFallback && <BangleFallback />}
-        </div>
+        />
         {shouldRenderScene && (
           <div aria-hidden="true" className="bangle-stage__canvas">
             <BangleSceneBoundary onFailure={handleSceneFailure}>
               <BangleScene
                 active={isSceneActive}
+                animateIntro={!reducedMotion}
                 onIntroStart={onIntroStart}
                 onIntroComplete={onIntroComplete}
                 onReady={handleSceneReady}

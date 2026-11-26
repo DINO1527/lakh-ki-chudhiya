@@ -123,7 +123,7 @@ export function CartPageClient() {
                       {quotedItem.set_count ? ` of ${quotedItem.set_count} bangles` : ""}
                     </p>
                   )}
-                  {preview && !preview.isUatFixture && quotedItem && (
+                  {preview && quotedItem && (
                     <ProductSelectionDialog
                       currentVariantId={item.variantId}
                       initialQuantity={item.quantity}
@@ -132,7 +132,6 @@ export function CartPageClient() {
                         slug: preview.slug,
                         title: quotedItem.product_title,
                         setCount: preview.setCount,
-                        isUatFixture: preview.isUatFixture,
                         image: preview.images[0] ?? null,
                         variants: preview.variants,
                       }}

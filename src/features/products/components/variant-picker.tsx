@@ -7,10 +7,9 @@ import { formatLkrPrice, formatVariantLabel, type ProductVariant } from "../doma
 
 type VariantPickerProps = {
   variants: readonly ProductVariant[];
-  isUatFixture?: boolean;
 };
 
-export function VariantPicker({ variants, isUatFixture = false }: VariantPickerProps) {
+export function VariantPicker({ variants }: VariantPickerProps) {
   const titleId = useId();
   const { addItem, items } = useCart();
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
@@ -39,10 +38,7 @@ export function VariantPicker({ variants, isUatFixture = false }: VariantPickerP
                 type="button"
               >
                 <span className="variant-option__label">{formatVariantLabel(variant)}</span>
-                <span className="variant-option__price">
-                  {isUatFixture ? "Test price · " : ""}
-                  {formatLkrPrice(variant.priceMinor)}
-                </span>
+                <span className="variant-option__price">{formatLkrPrice(variant.priceMinor)}</span>
                 {!variant.isAvailable && (
                   <span className="variant-option__availability">Out of stock</span>
                 )}
@@ -53,7 +49,7 @@ export function VariantPicker({ variants, isUatFixture = false }: VariantPickerP
       </ul>
       <p aria-live="polite" className="variant-picker__selection">
         {selectedVariant
-          ? `${formatVariantLabel(selectedVariant)} · ${isUatFixture ? "test price " : ""}${formatLkrPrice(selectedVariant.priceMinor)}`
+          ? `${formatVariantLabel(selectedVariant)} · ${formatLkrPrice(selectedVariant.priceMinor)}`
           : "Select an available size to see its price."}
       </p>
       <div className="cart-add-row">
@@ -72,7 +68,6 @@ export function VariantPicker({ variants, isUatFixture = false }: VariantPickerP
           className="button button--primary"
           disabled={
             !selectedVariant ||
-            isUatFixture ||
             !Number.isSafeInteger(quantity) ||
             quantity < 1 ||
             quantity > CART_QUANTITY_LIMIT
@@ -101,7 +96,7 @@ export function VariantPicker({ variants, isUatFixture = false }: VariantPickerP
           }}
           type="button"
         >
-          {isUatFixture ? "Example only" : "Add to cart"}
+          Add to cart
         </button>
       </div>
       <p aria-live="polite" className="cart-add-notice" role="status">

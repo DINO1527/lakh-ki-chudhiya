@@ -1,17 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildCataloguePageHref,
-  describeOfferTerms,
-  isUatFixtureSlug,
-  normalizeCatalogueFilters,
-} from "./catalogue";
-
-describe("isUatFixtureSlug", () => {
-  it("recognizes reserved UAT-only catalogue slugs", () => {
-    expect(isUatFixtureSlug("uat-sample-bangle")).toBe(true);
-    expect(isUatFixtureSlug("ruby-crimson-set")).toBe(false);
-  });
-});
+import { buildCataloguePageHref, describeOfferTerms, normalizeCatalogueFilters } from "./catalogue";
 
 describe("normalizeCatalogueFilters", () => {
   it("keeps safe, bounded URL-addressable filters", () => {
@@ -80,6 +68,7 @@ describe("describeOfferTerms", () => {
         minimumSets: 3,
         discountBasisPoints: 1_000,
         endsAt: null,
+        bannerImage: null,
       }),
     ).toBe("Save 10% when you buy 3 or more complete sets of Ruby Crimson Set.");
   });
@@ -95,6 +84,7 @@ describe("describeOfferTerms", () => {
         minimumSets: 1,
         discountBasisPoints: 1_250,
         endsAt: null,
+        bannerImage: null,
       }),
     ).toBe("Save 12.5% when you buy 1 or more complete set from the Pastel collection.");
   });

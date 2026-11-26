@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./access";
+import { logAdminActionFailure } from "./action-logger";
 import { formText, integer, validUuid } from "./form-values";
 import { detectImageMime } from "./media-validation";
 
@@ -44,12 +45,18 @@ export async function saveCollection(formData: FormData): Promise<never> {
       .from("collections")
       .update({ name, slug, description, sort_order: sortOrder })
       .eq("id", existingCollectionId);
-    if (detailsError) redirect("/admin/collections?error=save");
+    if (detailsError) {
+      logAdminActionFailure("saveCollection.details", "collections", detailsError.code);
+      redirect("/admin/collections?error=save");
+    }
 
     const { error: publishError } = await supabase.rpc("publish_collection", {
       p_collection_id: existingCollectionId,
     });
-    if (publishError) redirect("/admin/collections?error=image_required");
+    if (publishError) {
+      logAdminActionFailure("saveCollection.publish", "collections", publishError.code);
+      redirect("/admin/collections?error=image_required");
+    }
 
     revalidateCollectionPages();
     redirect("/admin/collections?saved=1");
@@ -61,7 +68,10 @@ export async function saveCollection(formData: FormData): Promise<never> {
       .insert({ name, slug, description, sort_order: sortOrder, status: "draft" })
       .select("id")
       .single();
-    if (error || !created) redirect("/admin/collections?error=save");
+    if (error || !created) {
+      logAdminActionFailure("saveCollection.create", "collections", error?.code);
+      redirect("/admin/collections?error=save");
+    }
 
     revalidateCollectionPages();
     redirect(`/admin/collections?created=${created.id}#collection-${created.id}`);
@@ -71,7 +81,10 @@ export async function saveCollection(formData: FormData): Promise<never> {
     .from("collections")
     .update({ name, slug, description, sort_order: sortOrder, status })
     .eq("id", existingCollectionId);
-  if (error) redirect("/admin/collections?error=save");
+  if (error) {
+    logAdminActionFailure("saveCollection.update", "collections", error.code);
+    redirect("/admin/collections?error=save");
+  }
   revalidatePath("/collections");
   revalidatePath("/shop");
   revalidatePath("/");
@@ -114,6 +127,9 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
     .eq("collection_id", collectionId)
     .neq("status", "archived");
   if (countError || (count ?? 0) >= MAX_COLLECTION_IMAGES) {
+    if (countError) {
+      logAdminActionFailure("uploadCollectionImage.count", "collection_media", countError.code);
+    }
     redirect("/admin/collections?error=image_limit");
   }
 
@@ -122,7 +138,10 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
   const { error: uploadError } = await supabase.storage
     .from("product-media")
     .upload(storagePath, file, { contentType: detected, upsert: false, cacheControl: "3600" });
-  if (uploadError) redirect("/admin/collections?error=image");
+  if (uploadError) {
+    logAdminActionFailure("uploadCollectionImage.storage", "product-media", uploadError.name);
+    redirect("/admin/collections?error=image");
+  }
 
   const { error: metadataError } = await supabase.from("collection_media").insert({
     collection_id: collectionId,
@@ -131,7 +150,13 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
     sort_order: sortOrder,
   });
   if (metadataError) {
-    await supabase.storage.from("product-media").remove([storagePath]);
+    logAdminActionFailure("uploadCollectionImage.metadata", "collection_media", metadataError.code);
+    const { error: cleanupError } = await supabase.storage
+      .from("product-media")
+      .remove([storagePath]);
+    if (cleanupError) {
+      logAdminActionFailure("uploadCollectionImage.cleanup", "product-media", cleanupError.name);
+    }
     redirect("/admin/collections?error=image");
   }
 
@@ -159,6 +184,7 @@ export async function archiveCollectionImage(formData: FormData): Promise<never>
     p_collection_id: collectionId,
   });
   if (error) {
+    logAdminActionFailure("archiveCollectionImage", "collection_media", error.code);
     redirect(`/admin/collections?error=${error.code === "23514" ? "last_image" : "image"}`);
   }
 
@@ -188,7 +214,10 @@ export async function updateCollectionImage(formData: FormData): Promise<never> 
     .update({ alt_text: altText, sort_order: sortOrder })
     .eq("id", rawMediaId)
     .eq("collection_id", rawCollectionId);
-  if (error) redirect("/admin/collections?error=image");
+  if (error) {
+    logAdminActionFailure("updateCollectionImage", "collection_media", error.code);
+    redirect("/admin/collections?error=image");
+  }
 
   revalidateCollectionPages();
   redirect("/admin/collections?image=updated");

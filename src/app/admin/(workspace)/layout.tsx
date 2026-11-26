@@ -6,7 +6,7 @@ import { requireStaff } from "@/features/admin/server/access";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 export const metadata: Metadata = {
-  title: { default: "Admin | Lakh Ki Chudhiya", template: "%s | Lakh Ki Chudhiya Admin" },
+  title: { default: "Admin | Lacora", template: "%s | Lacora Admin" },
   robots: { index: false, follow: false },
 };
 
