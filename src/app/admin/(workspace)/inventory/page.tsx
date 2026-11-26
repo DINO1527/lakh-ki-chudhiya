@@ -1,28 +1,40 @@
-import Link from "next/link";
 import {
   AdminNotice,
   AdminPageHeader,
   StatusBadge,
   formatAdminDate,
 } from "@/features/admin/components/admin-ui";
+import { AdminDialog } from "@/features/admin/components/admin-dialog";
+import { AdminPagination } from "@/features/admin/components/admin-pagination";
+import { AdminSearchForm } from "@/features/admin/components/admin-search-form";
+import { ConfirmButton } from "@/features/admin/components/confirm-button";
 import { adjustInventory } from "@/features/admin/server/inventory-actions";
 import { requireStaff } from "@/features/admin/server/access";
+import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
+
+const PAGE_SIZE = 25;
 
 export default async function AdminInventoryPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const [params, { supabase }] = await Promise.all([searchParams, requireStaff()]);
   const rawSearch = Array.isArray(params.q) ? params.q[0] : params.q;
-  const search = (rawSearch ?? "").normalize("NFKC").slice(0, 64).trim();
+  const search = (rawSearch ?? "")
+    .normalize("NFKC")
+    .replace(/[^\p{L}\p{N}-]/gu, "")
+    .slice(0, 64)
+    .trim();
+  const rawPage = Array.isArray(params.page) ? params.page[0] : params.page;
+  const pageNumber = rawPage && /^[0-9]{1,5}$/.test(rawPage) ? Math.max(1, Number(rawPage)) : 1;
   const unavailableOnly = params.availability === "unavailable";
   let variantsQuery = supabase
     .from("product_variants")
     .select(
-      "id, product_id, sku, size_code, colour_name, stock_on_hand, reserved_quantity, is_active, is_available",
+      "id, product_id, sku, size_code, stock_on_hand, reserved_quantity, is_active, is_available",
       { count: "exact" },
     )
     .order("sku", { ascending: true })
-    .limit(100);
+    .range((pageNumber - 1) * PAGE_SIZE, pageNumber * PAGE_SIZE - 1);
   if (search) variantsQuery = variantsQuery.ilike("sku", `%${search}%`);
   if (unavailableOnly) variantsQuery = variantsQuery.eq("is_available", false);
   const [variantsResult, movementResult] = await Promise.all([
@@ -51,10 +63,26 @@ export default async function AdminInventoryPage({
     relevantIds.length
       ? supabase
           .from("product_variants")
-          .select("id, product_id, sku, size_code, colour_name")
+          .select("id, product_id, sku, size_code")
           .in("id", relevantIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
+  if (variantsResult.error)
+    logAdminQueryFailure("loadInventoryVariants", "product_variants", variantsResult.error.code);
+  if (movementResult.error)
+    logAdminQueryFailure(
+      "loadInventoryMovements",
+      "inventory_movements",
+      movementResult.error.code,
+    );
+  if (productResult.error)
+    logAdminQueryFailure("loadInventoryProducts", "products", productResult.error.code);
+  if (variantLookupResult.error)
+    logAdminQueryFailure(
+      "loadInventoryVariantLabels",
+      "product_variants",
+      variantLookupResult.error.code,
+    );
   const productById = new Map((productResult.data ?? []).map((product) => [product.id, product]));
   const variantById = new Map(
     (variantLookupResult.data ?? []).map((variant) => [variant.id, variant]),
@@ -93,11 +121,13 @@ export default async function AdminInventoryPage({
             <h2 id="inventory-list-heading">Stock by SKU</h2>
           </div>
         </div>
-        <form action="/admin/inventory" className="admin-filter" method="get">
-          <label className="admin-field admin-field--compact">
-            <span>Search by SKU</span>
-            <input defaultValue={search} maxLength={64} name="q" />
-          </label>
+        <AdminSearchForm
+          action="/admin/inventory"
+          hasFilters={unavailableOnly}
+          label="Search by SKU"
+          placeholder="Enter a SKU"
+          query={search}
+        >
           <label className="admin-checkbox">
             <input
               defaultChecked={unavailableOnly}
@@ -107,13 +137,7 @@ export default async function AdminInventoryPage({
             />
             <span>Unavailable only</span>
           </label>
-          <button className="admin-button admin-button--secondary" type="submit">
-            Apply filters
-          </button>
-          <Link className="admin-text-link" href="/admin/inventory">
-            Clear
-          </Link>
-        </form>
+        </AdminSearchForm>
         {variantRows.length ? (
           <div className="admin-table-wrap">
             <table className="admin-table admin-inventory-table">
@@ -137,8 +161,7 @@ export default async function AdminInventoryPage({
                       <th scope="row">
                         <strong>{variant.sku}</strong>
                         <span className="admin-table__subtext">
-                          {product?.title ?? "Unknown product"} · {variant.size_code ?? "One size"}{" "}
-                          · {variant.colour_name}
+                          {product?.title ?? "Unknown product"} · {variant.size_code ?? "One size"}
                         </span>
                         <span className="admin-table__subtext">
                           {variant.is_active ? "Active" : "Inactive"}
@@ -154,38 +177,51 @@ export default async function AdminInventoryPage({
                         </StatusBadge>
                       </td>
                       <td>
-                        <form action={adjustInventory} className="admin-adjust-form">
-                          <input name="variant_id" type="hidden" value={variant.id} />
-                          <label className="admin-field">
-                            <span>Quantity change</span>
-                            <input
-                              aria-label={`Quantity change for ${variant.sku}`}
-                              aria-describedby={`quantity-help-${variant.id}`}
-                              inputMode="numeric"
-                              name="quantity_delta"
-                              placeholder="e.g. 5"
-                              required
-                              step="1"
-                              type="number"
-                            />
-                            <small id={`quantity-help-${variant.id}`}>
-                              Use a minus sign to remove sets.
-                            </small>
-                          </label>
-                          <label className="admin-field">
-                            <span>Reason</span>
-                            <input
-                              aria-label={`Reason for ${variant.sku} adjustment`}
-                              maxLength={500}
-                              name="reason"
-                              placeholder="Stock count or delivery received"
-                              required
-                            />
-                          </label>
-                          <button className="admin-button admin-button--secondary" type="submit">
-                            Save stock adjustment
-                          </button>
-                        </form>
+                        <AdminDialog
+                          description="Adjust complete sets by a positive or negative amount. The reason is added to the stock audit trail."
+                          title={`Adjust ${variant.sku}`}
+                          triggerLabel="Adjust stock"
+                          triggerClassName="admin-button admin-button--secondary admin-button--compact"
+                        >
+                          <form action={adjustInventory} className="admin-form">
+                            <input name="variant_id" type="hidden" value={variant.id} />
+                            <label className="admin-field">
+                              <span>Quantity change</span>
+                              <input
+                                aria-describedby={`quantity-help-${variant.id}`}
+                                inputMode="numeric"
+                                max="2147483647"
+                                min="-2147483648"
+                                name="quantity_delta"
+                                placeholder="e.g. 5"
+                                required
+                                step="1"
+                                type="number"
+                              />
+                              <small id={`quantity-help-${variant.id}`}>
+                                Use a minus sign to remove sets. Changes below reserved stock are
+                                rejected.
+                              </small>
+                            </label>
+                            <label className="admin-field">
+                              <span>Reason</span>
+                              <input
+                                maxLength={500}
+                                minLength={1}
+                                name="reason"
+                                placeholder="Stock count or delivery received"
+                                required
+                              />
+                            </label>
+                            <ConfirmButton
+                              className="admin-button admin-button--primary"
+                              formAction={adjustInventory}
+                              message="Record this stock change in the inventory history?"
+                            >
+                              Review stock adjustment
+                            </ConfirmButton>
+                          </form>
+                        </AdminDialog>
                       </td>
                     </tr>
                   );
@@ -193,16 +229,19 @@ export default async function AdminInventoryPage({
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : !variantsResult.error ? (
           <p className="admin-muted">
             No variants match this view. Add product variants in the catalogue.
           </p>
-        )}
-        {(variantsResult.count ?? 0) > 100 ? (
-          <p className="admin-muted">
-            Showing the first 100 matching variants. Search by SKU to narrow the list.
-          </p>
         ) : null}
+        <AdminPagination
+          action="/admin/inventory"
+          itemLabel="SKUs"
+          page={pageNumber}
+          pageSize={PAGE_SIZE}
+          query={params}
+          total={variantsResult.count ?? 0}
+        />
       </section>
 
       <section aria-labelledby="inventory-history-heading" className="admin-panel">
@@ -246,9 +285,9 @@ export default async function AdminInventoryPage({
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : !movementResult.error ? (
           <p className="admin-muted">No inventory movements recorded yet.</p>
-        )}
+        ) : null}
       </section>
     </>
   );

@@ -5,16 +5,19 @@ import type { PublicCollection } from "@/features/products/domain/catalogue";
 export function CollectionCard({ collection }: { collection: PublicCollection }) {
   return (
     <li className="collection-card">
-      <Link className="collection-card__link" href={`/collections/${collection.slug}`}>
+      <Link
+        className="collection-card__link"
+        href={`/shop?collection=${encodeURIComponent(collection.slug)}`}
+      >
         <span className="collection-card__media">
           {collection.images[0] ? (
             <Image
               alt={collection.images[0].altText}
               className="collection-card__image"
-              height={600}
+              fill
+              sizes="(max-width: 48rem) 88vw, (max-width: 80rem) 42vw, 27rem"
               src={collection.images[0].url}
               unoptimized
-              width={900}
             />
           ) : (
             <span aria-hidden="true" className="collection-card__image-placeholder">
@@ -22,9 +25,6 @@ export function CollectionCard({ collection }: { collection: PublicCollection })
             </span>
           )}
         </span>
-        {collection.isUatFixture && (
-          <span className="fixture-badge">UAT example · not for sale</span>
-        )}
         <span className="collection-card__title">{collection.name}</span>
         <span className="collection-card__description">
           {collection.description || "Explore the pieces in this collection."}

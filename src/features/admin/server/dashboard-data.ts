@@ -1,5 +1,6 @@
 import "server-only";
 import { requireStaff } from "./access";
+import { logAdminQueryFailure } from "./action-logger";
 
 export async function getAdminOverview() {
   const { supabase } = await requireStaff();
@@ -25,6 +26,15 @@ export async function getAdminOverview() {
   const failed = [products, drafts, variants, unavailable, orders, pendingOrders].some(
     (result) => result.error,
   );
+  if (products.error) logAdminQueryFailure("overviewProducts", "products", products.error.code);
+  if (drafts.error) logAdminQueryFailure("overviewDrafts", "products", drafts.error.code);
+  if (variants.error)
+    logAdminQueryFailure("overviewVariants", "product_variants", variants.error.code);
+  if (unavailable.error)
+    logAdminQueryFailure("overviewUnavailable", "product_variants", unavailable.error.code);
+  if (orders.error) logAdminQueryFailure("overviewOrders", "orders", orders.error.code);
+  if (pendingOrders.error)
+    logAdminQueryFailure("overviewPendingOrders", "orders", pendingOrders.error.code);
   return {
     status: failed ? "error" : "ready",
     productCount: products.count ?? 0,

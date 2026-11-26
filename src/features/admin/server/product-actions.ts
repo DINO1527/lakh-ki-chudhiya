@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./access";
+import { logAdminActionFailure } from "./action-logger";
 import { formText, integer, lkrToMinor, positiveInteger, productSlug } from "./form-values";
 import { detectImageMime } from "./media-validation";
 
@@ -17,7 +18,6 @@ export async function createProduct(formData: FormData): Promise<never> {
   const material = formText(formData, "material", 160);
   const careInstructions = formText(formData, "care_instructions", 2_000);
   const setCount = positiveInteger(formText(formData, "set_count", 8), 32);
-  const sortOrder = integer(formText(formData, "sort_order", 12));
   const deliveryFeeMinor = parseOptionalDeliveryFee(formData);
   const codEnabled = formData.get("cod_enabled") === "on";
   if (
@@ -28,13 +28,27 @@ export async function createProduct(formData: FormData): Promise<never> {
     careInstructions === null ||
     !setCount ||
     setCount < 2 ||
-    sortOrder === null ||
     deliveryFeeMinor === undefined
   ) {
     redirect("/admin/products/new?error=invalid");
   }
 
   const { supabase } = await requireStaff();
+  const { data: lastProduct, error: orderReadError } = await supabase
+    .from("products")
+    .select("sort_order")
+    .order("sort_order", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (orderReadError) {
+    logAdminActionFailure("createProductOrder", "products", orderReadError.code);
+    redirect("/admin/products/new?error=save");
+  }
+  const sortOrder = (lastProduct?.sort_order ?? -1) + 1;
+  if (!Number.isSafeInteger(sortOrder) || sortOrder > 2_147_483_647) {
+    redirect("/admin/products/new?error=save");
+  }
   const { data, error } = await supabase
     .from("products")
     .insert({
@@ -51,7 +65,16 @@ export async function createProduct(formData: FormData): Promise<never> {
     .select("id")
     .single();
 
-  if (error || !data) redirect("/admin/products/new?error=save");
+  if (error || !data) {
+    logAdminActionFailure("createProduct", "products", error?.code);
+    const errorType =
+      error?.code === "23505"
+        ? "duplicate"
+        : error?.code === "42P17" || error?.code === "42501"
+          ? "access"
+          : "save";
+    redirect(`/admin/products/new?error=${errorType}`);
+  }
   revalidatePath("/admin/products");
   redirect(`/admin/products/${data.id}?created=1`);
 }
@@ -67,6 +90,7 @@ export async function updateProduct(formData: FormData): Promise<never> {
   const sortOrder = integer(formText(formData, "sort_order", 12));
   const deliveryFeeMinor = parseOptionalDeliveryFee(formData);
   const codEnabled = formData.get("cod_enabled") === "on";
+  const reviewsEnabled = formData.get("reviews_enabled") === "on";
   if (
     typeof productId !== "string" ||
     !UUID_PATTERN.test(productId) ||
@@ -78,28 +102,56 @@ export async function updateProduct(formData: FormData): Promise<never> {
     !setCount ||
     setCount < 2 ||
     sortOrder === null ||
+    sortOrder < 0 ||
+    sortOrder > 100_000 ||
     deliveryFeeMinor === undefined
   ) {
     redirect("/admin/products?error=invalid");
   }
 
   const { supabase } = await requireStaff();
-  const { error } = await supabase
+  const { error: reviewSettingsError } = await supabase
     .from("products")
-    .update({
-      title,
-      slug,
-      description,
-      material,
-      care_instructions: careInstructions,
-      set_count: setCount,
-      delivery_fee_minor: deliveryFeeMinor,
-      cod_enabled: codEnabled,
-      sort_order: sortOrder,
-    })
-    .eq("id", productId);
+    .select("reviews_enabled")
+    .eq("id", productId)
+    .maybeSingle();
+  const reviewSettingMissing = ["PGRST204", "42703", "42501"].includes(
+    reviewSettingsError?.code ?? "",
+  );
+  if (reviewSettingsError && !reviewSettingMissing) {
+    logAdminActionFailure("updateProductReviewSetting", "products", reviewSettingsError.code);
+    redirect(`/admin/products/${productId}?error=save`);
+  }
 
-  if (error) redirect(`/admin/products/${productId}?error=save`);
+  const productFields = {
+    title,
+    slug,
+    description,
+    material,
+    care_instructions: careInstructions,
+    set_count: setCount,
+    delivery_fee_minor: deliveryFeeMinor,
+    cod_enabled: codEnabled,
+  };
+  const { error } = reviewSettingsError
+    ? await supabase.from("products").update(productFields).eq("id", productId)
+    : await supabase
+        .from("products")
+        .update({ ...productFields, reviews_enabled: reviewsEnabled })
+        .eq("id", productId);
+
+  if (error) {
+    logAdminActionFailure("updateProduct", "products", error.code);
+    redirect(`/admin/products/${productId}?error=save`);
+  }
+  const { error: orderError } = await supabase.rpc("move_product_display_order", {
+    p_product_id: productId,
+    p_sort_order: sortOrder,
+  });
+  if (orderError) {
+    logAdminActionFailure("moveProductDisplayOrder", "products", orderError.code);
+    redirect(`/admin/products/${productId}?error=order`);
+  }
   revalidateCatalogue(productId);
   redirect(`/admin/products/${productId}?saved=1`);
 }
@@ -159,7 +211,10 @@ export async function saveProductVariant(formData: FormData): Promise<never> {
           .eq("product_id", productId)
       : await supabase.from("product_variants").insert({ product_id: productId, ...values });
 
-  if (result.error) redirect(`/admin/products/${productId}?error=variant`);
+  if (result.error) {
+    logAdminActionFailure("saveProductVariant", "product_variants", result.error.code);
+    redirect(`/admin/products/${productId}?error=variant`);
+  }
   revalidateCatalogue(productId);
   redirect(`/admin/products/${productId}?saved=1`);
 }
@@ -179,7 +234,10 @@ export async function setProductCollections(formData: FormData): Promise<never> 
     p_product_id: productId,
     p_collection_ids: [...new Set(rawIds as string[])],
   });
-  if (error) redirect(`/admin/products/${productId}?error=collections`);
+  if (error) {
+    logAdminActionFailure("setProductCollections", "product_collections", error.code);
+    redirect(`/admin/products/${productId}?error=collections`);
+  }
   revalidateCatalogue(productId);
   redirect(`/admin/products/${productId}?saved=1`);
 }
@@ -191,7 +249,11 @@ export async function publishProduct(formData: FormData): Promise<never> {
   }
   const { supabase } = await requireStaff();
   const { error } = await supabase.rpc("publish_product", { p_product_id: productId });
-  if (error) redirect(`/admin/products/${productId}?error=publish`);
+  if (error) {
+    logAdminActionFailure("publishProduct", "products", error.code);
+    const errorType = error.code === "22023" ? "publish_requirements" : "publish";
+    redirect(`/admin/products/${productId}?error=${errorType}`);
+  }
   revalidateCatalogue(productId);
   redirect(`/admin/products/${productId}?published=1`);
 }
@@ -203,7 +265,10 @@ export async function archiveProduct(formData: FormData): Promise<never> {
   }
   const { supabase } = await requireStaff();
   const { error } = await supabase.rpc("archive_product", { p_product_id: productId });
-  if (error) redirect(`/admin/products/${productId}?error=archive`);
+  if (error) {
+    logAdminActionFailure("archiveProduct", "products", error.code);
+    redirect(`/admin/products/${productId}?error=archive`);
+  }
   revalidateCatalogue(productId);
   redirect(`/admin/products/${productId}?archived=1`);
 }
@@ -233,6 +298,8 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
     .eq("media_type", "image")
     .neq("status", "archived");
   if (countError || (count ?? 0) >= MAX_PRODUCT_IMAGES) {
+    if (countError)
+      logAdminActionFailure("uploadProductImage.count", "product_media", countError.code);
     redirect(`/admin/products/${productId}?error=media_limit`);
   }
 
@@ -246,7 +313,10 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
     .from("product-media")
     .upload(storagePath, file, { contentType: detected, upsert: false, cacheControl: "3600" });
 
-  if (uploadError) redirect(`/admin/products/${productId}?error=media`);
+  if (uploadError) {
+    logAdminActionFailure("uploadProductImage.storage", "product-media", uploadError.name);
+    redirect(`/admin/products/${productId}?error=media`);
+  }
   const { error: metadataError } = await supabase.from("product_media").insert({
     product_id: productId,
     storage_path: storagePath,
@@ -256,7 +326,13 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
   });
 
   if (metadataError) {
-    await supabase.storage.from("product-media").remove([storagePath]);
+    logAdminActionFailure("uploadProductImage.metadata", "product_media", metadataError.code);
+    const { error: cleanupError } = await supabase.storage
+      .from("product-media")
+      .remove([storagePath]);
+    if (cleanupError) {
+      logAdminActionFailure("uploadProductImage.cleanup", "product-media", cleanupError.name);
+    }
     redirect(`/admin/products/${productId}?error=media`);
   }
 
@@ -281,6 +357,7 @@ export async function archiveProductImage(formData: FormData): Promise<never> {
     p_product_id: productId,
   });
   if (error) {
+    logAdminActionFailure("archiveProductImage", "product_media", error.code);
     const reason = error.code === "23514" ? "last_image" : "media";
     redirect(`/admin/products/${productId}?error=${reason}`);
   }
@@ -310,7 +387,10 @@ export async function updateProductImage(formData: FormData): Promise<never> {
     .update({ alt_text: altText, sort_order: sortOrder })
     .eq("id", mediaId)
     .eq("product_id", productId);
-  if (error) redirect(`/admin/products/${productId}?error=media`);
+  if (error) {
+    logAdminActionFailure("updateProductImage", "product_media", error.code);
+    redirect(`/admin/products/${productId}?error=media`);
+  }
   revalidateCatalogue(productId);
   redirect(`/admin/products/${productId}?media=updated`);
 }
@@ -332,7 +412,10 @@ export async function publishProductImage(formData: FormData): Promise<never> {
     p_media_id: mediaId,
     p_product_id: productId,
   });
-  if (error) redirect(`/admin/products/${productId}?error=media`);
+  if (error) {
+    logAdminActionFailure("publishProductImage", "product_media", error.code);
+    redirect(`/admin/products/${productId}?error=media`);
+  }
   revalidateCatalogue(productId);
   redirect(`/admin/products/${productId}?media=published`);
 }

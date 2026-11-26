@@ -1,11 +1,6 @@
 import type { ProductVariant } from "./product-variant";
 
 export const PRODUCTS_PER_PAGE = 12;
-export const UAT_FIXTURE_SLUG_PREFIX = "uat-";
-
-export function isUatFixtureSlug(slug: string): boolean {
-  return slug.startsWith(UAT_FIXTURE_SLUG_PREFIX);
-}
 
 export type CatalogueSearchParams = Record<string, string | string[] | undefined>;
 
@@ -37,6 +32,7 @@ export type PublicStorefrontOffer = {
   minimumSets: number;
   discountBasisPoints: number;
   endsAt: string | null;
+  bannerImage: PublicImage | null;
 };
 
 export type PublicCollection = {
@@ -45,8 +41,17 @@ export type PublicCollection = {
   name: string;
   description: string;
   sortOrder: number;
-  isUatFixture: boolean;
   images: readonly PublicImage[];
+};
+
+export type HomeCollectionShelf = {
+  collection: PublicCollection;
+  products: readonly PublicProduct[];
+};
+
+export type PublicHomeCatalogue = {
+  offers: readonly PublicStorefrontOffer[];
+  shelves: readonly HomeCollectionShelf[];
 };
 
 export type PublicProduct = {
@@ -58,12 +63,19 @@ export type PublicProduct = {
   careInstructions: string;
   setCount: number;
   deliveryFeeMinor: number | null;
+  reviewsEnabled: boolean;
+  averageRating: number;
+  reviewCount: number;
+  lowStockVariants: readonly {
+    variantId: string;
+    sizeCode: string | null;
+    availableSets: number;
+  }[];
   sortOrder: number;
   images: readonly PublicImage[];
   offers: readonly PublicStorefrontOffer[];
   collections: readonly PublicCollection[];
   variants: readonly ProductVariant[];
-  isUatFixture: boolean;
 };
 
 export function describeOfferTerms(offer: PublicStorefrontOffer): string {

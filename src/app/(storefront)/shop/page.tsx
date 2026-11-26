@@ -1,12 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { redirect } from "next/navigation";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CatalogueNotice } from "@/features/products/components/catalogue-notice";
 import { CataloguePagination } from "@/features/products/components/catalogue-pagination";
 import { ProductGrid } from "@/features/products/components/product-card";
-import { StorefrontOfferList } from "@/features/products/components/storefront-offers";
+import { OfferCarousel } from "@/features/promotions/components/offer-carousel";
 import {
   buildCataloguePageHref,
   normalizeCatalogueFilters,
@@ -33,21 +32,18 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
     redirect(buildCataloguePageHref(lastPageFilters, result.data.totalPages));
   }
   const selectedCollection = result.status === "ready" ? result.data.selectedCollection : null;
-  const featuredImage =
-    selectedCollection?.images[0] ??
-    (result.status === "ready" ? result.data.products[0]?.images[0] : undefined);
 
   return (
     <main className="page-shell shop-page" id="main-content">
-      <section aria-labelledby="shop-title" className="shop-intro">
+      <section aria-labelledby="shop-title" className="shop-intro shop-intro--compact">
         <div className="shop-intro__copy">
           <p className="eyebrow">Find your Lacora</p>
           <h1 className="page-heading" id="shop-title">
             {selectedCollection ? selectedCollection.name : "A set for your story"}
           </h1>
           <p className="page-intro">
-            Browse the designs currently published by Lacora. Each listing is a complete bangle set;
-            choose its size before adding it to your bag.
+            Browse handcrafted designs by collection, size, or name. Every listing includes clear
+            set details and current availability.
           </p>
           <div className="shop-intro__links">
             <Link className="button button--primary" href="#published-designs">
@@ -58,31 +54,18 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
             </Link>
           </div>
         </div>
-        <div className="shop-intro__visual">
-          {featuredImage ? (
-            <Image
-              alt={featuredImage.altText}
-              className="shop-intro__image"
-              height={700}
-              src={featuredImage.url}
-              unoptimized
-              width={900}
-            />
-          ) : (
-            <span className="shop-intro__ornament" aria-hidden="true">
-              L
-            </span>
-          )}
-          <span className="shop-intro__caption">
-            {selectedCollection?.name ?? "Handcrafted lac bangles"}
-          </span>
-        </div>
       </section>
 
       {result.status === "ready" ? (
         <>
+          <OfferCarousel offers={result.data.offers} />
+
           {result.data.collections.length > 0 && (
-            <nav aria-label="Shop by collection" className="shop-collection-nav">
+            <nav
+              aria-label="Shop by collection"
+              className="shop-collection-nav"
+              id="catalogue-collection"
+            >
               <Link
                 aria-current={!filters.collectionSlug ? "page" : undefined}
                 className="shop-collection-nav__link"
@@ -103,17 +86,6 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
             </nav>
           )}
 
-          {result.data.offers.length > 0 && (
-            <section aria-labelledby="current-offers-heading" className="shop-offers">
-              <div className="shop-offers__heading">
-                <p className="eyebrow">For this season</p>
-                <h2 id="current-offers-heading">Current offers</h2>
-                <p>Discounts are confirmed against eligible sets in your bag.</p>
-              </div>
-              <StorefrontOfferList offers={result.data.offers} />
-            </section>
-          )}
-
           <form action="/shop" className="catalogue-filters shop-filters" method="get">
             <div className="shop-filters__heading">
               <div>
@@ -130,6 +102,9 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
               )}
             </div>
             <div className="shop-filters__fields">
+              {filters.collectionSlug ? (
+                <input name="collection" type="hidden" value={filters.collectionSlug} />
+              ) : null}
               <div className="catalogue-filters__field">
                 <label htmlFor="catalogue-search">Search designs</label>
                 <input
@@ -140,21 +115,6 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
                   name="q"
                   type="search"
                 />
-              </div>
-              <div className="catalogue-filters__field">
-                <label htmlFor="catalogue-collection">Collection</label>
-                <select
-                  defaultValue={filters.collectionSlug}
-                  id="catalogue-collection"
-                  name="collection"
-                >
-                  <option value="">All collections</option>
-                  {result.data.collections.map((collection) => (
-                    <option key={collection.id} value={collection.slug}>
-                      {collection.name}
-                    </option>
-                  ))}
-                </select>
               </div>
               <div className="catalogue-filters__field">
                 <label htmlFor="catalogue-size">Size</label>
@@ -198,7 +158,7 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
             </div>
 
             {result.data.products.length > 0 ? (
-              <ProductGrid products={result.data.products} />
+              <ProductGrid priorityFirstImage products={result.data.products} />
             ) : (
               <EmptyState title="No published designs match those filters">
                 Clear the search or choose another collection. You can also read the{" "}

@@ -1,22 +1,41 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import { ProductSelectionDialog } from "@/features/cart/components/product-selection-dialog";
-import { describeOfferTerms } from "../domain/catalogue";
 import { formatLkrPrice } from "../domain/product-variant";
+import { formatDiscountPercent, priceAfterOffer } from "../domain/merchandising";
 import type { PublicProduct } from "../domain/catalogue";
 
-export function ProductCard({ product }: { product: PublicProduct }) {
-  const prices = product.variants
-    .filter((variant) => variant.isAvailable)
-    .map((variant) => variant.priceMinor);
-  const lowestPrice = prices.length > 0 ? Math.min(...prices) : null;
-  const availableSizes = product.variants
-    .filter((variant) => variant.isAvailable)
+export function ProductCard({
+  product,
+  priorityImage = false,
+}: {
+  product: PublicProduct;
+  priorityImage?: boolean;
+}) {
+  const availableVariants = product.variants.filter((variant) => variant.isAvailable);
+  const lowestPrice =
+    availableVariants.length > 0
+      ? Math.min(...availableVariants.map((variant) => variant.priceMinor))
+      : null;
+  const availableSizes = availableVariants
     .map((variant) => variant.sizeCode)
     .filter((sizeCode): sizeCode is string => Boolean(sizeCode));
+  const sizePreview = availableSizes.slice(0, 3).join(" / ");
+  const sizeSummary =
+    availableSizes.length > 3 ? `${sizePreview} +${availableSizes.length - 3} more` : sizePreview;
+  const offer = [...product.offers].sort(
+    (left, right) =>
+      right.discountBasisPoints - left.discountBasisPoints || left.minimumSets - right.minimumSets,
+  )[0];
+  const offerPrice =
+    lowestPrice !== null && offer ? priceAfterOffer(lowestPrice, offer.discountBasisPoints) : null;
+  const lowestStock = [...product.lowStockVariants].sort(
+    (left, right) => left.availableSets - right.availableSets,
+  )[0];
+  const roundedRating = Math.round(product.averageRating);
 
   return (
-    <li className="product-card" data-uat={product.isUatFixture ? "true" : undefined}>
+    <li className="product-card">
       <article className="product-card__inner">
         <Link
           aria-label={`View ${product.title} details`}
@@ -28,10 +47,11 @@ export function ProductCard({ product }: { product: PublicProduct }) {
               <Image
                 alt={product.images[0].altText}
                 className="product-card__image"
-                height={800}
+                fill
+                loading={priorityImage ? "eager" : "lazy"}
+                sizes="(max-width: 36rem) calc(50vw - 1.2rem), (max-width: 70rem) 31vw, 22rem"
                 src={product.images[0].url}
                 unoptimized
-                width={800}
               />
             ) : (
               <span className="product-card__no-image">
@@ -41,59 +61,82 @@ export function ProductCard({ product }: { product: PublicProduct }) {
                 Product photographs will appear here
               </span>
             )}
+            {offer && (
+              <span className="product-card__offer-badge">
+                Save {formatDiscountPercent(offer.discountBasisPoints)}%
+                {offer.minimumSets > 1 ? ` · ${offer.minimumSets}+ sets` : ""}
+              </span>
+            )}
           </span>
           <span className="product-card__content">
-            {product.isUatFixture && (
-              <span className="fixture-badge">UAT example · not for sale</span>
-            )}
             {product.collections.length > 0 && (
               <span className="product-card__collection">
                 {product.collections.map((collection) => collection.name).join(" · ")}
               </span>
             )}
             <span className="product-card__title">{product.title}</span>
-            <span className="product-card__set-count">Set of {product.setCount} bangles</span>
-            <span className="product-card__price">
-              {lowestPrice === null
-                ? "Currently unavailable"
-                : `${product.isUatFixture ? "Test price · " : "From "}${formatLkrPrice(lowestPrice)} per set`}
-            </span>
-            {product.deliveryFeeMinor !== null && (
-              <span className="product-card__delivery">
-                {product.deliveryFeeMinor === 0
-                  ? "Free delivery"
-                  : `Delivery ${formatLkrPrice(product.deliveryFeeMinor)}`}
+            {product.reviewsEnabled && (
+              <span className="product-card__rating">
+                {product.reviewCount > 0 ? (
+                  <>
+                    <span aria-label={`${product.averageRating.toFixed(1)} out of 5 stars`}>
+                      <span aria-hidden="true">
+                        {"★".repeat(roundedRating)}
+                        {"☆".repeat(5 - roundedRating)}
+                      </span>
+                    </span>
+                    <span>
+                      {product.averageRating.toFixed(1)} · {product.reviewCount}{" "}
+                      {product.reviewCount === 1 ? "review" : "reviews"}
+                    </span>
+                  </>
+                ) : (
+                  <span>No reviews yet</span>
+                )}
               </span>
             )}
-            {product.offers[0] && (
-              <span className="product-card__offer">
-                {describeOfferTerms(product.offers[0])}
-                {product.offers.length > 1 &&
-                  ` Plus ${product.offers.length - 1} more offer${product.offers.length === 2 ? "" : "s"}.`}
+            <span className="product-card__price-line">
+              {offerPrice !== null && lowestPrice !== null ? (
+                <>
+                  <strong className="product-card__price">{formatLkrPrice(offerPrice)}</strong>
+                  <s>{formatLkrPrice(lowestPrice)}</s>
+                  <small>
+                    {offer && offer.minimumSets > 1
+                      ? `per set with ${offer.minimumSets}+ sets`
+                      : "per set"}
+                  </small>
+                </>
+              ) : lowestPrice !== null ? (
+                <strong className="product-card__price">
+                  From {formatLkrPrice(lowestPrice)} per set
+                </strong>
+              ) : null}
+            </span>
+            <span className="product-card__metadata">
+              Set of {product.setCount} · {sizeSummary || "Size unavailable"}
+            </span>
+            {lowestStock && (
+              <span className="product-card__stock">
+                Only {lowestStock.availableSets} left
+                {lowestStock.sizeCode ? ` in size ${lowestStock.sizeCode}` : ""}
               </span>
             )}
-            <span className="product-card__sizes">
-              {availableSizes.length > 0
-                ? `Available sizes: ${availableSizes.join(", ")}`
-                : "No sizes currently available"}
-            </span>
           </span>
         </Link>
         <div className="product-card__footer">
-          {lowestPrice !== null && !product.isUatFixture ? (
+          {lowestPrice !== null ? (
             <ProductSelectionDialog
               product={{
                 slug: product.slug,
                 title: product.title,
                 setCount: product.setCount,
-                isUatFixture: product.isUatFixture,
                 image: product.images[0] ?? null,
                 variants: product.variants,
               }}
             />
           ) : (
             <Link className="product-card__details-link" href={`/products/${product.slug}`}>
-              {product.isUatFixture ? "Example details" : "View details"}
+              View details
             </Link>
           )}
           <Link className="product-card__more-link" href={`/products/${product.slug}`}>
@@ -108,14 +151,20 @@ export function ProductCard({ product }: { product: PublicProduct }) {
 export function ProductGrid({
   products,
   ariaLabel = "Bangle catalogue",
+  priorityFirstImage = false,
 }: {
   products: readonly PublicProduct[];
   ariaLabel?: string;
+  priorityFirstImage?: boolean;
 }) {
   return (
     <ul aria-label={ariaLabel} className="product-grid">
-      {products.map((product) => (
-        <ProductCard key={product.id} product={product} />
+      {products.map((product, index) => (
+        <ProductCard
+          key={product.id}
+          priorityImage={priorityFirstImage && index === 0}
+          product={product}
+        />
       ))}
     </ul>
   );

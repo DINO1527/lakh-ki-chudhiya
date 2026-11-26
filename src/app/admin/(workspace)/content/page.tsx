@@ -1,6 +1,8 @@
 import { AdminNotice, AdminPageHeader, StatusBadge } from "@/features/admin/components/admin-ui";
+import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { saveHomepageContent } from "@/features/admin/server/content-actions";
 import { requireStaff } from "@/features/admin/server/access";
+import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
 
 export default async function AdminContentPage({
   searchParams,
@@ -11,6 +13,7 @@ export default async function AdminContentPage({
     .select("eyebrow, title, body, cta_label, cta_href, status, updated_at")
     .eq("content_key", "home_hero")
     .maybeSingle();
+  if (error) logAdminQueryFailure("loadHomepageContent", "site_content", error.code);
 
   return (
     <>
@@ -82,9 +85,7 @@ export default async function AdminContentPage({
             Only internal paths beginning with one slash are accepted. Use owner-approved product
             claims and images.
           </p>
-          <button className="admin-button admin-button--primary" type="submit">
-            Save homepage content
-          </button>
+          <AdminSubmitButton>Save homepage content</AdminSubmitButton>
         </form>
       </section>
     </>

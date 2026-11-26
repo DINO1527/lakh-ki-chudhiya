@@ -31,7 +31,7 @@
 
 .line {
   fill: none;
-  stroke: rgb(212 175 55 / 64%);
+  stroke: rgb(255 250 242 / 55%);
   stroke-width: 1.5px;
 }
 
@@ -57,7 +57,7 @@
 }
 
 .hero .line {
-  stroke: rgb(212 175 55 / 78%);
+  stroke: rgb(255 250 242 / 75%);
 }
 
 .hero .secondaryLine {
@@ -73,18 +73,18 @@
 }
 
 .footer .shadow {
-  fill: #6a1a2d;
-  opacity: 0.45;
+  fill: #500d1b;
+  opacity: 0.3;
 }
 
 .footer .base {
-  fill: #450817;
+  fill: #500d1b;
 }
 
 .footer .line {
-  stroke: rgb(212 175 55 / 54%);
+  stroke: rgb(255 250 242 / 50%);
 }
 
 .footer .secondaryLine {
-  stroke: rgb(212 175 55 / 42%);
+  stroke: rgb(255 250 242 / 35%);
 }

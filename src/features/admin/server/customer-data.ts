@@ -1,5 +1,6 @@
 import "server-only";
 import { requireStaff } from "./access";
+import { logAdminQueryFailure } from "./action-logger";
 
 export async function getAdminCustomers() {
   const { supabase } = await requireStaff();
@@ -11,7 +12,10 @@ export async function getAdminCustomers() {
     .not("customer_id", "is", null)
     .order("created_at", { ascending: false })
     .limit(500);
-  if (error) return { status: "error", customers: [] } as const;
+  if (error) {
+    logAdminQueryFailure("loadCustomers", "orders", error.code);
+    return { status: "error", customers: [] } as const;
+  }
 
   const customers = new Map<
     string,

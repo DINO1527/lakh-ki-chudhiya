@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./access";
+import { logAdminActionFailure } from "./action-logger";
 import { formText } from "./form-values";
 
 export async function saveHomepageContent(formData: FormData): Promise<never> {
@@ -33,7 +34,10 @@ export async function saveHomepageContent(formData: FormData): Promise<never> {
     p_cta_href: ctaHref,
     p_status: status,
   });
-  if (error) redirect("/admin/content?error=save");
+  if (error) {
+    logAdminActionFailure("saveHomepageContent", "site_content", error.code);
+    redirect("/admin/content?error=save");
+  }
   revalidatePath("/");
   redirect("/admin/content?saved=1");
 }
