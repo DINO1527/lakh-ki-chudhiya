@@ -4,7 +4,7 @@
   overflow: visible;
   margin-top: 0;
   border-top: 1px solid rgb(255 248 242 / 14%);
-  background: linear-gradient(120deg, #390813 0%, #500d1b 60%, #65172a 100%);
+  background: #500d1b;
   color: #fff8f2;
 }
 
@@ -41,9 +41,9 @@
   width: 3.2rem;
   aspect-ratio: 1;
   place-items: center;
-  border: 1px solid rgb(236 210 169 / 72%);
+  border: 1px solid rgb(255 250 242 / 58%);
   border-radius: 50%;
-  color: #f0d6a8;
+  color: #fffaf2;
   font-family: var(--font-display);
   font-size: 1.75rem;
   line-height: 1;
@@ -84,7 +84,7 @@
 
 .navHeading {
   margin: 0 0 0.85rem;
-  color: #e7c590;
+  color: #f4e3e5;
   font-size: 0.67rem;
   font-weight: 700;
   letter-spacing: 0.15em;
@@ -113,7 +113,7 @@
 
 .navigation a:hover,
 .navigation a:focus-visible {
-  color: #f0d6a8;
+  color: #fffaf2;
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
@@ -136,7 +136,7 @@
 
 .wordmark:focus-visible,
 .navigation a:focus-visible {
-  outline: 3px solid #f0d6a8;
+  outline: 3px solid #fffaf2;
   outline-offset: 4px;
 }
 

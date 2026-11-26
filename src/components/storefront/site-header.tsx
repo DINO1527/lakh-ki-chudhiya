@@ -5,7 +5,7 @@ import { StorefrontIcon } from "./storefront-icon";
 
 const navigation = [
   { href: "/shop", label: "Shop" },
-  { href: "/collections", label: "Collections" },
+  { href: "/shop#catalogue-collection", label: "Collections" },
   { href: "/size-guide", label: "Size guide" },
 ];
 

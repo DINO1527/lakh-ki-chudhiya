@@ -1,5 +1,7 @@
 import { AdminNotice, AdminPageHeader } from "@/features/admin/components/admin-ui";
+import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { requireStaff } from "@/features/admin/server/access";
+import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
 import { saveCommerceSettings } from "@/features/admin/server/commerce-actions";
 
 export default async function CommerceSettingsPage({
@@ -11,6 +13,7 @@ export default async function CommerceSettingsPage({
     .select("singleton, cod_enabled, whatsapp_number, updated_at")
     .eq("singleton", true)
     .maybeSingle();
+  if (error) logAdminQueryFailure("loadCommerceSettings", "store_settings", error.code);
   const notice = Array.isArray(params.saved) ? params.saved[0] : params.saved;
   const errorCode = Array.isArray(params.error) ? params.error[0] : params.error;
 
@@ -51,9 +54,12 @@ export default async function CommerceSettingsPage({
                 autoComplete="off"
                 defaultValue={data.whatsapp_number ?? ""}
                 inputMode="tel"
-                maxLength={16}
+                maxLength={32}
+                minLength={8}
                 name="whatsapp_number"
+                pattern="[+]?[0-9 ()-]{8,32}"
                 placeholder="94771234567"
+                type="tel"
               />
               <small>
                 Country code then digits only, without “+”, spaces or dashes. Customers choose when
@@ -70,9 +76,7 @@ export default async function CommerceSettingsPage({
                 </small>
               </span>
             </label>
-            <button className="admin-button admin-button--primary" type="submit">
-              Save checkout settings
-            </button>
+            <AdminSubmitButton>Save checkout settings</AdminSubmitButton>
           </form>
 
           <div className="admin-readonly-setting">

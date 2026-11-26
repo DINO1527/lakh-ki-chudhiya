@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./access";
+import { logAdminActionFailure } from "./action-logger";
 import { formText, integer } from "./form-values";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -27,7 +28,10 @@ export async function adjustInventory(formData: FormData): Promise<never> {
     p_quantity_delta: delta,
     p_reason: reason,
   });
-  if (error) redirect("/admin/inventory?error=adjust");
+  if (error) {
+    logAdminActionFailure("adjustInventory", "inventory_movements", error.code);
+    redirect("/admin/inventory?error=adjust");
+  }
 
   revalidatePath("/admin");
   revalidatePath("/admin/inventory");

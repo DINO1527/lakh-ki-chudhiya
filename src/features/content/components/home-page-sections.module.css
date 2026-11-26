@@ -5,38 +5,207 @@
   scroll-margin-top: 5.5rem;
 }
 
+.shelves {
+  display: grid;
+  width: min(calc(100% - 2 * var(--home-gutter)), 80rem);
+  gap: clamp(2.5rem, 5vw, 4rem);
+  margin-inline: auto;
+  padding-block: clamp(2.5rem, 5vw, 4rem);
+}
+
+.collectionShelf {
+  min-width: 0;
+}
+
+.shelfHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.shelfEyebrow {
+  margin: 0 0 0.35rem;
+  color: var(--color-ink-muted);
+  font-size: 0.67rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.shelfHeading h2,
+.catalogueEmpty h2 {
+  margin: 0;
+  color: var(--color-brand);
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 3vw, 2.45rem);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.shelfHeading > a,
+.catalogueEmpty a {
+  display: inline-flex;
+  min-height: 2.7rem;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.45rem;
+  border-bottom: 1px solid var(--color-border-brand-strong);
+  color: var(--color-brand);
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.shelfHeading > a:hover,
+.catalogueEmpty a:hover {
+  border-color: transparent;
+}
+
+.shelfHeading > a:focus-visible,
+.catalogueEmpty a:focus-visible {
+  border-radius: 0.2rem;
+  outline: 3px solid var(--color-focus);
+  outline-offset: 4px;
+}
+
+.catalogueEmpty {
+  display: grid;
+  min-height: 15rem;
+  grid-template-columns: minmax(8rem, 0.65fr) minmax(0, 1.35fr);
+  align-items: center;
+  gap: clamp(1.25rem, 4vw, 3.5rem);
+  border: 1px solid var(--color-border-brand);
+  border-radius: 1rem;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  background: #fffaf4;
+}
+
+.emptyMark {
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-width: 15rem;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, #f3e4d7, #fffaf4 68%);
+}
+
+.emptyMark svg {
+  width: 80%;
+  height: auto;
+  animation: collection-model-float 6s ease-in-out infinite;
+}
+
+.catalogueEmpty h2 {
+  max-width: 20ch;
+}
+
+.catalogueEmpty > div > p:not(.shelfEyebrow) {
+  max-width: 48ch;
+  margin: 0.7rem 0 0;
+  color: var(--color-ink-muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.catalogueEmpty a {
+  margin-top: 0.75rem;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 .benefits {
-  border-bottom: 1px solid rgb(80 13 27 / 9%);
-  background: #fff9f2;
+  padding-block: clamp(1rem, 2.4vw, 1.6rem);
+  background: var(--color-surface);
 }
 
 .benefits__inner {
   display: grid;
   width: min(calc(100% - 2 * var(--home-gutter)), 80rem);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0 auto;
-  padding: 0.9rem 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgb(80 13 27 / 11%);
+  border-radius: 1.25rem;
+  background: var(--color-surface-raised);
+  box-shadow:
+    0 0.7rem 2.25rem rgb(80 13 27 / 7%),
+    0 1px 3px rgb(80 13 27 / 4%);
   list-style: none;
 }
 
 .benefit {
+  position: relative;
   display: flex;
   min-width: 0;
-  min-height: 3.25rem;
+  min-height: 6.75rem;
   align-items: center;
   justify-content: center;
-  gap: 0.7rem;
+  gap: 0.9rem;
+  padding-inline: 1rem;
   color: var(--color-brand);
-  font-size: 0.86rem;
+  font-size: 0.95rem;
   font-weight: 600;
-  text-align: center;
+  text-align: left;
+  animation: benefit-arrive 560ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  transition: background-color 180ms ease;
 }
 
 .benefit + .benefit {
   border-left: 1px solid rgb(80 13 27 / 14%);
 }
 
-.benefit svg {
+.benefit:nth-child(2) {
+  animation-delay: 90ms;
+}
+
+.benefit:nth-child(3) {
+  animation-delay: 180ms;
+}
+
+.benefit:hover {
+  background: var(--color-surface);
+}
+
+.benefitIconBadge {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgb(80 13 27 / 12%);
+  border-radius: 50%;
+  background: var(--color-surface);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 85%);
+  transition:
+    color 180ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    transform 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.benefit:hover .benefitIconBadge {
+  transform: translateY(-2px) rotate(-4deg);
+  border-color: rgb(80 13 27 / 22%);
+  background: var(--color-surface-raised);
+}
+
+.benefitIcon {
+  width: 1.45rem;
+  height: 1.45rem;
   flex: 0 0 auto;
 }
 
@@ -44,12 +213,31 @@
   min-height: 2.75rem;
   display: inline-flex;
   align-items: center;
+  color: inherit;
   text-decoration: none;
   text-underline-offset: 0.2em;
 }
 
 .benefit a:hover {
   text-decoration: underline;
+}
+
+.benefit a:focus-visible {
+  border-radius: 0.25rem;
+  outline: 2px solid var(--color-brand);
+  outline-offset: 4px;
+}
+
+@keyframes benefit-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(0.65rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .collectionFeature {
@@ -131,7 +319,7 @@
 
 .collectionEmpty__eyebrow {
   margin: 0;
-  color: #ead2a4;
+  color: #fffaf2;
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -164,7 +352,7 @@
   align-items: center;
   gap: 0.55rem;
   margin-top: 0.9rem;
-  border-bottom: 1px solid rgb(234 210 164 / 60%);
+  border-bottom: 1px solid rgb(255 250 246 / 60%);
   color: #fff9f2;
   font-size: 0.85rem;
   font-weight: 650;
@@ -264,7 +452,7 @@
 .craft__eyebrow,
 .whatsapp__eyebrow {
   margin: 0;
-  color: #ead2a4;
+  color: #fffaf2;
   font-size: 0.67rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -303,7 +491,7 @@
   align-items: center;
   gap: 0.55rem;
   margin-top: 1rem;
-  border-bottom: 1px solid rgb(234 210 164 / 60%);
+  border-bottom: 1px solid rgb(255 250 246 / 60%);
   color: #fff9f2;
   font-size: 0.83rem;
   font-weight: 650;
@@ -316,7 +504,7 @@
   bottom: -5rem;
   width: 13rem;
   aspect-ratio: 1;
-  border: 1px solid rgb(234 210 164 / 35%);
+  border: 1px solid rgb(255 250 246 / 35%);
   border-radius: 50%;
 }
 
@@ -551,29 +739,32 @@
   }
 
   .benefits__inner {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    padding-block: 0.55rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .benefit {
-    min-height: 3.4rem;
-    justify-content: flex-start;
-    gap: 0.55rem;
-    padding: 0.25rem;
-    font-size: 0.78rem;
-    text-align: left;
+    min-height: 6.25rem;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.55rem 0.3rem;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    text-align: center;
   }
 
   .benefit + .benefit {
-    border-left: 0;
+    border-left: 1px solid rgb(80 13 27 / 12%);
   }
 
-  .benefit:nth-child(even) {
-    padding-left: 0.75rem;
+  .benefitIconBadge {
+    width: 2.35rem;
+    height: 2.35rem;
   }
 
-  .benefit:nth-child(odd) {
-    border-right: 1px solid rgb(80 13 27 / 12%);
+  .benefitIcon {
+    width: 1.2rem;
+    height: 1.2rem;
   }
 
   .collectionFeature,
@@ -683,6 +874,38 @@
   .whatsapp {
     scroll-margin-top: 4.75rem;
   }
+
+  .shelfHeading {
+    align-items: flex-start;
+  }
+
+  .shelfHeading h2 {
+    font-size: clamp(1.55rem, 6vw, 2rem);
+  }
+
+  .shelfHeading > a {
+    min-height: 2.3rem;
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+  }
+
+  .catalogueEmpty {
+    grid-template-columns: 5rem minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1.1rem;
+  }
+
+  .emptyMark {
+    width: 5rem;
+  }
+
+  .catalogueEmpty h2 {
+    font-size: 1.45rem;
+  }
+
+  .catalogueEmpty > div > p:not(.shelfEyebrow) {
+    font-size: 0.82rem;
+  }
 }
 
 @media (max-width: 22.49rem) {
@@ -692,6 +915,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .benefit,
+  .benefitIconBadge,
+  .benefits__inner,
   .collectionEmpty__model,
   .collectionFeature :global(.collection-card__image),
   .supportCard,
@@ -699,6 +925,7 @@
   .whatsapp__inner > a {
     animation: none;
     transition: none;
+    transform: none;
   }
 }
 

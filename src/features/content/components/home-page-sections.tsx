@@ -1,50 +1,28 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { PublicCollection, PublicProduct } from "@/features/products/domain/catalogue";
+import type { PublicHomeCatalogue } from "@/features/products/domain/catalogue";
 import type { PublicQueryResult as PublicServiceResult } from "@/features/products/server/public-catalogue";
-import { ProductCard } from "@/features/products/components/product-card";
-import { CollectionCard } from "@/features/collections/components/collection-card";
-import { StorefrontIcon } from "@/components/storefront/storefront-icon";
-import { ResponsiveCarousel } from "@/components/shared/responsive-carousel";
-import { SectionHeading } from "@/components/shared/section-heading";
+import { CatalogueNotice } from "@/features/products/components/catalogue-notice";
+import { ProductGrid } from "@/features/products/components/product-card";
+import { OfferCarousel } from "@/features/promotions/components/offer-carousel";
 import { ScrollReveal } from "@/components/shared/scroll-reveal";
 import { BangleFallback } from "./bangle-experience";
 import styles from "./home-page-sections.module.css";
 
-type CatalogueResult<T> = PublicServiceResult<readonly T[]>;
-
 export function HomePageSections({
-  collectionResult,
-  latestProductsResult,
-  whatsappNumber,
+  catalogueResult,
 }: {
-  collectionResult: CatalogueResult<PublicCollection>;
-  latestProductsResult: CatalogueResult<PublicProduct>;
-  whatsappNumber: string | null;
+  catalogueResult: PublicServiceResult<PublicHomeCatalogue>;
 }) {
-  const collections = collectionResult.status === "ready" ? collectionResult.data : [];
-  const latestProducts = latestProductsResult.status === "ready" ? latestProductsResult.data : [];
-  const whatsappLink = createWhatsAppLink(whatsappNumber);
+  const catalogue = catalogueResult.status === "ready" ? catalogueResult.data : null;
 
   return (
     <>
-      <ScrollReveal>
-        <BenefitsStrip />
-      </ScrollReveal>
-      <ScrollReveal>
-        <CollectionSection collections={collections} status={collectionResult.status} />
-      </ScrollReveal>
-      <ScrollReveal>
-        <LatestArrivals products={latestProducts} status={latestProductsResult.status} />
-      </ScrollReveal>
+      {catalogue ? <OfferCarousel offers={catalogue.offers} /> : null}
+      <BenefitsStrip />
+      <CollectionProductShelves result={catalogueResult} />
       <ScrollReveal>
         <CraftsmanshipSection />
-      </ScrollReveal>
-      <ScrollReveal>
-        <SupportCards />
-      </ScrollReveal>
-      <ScrollReveal>
-        <WhatsAppBanner href={whatsappLink} />
       </ScrollReveal>
     </>
   );
@@ -55,138 +33,130 @@ function BenefitsStrip() {
     <div aria-label="Shopping information" className={styles.benefits}>
       <ul className={styles.benefits__inner}>
         <li className={styles.benefit}>
-          <StorefrontIcon name="gem" size={25} />
+          <span className={styles.benefitIconBadge}>
+            <BenefitIcon kind="sparkle" />
+          </span>
           <span>Handcrafted designs</span>
         </li>
         <li className={styles.benefit}>
-          <StorefrontIcon name="ruler" size={25} />
+          <span className={styles.benefitIconBadge}>
+            <BenefitIcon kind="ruler" />
+          </span>
           <Link href="/size-guide">Find your size</Link>
         </li>
         <li className={styles.benefit}>
-          <StorefrontIcon name="gem" size={25} />
-          <Link href="/collections">Browse collections</Link>
-        </li>
-        <li className={styles.benefit}>
-          <StorefrontIcon name="message" size={25} />
-          <Link href="#whatsapp-help">Order assistance</Link>
+          <span className={styles.benefitIconBadge}>
+            <BenefitIcon kind="grid" />
+          </span>
+          <Link href="/shop#catalogue-collection">Browse by collection</Link>
         </li>
       </ul>
     </div>
   );
 }
 
-function CollectionSection({
-  collections,
-  status,
-}: {
-  collections: readonly PublicCollection[];
-  status: CatalogueResult<PublicCollection>["status"];
-}) {
+function BenefitIcon({ kind }: { kind: "sparkle" | "ruler" | "grid" }) {
+  const common = {
+    "aria-hidden": true as const,
+    className: styles.benefitIcon,
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.6,
+    viewBox: "0 0 24 24",
+  };
+
+  if (kind === "sparkle") {
+    return (
+      <svg {...common}>
+        <path d="M12 3.5 14 9.8l6.5 2.2-6.5 2.1-2 6.4-2.1-6.4L3.5 12l6.4-2.2L12 3.5Z" />
+        <path d="m19.4 3.5.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1Z" />
+      </svg>
+    );
+  }
+
+  if (kind === "ruler") {
+    return (
+      <svg {...common}>
+        <path d="m4.2 15.8 11.6-11.6a1.8 1.8 0 0 1 2.5 0l1.5 1.5a1.8 1.8 0 0 1 0 2.5L8.2 19.8a1.8 1.8 0 0 1-2.5 0l-1.5-1.5a1.8 1.8 0 0 1 0-2.5Z" />
+        <path d="m14.2 7.3 2.5 2.5m-5.2 0 1.7 1.7m-4.4.8 2.5 2.5m-5.2 0 1.7 1.7" />
+      </svg>
+    );
+  }
+
   return (
-    <section
-      aria-labelledby="home-collections-title"
-      className={styles.section}
-      id="home-collections"
-    >
-      <SectionHeading
-        actionHref="/collections"
-        actionLabel="View all collections"
-        eyebrow="A considered edit"
-        id="home-collections-title"
-        title="Shop by collection"
-      />
-      {collections.length === 0 ? (
-        <div className={styles.collectionEmpty}>
-          <div aria-hidden="true" className={styles.collectionEmpty__visual}>
-            <BangleFallback className={styles.collectionEmpty__model} />
-          </div>
-          <div className={styles.collectionEmpty__copy}>
-            <p className={styles.collectionEmpty__eyebrow}>A considered edit</p>
-            <h3>Find a design that feels like you.</h3>
-            <p>{getCollectionEmptyMessage(status)}</p>
-            <Link href="/collections">
-              Browse collections <span aria-hidden="true">↗</span>
+    <svg {...common}>
+      <rect height="7" rx="1.2" width="7" x="3.5" y="3.5" />
+      <rect height="7" rx="1.2" width="7" x="13.5" y="3.5" />
+      <rect height="7" rx="1.2" width="7" x="3.5" y="13.5" />
+      <rect height="7" rx="1.2" width="7" x="13.5" y="13.5" />
+    </svg>
+  );
+}
+
+function CollectionProductShelves({
+  result,
+}: {
+  result: PublicServiceResult<PublicHomeCatalogue>;
+}) {
+  if (result.status !== "ready") {
+    return (
+      <section
+        aria-labelledby="home-catalogue-title"
+        className={styles.shelves}
+        id="home-catalogue"
+      >
+        <h2 className={styles.visuallyHidden} id="home-catalogue-title">
+          Shop by collection
+        </h2>
+        <CatalogueNotice state={result.status} />
+      </section>
+    );
+  }
+
+  const shelves = result.data.shelves;
+  if (shelves.length === 0) {
+    return (
+      <section
+        aria-labelledby="home-catalogue-title"
+        className={styles.shelves}
+        id="home-catalogue"
+      >
+        <div className={styles.catalogueEmpty}>
+          <span aria-hidden="true" className={styles.emptyMark}>
+            <BangleFallback />
+          </span>
+          <div>
+            <p className={styles.shelfEyebrow}>The Lacora catalogue</p>
+            <h2 id="home-catalogue-title">A collection for every little moment.</h2>
+            <p>Browse the shop for published designs and their available sizes.</p>
+            <Link href="/shop">
+              Explore all designs <span aria-hidden="true">↗</span>
             </Link>
           </div>
         </div>
-      ) : collections.length <= 2 ? (
-        <div
-          className={`${styles.collectionFeature} ${collections.length === 1 ? styles.collectionFeatureSingle : ""}`}
-        >
-          <ul aria-label="Published collections" className={styles.collectionFeature__items}>
-            {collections.map((collection) => (
-              <CollectionCard collection={collection} key={collection.id} />
-            ))}
-          </ul>
-          <CollectionEditorialCard single={collections.length === 1} />
-        </div>
-      ) : (
-        <ResponsiveCarousel label="Collection">
-          {collections.map((collection) => (
-            <CollectionCard collection={collection} key={collection.id} />
-          ))}
-        </ResponsiveCarousel>
-      )}
-    </section>
-  );
-}
+      </section>
+    );
+  }
 
-function CollectionEditorialCard({ single }: { single: boolean }) {
   return (
-    <article className={`${styles.editorialCard} ${single ? styles.editorialCardSingle : ""}`}>
-      <p className={styles.editorialCard__eyebrow}>
-        {single ? "THE LACERA EDIT" : "YOUR STYLE, YOUR STORY"}
-      </p>
-      <h3>{single ? "A little colour goes a long way." : "Find something that feels like you."}</h3>
-      <p>
-        {single
-          ? "Find a handcrafted detail to make your everyday style your own."
-          : "Explore our designs for everyday moments and special occasions."}
-      </p>
-      <Link href={single ? "/shop" : "/size-guide"}>
-        {single ? "Explore the shop" : "Find your size"} <span aria-hidden="true">↗</span>
-      </Link>
-      <span aria-hidden="true" className={styles.editorialCard__ornament} />
-    </article>
-  );
-}
-
-function LatestArrivals({
-  products,
-  status,
-}: {
-  products: readonly PublicProduct[];
-  status: CatalogueResult<PublicProduct>["status"];
-}) {
-  return (
-    <section
-      aria-labelledby="latest-arrivals-title"
-      className={`${styles.section} ${styles.latest}`}
-      id="latest-arrivals"
-    >
-      <SectionHeading
-        layout="split"
-        actionHref="/shop"
-        actionLabel="View all designs"
-        description="The newest published designs, with their confirmed details and current availability."
-        eyebrow="Just published"
-        id="latest-arrivals-title"
-        title="Latest arrivals"
-      />
-      {products.length > 0 ? (
-        <ResponsiveCarousel className={styles.productTrack} label="Latest arrivals">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </ResponsiveCarousel>
-      ) : (
-        <div className={styles.latestEmpty}>
-          <StorefrontIcon name="gem" size={30} />
-          <p>{getLatestEmptyMessage(status)}</p>
-          <Link href="/shop">Browse the shop</Link>
-        </div>
-      )}
-    </section>
+    <div aria-label="Shop by collection" className={styles.shelves} id="home-catalogue">
+      {shelves.map(({ collection, products }) => (
+        <section className={styles.collectionShelf} key={collection.id}>
+          <div className={styles.shelfHeading}>
+            <div>
+              <p className={styles.shelfEyebrow}>Shop by collection</p>
+              <h2>{collection.name}</h2>
+            </div>
+            <Link href={`/shop?collection=${encodeURIComponent(collection.slug)}`}>
+              View collection <span aria-hidden="true">↗</span>
+            </Link>
+          </div>
+          <ProductGrid ariaLabel={`${collection.name} products`} products={products} />
+        </section>
+      ))}
+    </div>
   );
 }
 
@@ -225,81 +195,4 @@ function CraftsmanshipSection() {
       </div>
     </section>
   );
-}
-
-function SupportCards() {
-  return (
-    <section aria-labelledby="home-support-title" className={`${styles.section} ${styles.support}`}>
-      <SectionHeading
-        eyebrow="Here to help"
-        id="home-support-title"
-        title="A little help, when you need it."
-      />
-      <ul className={styles.support__grid}>
-        <li>
-          <Link className={styles.supportCard} href="/size-guide">
-            <StorefrontIcon name="ruler" size={25} />
-            <span>
-              <strong>Bangle size guide</strong>
-              <small>Find the right fit with verified measurements.</small>
-            </span>
-            <span aria-hidden="true" className={styles.supportCard__arrow}>
-              ↗
-            </span>
-          </Link>
-        </li>
-        <li>
-          <Link className={styles.supportCard} href="/shop">
-            <StorefrontIcon name="gem" size={25} />
-            <span>
-              <strong>Explore current designs</strong>
-              <small>See published pieces and their confirmed details.</small>
-            </span>
-            <span aria-hidden="true" className={styles.supportCard__arrow}>
-              ↗
-            </span>
-          </Link>
-        </li>
-      </ul>
-    </section>
-  );
-}
-
-function getCollectionEmptyMessage(status: CatalogueResult<PublicCollection>["status"]): string {
-  if (status === "ready") return "Browse the published collections and available designs.";
-  return "Explore the shop for current designs and their details.";
-}
-
-function getLatestEmptyMessage(status: CatalogueResult<PublicProduct>["status"]): string {
-  if (status === "ready")
-    return "Browse the shop to see published designs and current availability.";
-  return "Visit the shop for current designs, details and availability.";
-}
-
-function WhatsAppBanner({ href }: { href: string | null }) {
-  return (
-    <section aria-labelledby="whatsapp-help-title" className={styles.whatsapp} id="whatsapp-help">
-      <div className={styles.whatsapp__inner}>
-        <div>
-          <p className={styles.whatsapp__eyebrow}>Personal assistance</p>
-          <h2 id="whatsapp-help-title">Need help choosing?</h2>
-        </div>
-        {href ? (
-          <a href={href} rel="noopener noreferrer" target="_blank">
-            <StorefrontIcon name="message" size={22} /> Message us on WhatsApp
-          </a>
-        ) : (
-          <Link href="/shop">
-            Explore the shop <span aria-hidden="true">↗</span>
-          </Link>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function createWhatsAppLink(number: string | null): string | null {
-  const digits = number?.replace(/\D/g, "") ?? "";
-  if (!/^[1-9][0-9]{7,14}$/.test(digits)) return null;
-  return `https://wa.me/${digits}?text=${encodeURIComponent("Hello Lacora, I would like help choosing a bangle.")}`;
 }

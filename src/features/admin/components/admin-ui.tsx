@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AdminToast } from "./admin-toast-provider";
 
 export function AdminPageHeader({
   eyebrow,
@@ -22,11 +23,11 @@ export function AdminNotice({
   children,
   tone = "info",
 }: Readonly<{ children: ReactNode; tone?: "info" | "success" | "error" }>) {
-  return (
-    <p className={`admin-alert admin-alert--${tone}`} role={tone === "error" ? "alert" : "status"}>
-      {children}
-    </p>
-  );
+  if (tone === "info") {
+    return <p className="admin-alert admin-alert--info">{children}</p>;
+  }
+
+  return <AdminToast tone={tone}>{children}</AdminToast>;
 }
 
 export function StatusBadge({ children }: Readonly<{ children: ReactNode }>) {

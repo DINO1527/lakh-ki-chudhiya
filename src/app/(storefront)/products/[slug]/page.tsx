@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CatalogueNotice, UatFixtureNotice } from "@/features/products/components/catalogue-notice";
+import { CatalogueNotice } from "@/features/products/components/catalogue-notice";
 import { ProductGallery } from "@/features/products/components/product-gallery";
 import { StorefrontOfferList } from "@/features/products/components/storefront-offers";
 import { VariantPicker } from "@/features/products/components/variant-picker";
+import { ProductReviews } from "@/features/products/components/product-reviews";
 import { formatLkrPrice } from "@/features/products/domain/product-variant";
 import { getPublicProductBySlug } from "@/features/products/server/public-catalogue";
+import { getPublicProductReviews } from "@/features/products/server/review-data";
 
 type ProductPageProps = {
   params: Promise<{ slug: string }>;
@@ -25,7 +27,6 @@ export async function generateMetadata({ params }: ProductPageProps): Promise<Me
   return {
     title: `${result.data.title} | Lacora`,
     description: result.data.description || `Product details for ${result.data.title}.`,
-    robots: result.data.isUatFixture ? { index: false, follow: false } : undefined,
   };
 }
 
@@ -46,6 +47,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
   const product = result.data;
   if (!product) notFound();
+  const reviews = product.reviewsEnabled ? await getPublicProductReviews(product.id) : null;
 
   return (
     <main className="page-shell product-page" id="main-content">
@@ -54,7 +56,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
         {product.collections[0] && (
           <>
             <span aria-hidden="true">/</span>
-            <Link href={`/collections/${product.collections[0].slug}`}>
+            <Link href={`/shop?collection=${encodeURIComponent(product.collections[0].slug)}`}>
               {product.collections[0].name}
             </Link>
           </>
@@ -75,7 +77,6 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <h1 className="page-heading" id="product-title">
             {product.title}
           </h1>
-          {product.isUatFixture && <UatFixtureNotice />}
           <p className="product-detail__description">
             {product.description ||
               "A description will be added when product details are confirmed."}
@@ -107,7 +108,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           <StorefrontOfferList compact offers={product.offers} />
 
           {product.variants.length > 0 ? (
-            <VariantPicker isUatFixture={product.isUatFixture} variants={product.variants} />
+            <VariantPicker variants={product.variants} />
           ) : (
             <p className="product-detail__availability" role="status">
               Available sizes are being confirmed.
@@ -130,6 +131,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
           </Link>
         </section>
       </div>
+      {product.reviewsEnabled ? <ProductReviews data={reviews} /> : null}
     </main>
   );
 }

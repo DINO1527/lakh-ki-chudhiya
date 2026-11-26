@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 import { saveOffer } from "@/features/admin/server/commerce-actions";
+import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 
 type OfferTargetType = "product" | "collection";
-type OfferTarget = { id: string; label: string };
+type OfferTarget = { id: string; label: string; isPublished?: boolean };
 
 export type OfferFormValues = {
   id?: string;
@@ -22,13 +23,48 @@ export function OfferForm({
   offer,
   products,
   collections,
+  hasPublishedBanner = false,
 }: Readonly<{
   offer?: OfferFormValues;
   products: readonly OfferTarget[];
   collections: readonly OfferTarget[];
+  hasPublishedBanner?: boolean;
 }>) {
   const [targetType, setTargetType] = useState<OfferTargetType>(offer?.targetType ?? "product");
+  const [targetId, setTargetId] = useState(offer?.targetId ?? "");
+  const startsAtRef = useRef<HTMLInputElement>(null);
+  const endsAtRef = useRef<HTMLInputElement>(null);
+  const enableRef = useRef<HTMLInputElement>(null);
   const targets = targetType === "product" ? products : collections;
+
+  function updateEnableValidity(
+    nextType: OfferTargetType,
+    nextTargetId: string,
+    shouldEnable: boolean,
+  ) {
+    const nextTargets = nextType === "product" ? products : collections;
+    const selectedTarget = nextTargets.find((target) => target.id === nextTargetId);
+    const missingRequirement = !hasPublishedBanner
+      ? "Publish an offer banner before enabling this offer."
+      : !selectedTarget?.isPublished
+        ? "Choose a published product or collection before enabling this offer."
+        : "";
+    enableRef.current?.setCustomValidity(shouldEnable ? missingRequirement : "");
+  }
+
+  function validateSchedule(event: ChangeEvent<HTMLInputElement>) {
+    const startsAt =
+      event.currentTarget.name === "starts_at"
+        ? event.currentTarget.value
+        : (startsAtRef.current?.value ?? "");
+    const endsAt =
+      event.currentTarget.name === "ends_at"
+        ? event.currentTarget.value
+        : (endsAtRef.current?.value ?? "");
+    endsAtRef.current?.setCustomValidity(
+      startsAt && endsAt && endsAt <= startsAt ? "Choose an end time after the start time." : "",
+    );
+  }
 
   return (
     <form action={saveOffer} className="admin-form offer-form">
@@ -36,14 +72,26 @@ export function OfferForm({
       <p className="admin-eyebrow">1 · Name the offer and choose what it applies to</p>
       <label className="admin-field">
         <span>Offer name</span>
-        <input defaultValue={offer?.name ?? ""} maxLength={120} name="name" required />
+        <input
+          defaultValue={offer?.name ?? ""}
+          maxLength={120}
+          minLength={1}
+          name="name"
+          required
+        />
       </label>
       <div className="admin-form__row">
         <label className="admin-field">
           <span>Offer applies to</span>
           <select
             name="target_type"
-            onChange={(event) => setTargetType(event.target.value as OfferTargetType)}
+            onChange={(event) => {
+              const nextType = event.target.value as OfferTargetType;
+              setTargetType(nextType);
+              setTargetId("");
+              updateEnableValidity(nextType, "", enableRef.current?.checked ?? false);
+            }}
+            required
             value={targetType}
           >
             <option value="product">One product</option>
@@ -53,10 +101,15 @@ export function OfferForm({
         <label className="admin-field">
           <span>{targetType === "product" ? "Product" : "Collection"}</span>
           <select
-            defaultValue={offer?.targetId ?? ""}
             key={`${targetType}-${offer?.targetId ?? "new"}`}
             name="target_id"
+            onChange={(event) => {
+              const nextTargetId = event.target.value;
+              setTargetId(nextTargetId);
+              updateEnableValidity(targetType, nextTargetId, enableRef.current?.checked ?? false);
+            }}
             required
+            value={targetId}
           >
             <option disabled value="">
               Choose a target
@@ -110,32 +163,51 @@ export function OfferForm({
           <span>
             Starts in Colombo time <small>Optional</small>
           </span>
-          <input defaultValue={offer?.startsAt ?? ""} name="starts_at" type="datetime-local" />
+          <input
+            defaultValue={offer?.startsAt ?? ""}
+            name="starts_at"
+            onChange={validateSchedule}
+            ref={startsAtRef}
+            type="datetime-local"
+          />
         </label>
         <label className="admin-field">
           <span>
             Ends in Colombo time <small>Optional</small>
           </span>
-          <input defaultValue={offer?.endsAt ?? ""} name="ends_at" type="datetime-local" />
+          <input
+            defaultValue={offer?.endsAt ?? ""}
+            name="ends_at"
+            onChange={validateSchedule}
+            ref={endsAtRef}
+            type="datetime-local"
+          />
         </label>
       </div>
       <label className="admin-checkbox">
-        <input defaultChecked={offer?.isEnabled ?? false} name="is_enabled" type="checkbox" />
+        <input
+          defaultChecked={offer?.isEnabled ?? false}
+          name="is_enabled"
+          onChange={(event) =>
+            updateEnableValidity(targetType, targetId, event.currentTarget.checked)
+          }
+          ref={enableRef}
+          type="checkbox"
+        />
         <span>
           Enable this offer
           <small>
             Checkout uses the best single eligible offer; discounts do not stack. Scheduled or
-            expired offers do not apply.
+            expired offers do not apply. Publish a banner before enabling this offer.
           </small>
         </span>
       </label>
-      <button
+      <AdminSubmitButton
         className="admin-button admin-button--secondary"
         disabled={!targets.length}
-        type="submit"
       >
         {offer ? "Save offer changes" : "Create offer"}
-      </button>
+      </AdminSubmitButton>
       {!targets.length ? (
         <p className="admin-muted">Create a {targetType} before you can attach an offer to it.</p>
       ) : null}

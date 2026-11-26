@@ -1,4 +1,5 @@
 import { AdminNotice, AdminPageHeader } from "@/features/admin/components/admin-ui";
+import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { changeAdminPassword } from "@/features/admin/server/auth-actions";
 import { requireStaff } from "@/features/admin/server/access";
 
@@ -68,9 +69,7 @@ export default async function AdminSecurityPage({
               type="password"
             />
           </label>
-          <button className="admin-button admin-button--primary" type="submit">
-            Change password
-          </button>
+          <AdminSubmitButton pendingLabel="Updating password…">Change password</AdminSubmitButton>
         </form>
       </section>
     </>

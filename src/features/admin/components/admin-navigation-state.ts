@@ -13,6 +13,7 @@ export function getAdminNavigationGroups(isOwner: boolean): readonly AdminNaviga
         { href: "/admin/products", label: "Products" },
         { href: "/admin/collections", label: "Collections" },
         { href: "/admin/offers", label: "Offers" },
+        { href: "/admin/reviews", label: "Reviews" },
       ],
     },
     {

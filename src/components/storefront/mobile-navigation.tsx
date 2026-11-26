@@ -7,7 +7,7 @@ import { useCart } from "@/features/cart/components/cart-provider";
 
 const navigation = [
   { href: "/shop", label: "Shop", icon: "search" as const },
-  { href: "/collections", label: "Collections", icon: "grid" as const },
+  { href: "/shop#catalogue-collection", label: "Collections", icon: "grid" as const },
   { href: "/account", label: "Account", icon: "user" as const },
   { href: "/cart", label: "Bag", icon: "bag" as const },
 ];

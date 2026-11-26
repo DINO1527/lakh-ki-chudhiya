@@ -3,16 +3,16 @@ import { createSupabaseServerClient, isSupabaseServerConfigured } from "@/lib/su
 import type { Database } from "@/types/database";
 import {
   PRODUCTS_PER_PAGE,
-  isUatFixtureSlug,
-  UAT_FIXTURE_SLUG_PREFIX,
   type CatalogueFilterOptions,
   type CatalogueFilters,
   type PublicCollection,
+  type PublicHomeCatalogue,
   type PublicImage,
   type PublicProduct,
   type PublicStorefrontOffer,
 } from "../domain/catalogue";
 import type { ProductVariant } from "../domain/product-variant";
+import { buildHomeCollectionShelves, prioritizeHomeProducts } from "../domain/merchandising";
 
 type ProductRow = Pick<
   Database["public"]["Tables"]["products"]["Row"],
@@ -46,9 +46,18 @@ type PublicMediaRow = {
   id: string;
   product_id?: string;
   collection_id?: string;
+  offer_id?: string;
   storage_path: string;
   alt_text: string;
   sort_order: number;
+};
+
+type PublicReviewRow = { product_id: string; rating: number };
+type LowStockRow = {
+  product_id: string;
+  variant_id: string;
+  size_code: string | null;
+  available_quantity: number;
 };
 
 export type PublicQueryResult<T> =
@@ -73,11 +82,15 @@ export type PublicShopPage = {
 
 type ActiveOfferRow =
   Database["public"]["Functions"]["get_active_storefront_offers"]["Returns"][number];
+type ActiveOffersResult =
+  | { status: "ready"; data: readonly PublicStorefrontOffer[] }
+  | { status: "error" };
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const COLLECTION_QUERY_LIMIT = 1_000;
 const MAX_PRODUCTS_PER_COLLECTION = 5_000;
 const MAX_VARIANT_FILTER_ROWS = 1_000;
+const MAX_AVAILABLE_VARIANT_ROWS = 5_000;
 const FILTER_OPTION_QUERY_LIMIT = 1_000;
 const PUBLIC_MEDIA_QUERY_LIMIT = 5_000;
 const PRODUCT_IMAGES_PER_PRODUCT = 20;
@@ -85,6 +98,10 @@ const COLLECTION_IMAGES_PER_COLLECTION = 20;
 const PRODUCT_SELECT =
   "id, slug, title, description, material, care_instructions, set_count, delivery_fee_minor, sort_order";
 const LATEST_PRODUCTS_LIMIT = 12;
+const LATEST_PRODUCT_SCAN_LIMIT = 48;
+const HOME_COLLECTION_LIMIT = 12;
+const HOME_PRODUCT_SCAN_LIMIT = 48;
+const HOME_PRODUCTS_PER_COLLECTION = 4;
 const COLLECTION_SELECT = "id, slug, name, description, sort_order";
 const VARIANT_SELECT = "id, product_id, size_code, inner_diameter_mm, price_minor, is_available";
 
@@ -98,7 +115,6 @@ export async function getPublicCollections(): Promise<
     .from("collections")
     .select(COLLECTION_SELECT, { count: "exact" })
     .eq("status", "published")
-    .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
     .order("sort_order", { ascending: true })
     .order("name", { ascending: true })
     .limit(COLLECTION_QUERY_LIMIT);
@@ -114,12 +130,62 @@ export async function getPublicCollections(): Promise<
   if (mediaResult.status === "error") return { status: "error" };
   const imagesByCollectionId = mediaResult.data;
 
+  const collections = rows.map((row) => ({
+    ...toPublicCollection(row),
+    images: imagesByCollectionId.get(row.id) ?? [],
+  }));
+
+  return { status: "ready", data: collections };
+}
+
+export async function getPublicHomeCatalogue(): Promise<PublicQueryResult<PublicHomeCatalogue>> {
+  if (!isSupabaseServerConfigured()) return { status: "unconfigured" };
+
+  const supabase = await createSupabaseServerClient();
+  const [collectionsResult, productsResult, offersResult] = await Promise.all([
+    supabase
+      .from("collections")
+      .select(COLLECTION_SELECT)
+      .eq("status", "published")
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true })
+      .limit(HOME_COLLECTION_LIMIT),
+    supabase
+      .from("products")
+      .select(`${PRODUCT_SELECT}, published_at`)
+      .eq("status", "published")
+      .order("published_at", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .limit(HOME_PRODUCT_SCAN_LIMIT),
+    loadActiveStorefrontOffers(supabase, 12),
+  ]);
+
+  if (collectionsResult.error || productsResult.error || offersResult.status !== "ready") {
+    return { status: "error" };
+  }
+
+  const loadedProducts = await loadPublicProducts(
+    supabase,
+    (productsResult.data ?? []) as ProductRow[],
+    offersResult.data,
+    1,
+  );
+  if (loadedProducts.status === "error") return { status: "error" };
+
+  const collections = (collectionsResult.data ?? []).map((row) =>
+    toPublicCollection(row as CollectionRow),
+  );
+
   return {
     status: "ready",
-    data: rows.map((row) => ({
-      ...toPublicCollection(row),
-      images: imagesByCollectionId.get(row.id) ?? [],
-    })),
+    data: {
+      offers: offersResult.data,
+      shelves: buildHomeCollectionShelves(
+        collections,
+        loadedProducts.data,
+        HOME_PRODUCTS_PER_COLLECTION,
+      ),
+    },
   };
 }
 
@@ -137,23 +203,20 @@ export async function getLatestPublicProducts(
       .from("products")
       .select(`${PRODUCT_SELECT}, published_at`)
       .eq("status", "published")
-      .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
       .order("published_at", { ascending: false, nullsFirst: false })
       .order("id", { ascending: true })
-      .limit(limit),
-    supabase.rpc("get_active_storefront_offers", { p_limit: 12 }),
+      .limit(Math.min(LATEST_PRODUCT_SCAN_LIMIT, limit * 4)),
+    loadActiveStorefrontOffers(supabase, 12),
   ]);
 
-  if (error || offersResult.error) return { status: "error" };
-  const offers = (offersResult.data ?? [])
-    .map(toPublicStorefrontOffer)
-    .filter((offer) => !isUatFixtureSlug(offer.targetSlug));
+  if (error || offersResult.status !== "ready") return { status: "error" };
+  const offers = offersResult.data;
   const result = await loadPublicProducts(supabase, (data ?? []) as ProductRow[], offers, 1);
   if (result.status === "error") return result;
 
   return {
     status: "ready",
-    data: result.data.filter((product) => !product.isUatFixture).slice(0, limit),
+    data: prioritizeHomeProducts(result.data).slice(0, limit),
   };
 }
 
@@ -193,7 +256,6 @@ export async function getPublicShopPage(
       .from("collections")
       .select(COLLECTION_SELECT, { count: "exact" })
       .eq("status", "published")
-      .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
       .order("sort_order", { ascending: true })
       .order("name", { ascending: true })
       .limit(COLLECTION_QUERY_LIMIT),
@@ -202,10 +264,9 @@ export async function getPublicShopPage(
       .select("size_code, products!inner(status, slug)", { count: "exact" })
       .eq("is_available", true)
       .eq("products.status", "published")
-      .not("products.slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
       .order("size_code", { ascending: true, nullsFirst: true })
       .limit(FILTER_OPTION_QUERY_LIMIT),
-    supabase.rpc("get_active_storefront_offers", { p_limit: 12 }),
+    loadActiveStorefrontOffers(supabase, 12),
   ]);
 
   if (
@@ -213,7 +274,7 @@ export async function getPublicShopPage(
     (collectionsResult.count ?? 0) > COLLECTION_QUERY_LIMIT ||
     filterOptionsResult.error ||
     (filterOptionsResult.count ?? 0) > FILTER_OPTION_QUERY_LIMIT ||
-    offersResult.error
+    offersResult.status !== "ready"
   ) {
     return { status: "error" };
   }
@@ -232,9 +293,7 @@ export async function getPublicShopPage(
   const filterOptions: CatalogueFilterOptions = {
     sizeCodes: uniqueSorted((filterOptionsResult.data ?? []).flatMap((row) => row.size_code ?? [])),
   };
-  const offers = (offersResult.data ?? [])
-    .map(toPublicStorefrontOffer)
-    .filter((offer) => !isUatFixtureSlug(offer.targetSlug));
+  const offers = offersResult.data;
   const selectedCollection = filters.collectionSlug
     ? (collections.find((collection) => collection.slug === filters.collectionSlug) ?? null)
     : null;
@@ -289,7 +348,6 @@ export async function getPublicShopPage(
       .select("product_id, products!inner(status, slug)", { count: "exact" })
       .eq("is_available", true)
       .eq("products.status", "published")
-      .not("products.slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
       .eq("size_code", filters.sizeCode)
       .limit(MAX_VARIANT_FILTER_ROWS);
     if (error || (count ?? 0) > MAX_VARIANT_FILTER_ROWS) return { status: "error" };
@@ -314,6 +372,36 @@ export async function getPublicShopPage(
         },
       };
     }
+  } else {
+    const { data, count, error } = await supabase
+      .from("product_variants")
+      .select("product_id, products!inner(status, slug)", { count: "exact" })
+      .eq("is_available", true)
+      .eq("products.status", "published")
+      .order("product_id", { ascending: true })
+      .limit(MAX_AVAILABLE_VARIANT_ROWS);
+
+    if (error || (count ?? 0) > MAX_AVAILABLE_VARIANT_ROWS) return { status: "error" };
+    const availableProductIds = new Set((data ?? []).map((row) => row.product_id));
+    linkedProductIds = linkedProductIds
+      ? linkedProductIds.filter((productId) => availableProductIds.has(productId))
+      : [...availableProductIds];
+
+    if (linkedProductIds.length === 0) {
+      return {
+        status: "ready",
+        data: {
+          products: [],
+          collections,
+          filterOptions,
+          selectedCollection,
+          filters,
+          totalCount: 0,
+          totalPages: 1,
+          offers,
+        },
+      };
+    }
   }
 
   const from = (filters.page - 1) * PRODUCTS_PER_PAGE;
@@ -321,8 +409,7 @@ export async function getPublicShopPage(
   let productQuery = supabase
     .from("products")
     .select(PRODUCT_SELECT, { count: "exact" })
-    .eq("status", "published")
-    .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`);
+    .eq("status", "published");
 
   if (linkedProductIds) productQuery = productQuery.in("id", linkedProductIds);
   if (filters.search) productQuery = productQuery.ilike("title", `%${filters.search}%`);
@@ -361,7 +448,6 @@ export async function getPublicProductBySlug(
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
     return { status: "ready", data: null };
   }
-  if (isUatFixtureSlug(slug)) return { status: "ready", data: null };
   if (!isSupabaseServerConfigured()) return { status: "unconfigured" };
 
   const supabase = await createSupabaseServerClient();
@@ -375,10 +461,10 @@ export async function getPublicProductBySlug(
   if (error) return { status: "error" };
   if (!data) return { status: "ready", data: null };
 
-  const offersResult = await supabase.rpc("get_active_storefront_offers", { p_limit: 12 });
-  if (offersResult.error) return { status: "error" };
+  const offersResult = await loadActiveStorefrontOffers(supabase, 12);
+  if (offersResult.status !== "ready") return { status: "error" };
 
-  const offers = (offersResult.data ?? []).map(toPublicStorefrontOffer);
+  const offers = offersResult.data;
   const productsResult = await loadPublicProducts(supabase, [data as ProductRow], offers);
   if (productsResult.status === "error") return productsResult;
 
@@ -398,7 +484,6 @@ export async function getPublicProductsByIds(
     .select(PRODUCT_SELECT, { count: "exact" })
     .in("id", ids)
     .eq("status", "published")
-    .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
     .limit(ids.length);
 
   if (error || (count ?? 0) > ids.length) return { status: "error" };
@@ -480,13 +565,56 @@ async function loadPublicProducts(
           .select(COLLECTION_SELECT, { count: "exact" })
           .in("id", collectionIds)
           .eq("status", "published")
-          .not("slug", "like", `${UAT_FIXTURE_SLUG_PREFIX}%`)
           .order("sort_order", { ascending: true })
           .limit(COLLECTION_QUERY_LIMIT)
       : null;
 
   if (collectionsResult?.error || (collectionsResult?.count ?? 0) > COLLECTION_QUERY_LIMIT) {
     return { status: "error" };
+  }
+
+  const [reviewSettingsResult, lowStockResult] = await Promise.all([
+    supabase.from("products").select("id, reviews_enabled").in("id", productIds),
+    supabase.rpc("get_public_low_stock_variants", { p_product_ids: productIds }),
+  ]);
+  const reviewSettings =
+    reviewSettingsResult.error &&
+    !["PGRST204", "42703", "42501"].includes(reviewSettingsResult.error.code ?? "")
+      ? new Map<string, boolean>()
+      : new Map(
+          (reviewSettingsResult.data ?? []).map((product) => [product.id, product.reviews_enabled]),
+        );
+  if (
+    reviewSettingsResult.error &&
+    !["PGRST204", "42703", "42501"].includes(reviewSettingsResult.error.code ?? "")
+  ) {
+    return { status: "error" };
+  }
+
+  const reviewProductIds = rows
+    .filter((product) => reviewSettings.get(product.id) !== false)
+    .map((product) => product.id);
+  const reviewSummaryResult = reviewProductIds.length
+    ? await supabase
+        .from("product_reviews")
+        .select("product_id, rating", { count: "exact" })
+        .in("product_id", reviewProductIds)
+        .eq("status", "approved")
+        .limit(5_000)
+    : { data: [], count: 0, error: null };
+  const reviewRows =
+    reviewSummaryResult.error || (reviewSummaryResult.count ?? 0) > 5_000
+      ? []
+      : ((reviewSummaryResult.data ?? []) as PublicReviewRow[]);
+  const reviewSummary = summarizeProductReviews(reviewRows);
+
+  const lowStockByProductId = new Map<string, LowStockRow[]>();
+  if (!lowStockResult.error) {
+    for (const row of (lowStockResult.data ?? []) as LowStockRow[]) {
+      const current = lowStockByProductId.get(row.product_id) ?? [];
+      current.push(row);
+      lowStockByProductId.set(row.product_id, current);
+    }
   }
 
   const variantsByProductId = new Map<string, ProductVariant[]>();
@@ -521,10 +649,7 @@ async function loadPublicProducts(
     status: "ready",
     data: rows.map((row) => {
       const productCollections = collectionsByProductId.get(row.id) ?? [];
-      const isUatFixture = productCollections.some((collection) =>
-        isUatFixtureSlug(collection.slug),
-      );
-
+      const images = imagesByProductId.get(row.id) ?? [];
       return {
         id: row.id,
         slug: row.slug,
@@ -534,8 +659,16 @@ async function loadPublicProducts(
         careInstructions: row.care_instructions,
         setCount: row.set_count,
         deliveryFeeMinor: row.delivery_fee_minor,
+        reviewsEnabled: reviewSettings.get(row.id) ?? true,
+        averageRating: reviewSummary.get(row.id)?.averageRating ?? 0,
+        reviewCount: reviewSummary.get(row.id)?.reviewCount ?? 0,
+        lowStockVariants: (lowStockByProductId.get(row.id) ?? []).map((variant) => ({
+          variantId: variant.variant_id,
+          sizeCode: variant.size_code,
+          availableSets: variant.available_quantity,
+        })),
         sortOrder: row.sort_order,
-        images: imagesByProductId.get(row.id) ?? [],
+        images,
         offers: offers.filter(
           (offer) =>
             (offer.targetType === "product" && offer.targetSlug === row.slug) ||
@@ -544,9 +677,69 @@ async function loadPublicProducts(
         ),
         collections: productCollections,
         variants: variantsByProductId.get(row.id) ?? [],
-        isUatFixture: isUatFixture || isUatFixtureSlug(row.slug),
       };
     }),
+  };
+}
+
+function summarizeProductReviews(
+  reviews: readonly PublicReviewRow[],
+): Map<string, { averageRating: number; reviewCount: number }> {
+  const totals = new Map<string, { ratingTotal: number; reviewCount: number }>();
+  for (const review of reviews) {
+    const current = totals.get(review.product_id) ?? { ratingTotal: 0, reviewCount: 0 };
+    current.ratingTotal += review.rating;
+    current.reviewCount += 1;
+    totals.set(review.product_id, current);
+  }
+  return new Map(
+    [...totals].map(([productId, value]) => [
+      productId,
+      {
+        averageRating: Math.round((value.ratingTotal / value.reviewCount) * 10) / 10,
+        reviewCount: value.reviewCount,
+      },
+    ]),
+  );
+}
+
+async function loadActiveStorefrontOffers(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  limit: number,
+): Promise<ActiveOffersResult> {
+  const { data, error } = await supabase.rpc("get_active_storefront_offers", { p_limit: limit });
+  if (error) return { status: "error" };
+
+  const offers = (data ?? []).map(toPublicStorefrontOffer);
+  if (offers.length === 0) return { status: "ready", data: offers };
+
+  const {
+    data: mediaData,
+    error: mediaError,
+    count,
+  } = await supabase
+    .from("offer_media")
+    .select("id, offer_id, storage_path, alt_text, sort_order", { count: "exact" })
+    .in(
+      "offer_id",
+      offers.map((offer) => offer.id),
+    )
+    .eq("status", "published")
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(offers.length);
+  if (mediaError || (count ?? 0) > offers.length) return { status: "error" };
+
+  const mediaRows = (mediaData ?? []) as PublicMediaRow[];
+  const signedImages = await signPublicImages(supabase, mediaRows);
+  if (!signedImages) return { status: "error" };
+  const imageByOfferId = new Map(
+    mediaRows.map((row, index) => [row.offer_id, signedImages[index] ?? null]),
+  );
+
+  return {
+    status: "ready",
+    data: offers.map((offer) => ({ ...offer, bannerImage: imageByOfferId.get(offer.id) ?? null })),
   };
 }
 
@@ -560,6 +753,7 @@ function toPublicStorefrontOffer(row: ActiveOfferRow): PublicStorefrontOffer {
     minimumSets: row.minimum_sets,
     discountBasisPoints: row.discount_basis_points,
     endsAt: row.ends_at,
+    bannerImage: null,
   };
 }
 
@@ -570,7 +764,6 @@ function toPublicCollection(row: CollectionRow): PublicCollection {
     name: row.name,
     description: row.description,
     sortOrder: row.sort_order,
-    isUatFixture: isUatFixtureSlug(row.slug),
     images: [],
   };
 }

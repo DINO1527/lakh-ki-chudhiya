@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./access";
+import { logAdminActionFailure } from "./action-logger";
 import { formText, lkrToMinor, validUuid } from "./form-values";
 
 const ORDER_STATUSES = [
@@ -29,7 +30,10 @@ export async function transitionOrderStatus(formData: FormData): Promise<never> 
     p_next_status: nextStatus,
     p_reason: reason,
   });
-  if (error) redirect("/admin/orders?error=transition");
+  if (error) {
+    logAdminActionFailure("transitionOrderStatus", "orders", error.code);
+    redirect("/admin/orders?error=transition");
+  }
   revalidatePath("/admin");
   revalidatePath("/admin/orders");
   revalidatePath("/account/orders");
@@ -48,7 +52,10 @@ export async function setOrderDeliveryFee(formData: FormData): Promise<never> {
     p_delivery_fee_minor: feeMinor,
     p_reason: reason,
   });
-  if (error) redirect("/admin/orders?error=delivery");
+  if (error) {
+    logAdminActionFailure("setOrderDeliveryFee", "orders", error.code);
+    redirect("/admin/orders?error=delivery");
+  }
   revalidatePath("/admin/orders");
   revalidatePath("/account/orders");
   redirect("/admin/orders?saved=1");
@@ -63,7 +70,10 @@ export async function markOrderDeliveryFailed(formData: FormData): Promise<never
     p_order_id: orderId,
     p_reason: reason,
   });
-  if (error) redirect("/admin/orders?error=delivery_failed");
+  if (error) {
+    logAdminActionFailure("markOrderDeliveryFailed", "orders", error.code);
+    redirect("/admin/orders?error=delivery_failed");
+  }
   revalidateOrderViews();
   redirect("/admin/orders?saved=delivery_failed");
 }
@@ -81,7 +91,10 @@ export async function recordOrderPayment(formData: FormData): Promise<never> {
     p_amount_minor: amountMinor,
     p_reference: reference,
   });
-  if (error) redirect("/admin/orders?error=payment");
+  if (error) {
+    logAdminActionFailure("recordOrderPayment", "orders", error.code);
+    redirect("/admin/orders?error=payment");
+  }
   revalidateOrderViews();
   redirect("/admin/orders?saved=payment");
 }
@@ -99,7 +112,10 @@ export async function recordOrderRefund(formData: FormData): Promise<never> {
     p_amount_minor: amountMinor,
     p_note: note,
   });
-  if (error) redirect("/admin/orders?error=refund");
+  if (error) {
+    logAdminActionFailure("recordOrderRefund", "orders", error.code);
+    redirect("/admin/orders?error=refund");
+  }
   revalidateOrderViews();
   redirect("/admin/orders?saved=refund");
 }
@@ -136,7 +152,10 @@ export async function inspectReturn(formData: FormData): Promise<never> {
     p_missing_quantity: missing,
     p_reason: reason,
   });
-  if (error) redirect("/admin/orders?error=inspection");
+  if (error) {
+    logAdminActionFailure("inspectReturn", "return_inspections", error.code);
+    redirect("/admin/orders?error=inspection");
+  }
   revalidateOrderViews();
   redirect("/admin/orders?saved=inspection");
 }

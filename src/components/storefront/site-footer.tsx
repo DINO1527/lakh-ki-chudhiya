@@ -25,8 +25,8 @@ export function SiteFooter() {
             <summary className={styles.navHeading}>Shop</summary>
             <nav aria-label="Shop links">
               <Link href="/shop">Shop all designs</Link>
-              <Link href="/collections">Collections</Link>
-              <Link href="/#latest-arrivals">Latest arrivals</Link>
+              <Link href="/shop#catalogue-collection">Browse by collection</Link>
+              <Link href="/#home-catalogue">Featured designs</Link>
             </nav>
           </details>
 
@@ -34,7 +34,6 @@ export function SiteFooter() {
             <summary className={styles.navHeading}>Customer care</summary>
             <nav aria-label="Customer care links">
               <Link href="/size-guide">Bangle size guide</Link>
-              <Link href="/#whatsapp-help">Ordering assistance</Link>
             </nav>
           </details>
 
@@ -42,7 +41,6 @@ export function SiteFooter() {
             <summary className={styles.navHeading}>Our story</summary>
             <nav aria-label="Story and contact links">
               <Link href="/#craftsmanship">Our craftsmanship</Link>
-              <Link href="/#whatsapp-help">Contact the store</Link>
             </nav>
           </details>
         </div>

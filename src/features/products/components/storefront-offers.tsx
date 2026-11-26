@@ -19,7 +19,7 @@ export function StorefrontOfferList({
         const targetHref =
           offer.targetType === "product"
             ? `/products/${offer.targetSlug}`
-            : `/collections/${offer.targetSlug}`;
+            : `/shop?collection=${encodeURIComponent(offer.targetSlug)}`;
 
         return (
           <li className="storefront-offer" key={offer.id}>
