@@ -576,7 +576,7 @@ function BangleSet({
     onForegroundSafe(layout.foregroundSafe);
   }, [animateIntro, duration, layout.foregroundSafe, onForegroundSafe, vectors]);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (!active) return;
 
     if (!animateIntro) {
@@ -595,10 +595,11 @@ function BangleSet({
 
     const cameraSweep = Math.sin(Math.PI * MathUtils.smootherstep(progress, 0, 0.87));
     const focusFov = 31 - 2.8 * cameraSweep;
-    if (camera.fov !== focusFov) {
-      camera.filmOffset = -0.65 * cameraSweep;
-      camera.fov = focusFov;
-      camera.updateProjectionMatrix();
+    const animatedCamera = state.camera as PerspectiveCamera;
+    if (animatedCamera.fov !== focusFov) {
+      animatedCamera.filmOffset = -0.65 * cameraSweep;
+      animatedCamera.fov = focusFov;
+      animatedCamera.updateProjectionMatrix();
     }
 
     if (stack.current) {
