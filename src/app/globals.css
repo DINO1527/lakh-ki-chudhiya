@@ -4240,76 +4240,15 @@ main {
   }
 }
 
-.home-hero.is-intro-running .home-hero__copy > * {
-  animation: homeEditorialSettle 500ms cubic-bezier(0.2, 0.72, 0.25, 1) both;
-}
-
-.home-hero.is-intro-running .home-hero__eyebrow {
-  animation-delay: 0s;
-}
-
 .home-hero.is-intro-running .home-hero__title {
-  animation-delay: 0.06s;
+  animation: homeTitleSettle 650ms cubic-bezier(0.2, 0.72, 0.25, 1) both;
 }
 
-.home-hero.is-intro-running .home-hero__description {
-  animation-delay: 0.12s;
-}
-
-.home-hero.is-intro-running .home-hero__actions {
-  animation-name: homeCtaSettle;
-  animation-delay: 0.18s;
-}
-
-.home-hero.is-intro-running .home-hero__footnote {
-  animation-delay: 0.24s;
-}
-
-.home-hero.is-intro-pending .home-hero__copy {
-  visibility: hidden;
-  opacity: 0;
-}
-
-.home-hero.is-intro-complete .home-hero__copy > * {
-  animation: homeEditorialSettle 500ms cubic-bezier(0.2, 0.72, 0.25, 1) both;
-}
-
-.home-hero.is-intro-complete .home-hero__title {
-  animation-delay: 60ms;
-}
-
-.home-hero.is-intro-complete .home-hero__description {
-  animation-delay: 120ms;
-}
-
-.home-hero.is-intro-complete .home-hero__actions {
-  animation-name: homeCtaSettle;
-  animation-delay: 180ms;
-}
-
-.home-hero.is-intro-complete .home-hero__footnote {
-  animation-delay: 240ms;
-}
-
-@keyframes homeEditorialSettle {
-  from {
-    filter: blur(2px);
-    opacity: 0;
-    transform: translateY(0.75rem);
-  }
-
-  to {
-    filter: blur(0);
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes homeCtaSettle {
+@keyframes homeTitleSettle {
   from {
     filter: blur(1px);
-    opacity: 0.76;
-    transform: translateY(0.55rem);
+    opacity: 0.84;
+    transform: translateY(0.3rem);
   }
 
   to {
@@ -4463,6 +4402,10 @@ main {
   pointer-events: none;
 }
 
+.home-hero__art > .bangle-stage__fallback {
+  z-index: 1;
+}
+
 .home-hero__art::before,
 .home-hero__art::after {
   position: absolute;
@@ -4585,41 +4528,33 @@ main {
   height: 100%;
   max-width: none;
   padding-top: 0;
+  pointer-events: none;
+  transition: opacity 450ms ease;
 }
 
-.bangle-stage__viewer {
-  position: relative;
+.home-hero.is-bangle-foreground-safe .bangle-experience {
+  z-index: 3;
+}
+
+.bangle-stage__canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
-  overflow: hidden;
-  cursor: default;
+  opacity: 0;
 }
 
-.bangle-stage__visual {
-  position: absolute;
-  z-index: 1;
-  inset: 0;
+.bangle-experience.is-ready .bangle-stage__canvas {
+  opacity: 1;
 }
 
-.bangle-stage__glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: min(64%, 42rem);
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    rgb(255 249 240 / 25%) 0%,
-    rgb(202 113 129 / 12%) 39%,
-    transparent 72%
-  );
-  filter: blur(5px);
-  transform: translate(-50%, -50%);
+.home-hero.is-scene-ready .home-hero__art > .bangle-stage__fallback {
+  opacity: 0;
+  transform: scale(0.98);
 }
 
-.bangle-stage__fallback,
-.bangle-stage__canvas {
+.bangle-stage__fallback {
   position: absolute;
   z-index: 1;
   inset: 0;
@@ -4629,45 +4564,17 @@ main {
   transition:
     opacity 500ms ease,
     transform 800ms cubic-bezier(0.2, 0.72, 0.25, 1);
-}
-
-.bangle-stage__loading {
-  position: absolute;
-  z-index: 3;
-  inset: 0;
-  display: grid;
-  place-items: center;
-}
-
-.bangle-stage__fallback {
   overflow: visible;
   opacity: 1;
   transform: scale(1);
   transform-origin: center;
 }
 
-.home-hero.is-intro-complete .bangle-stage__fallback {
-  transform: scale(0.98);
-}
-
-.bangle-stage__canvas {
-  z-index: 2;
-  pointer-events: none;
-  opacity: 0;
-}
-
 .bangle-stage__canvas canvas {
   display: block;
   width: 100% !important;
   height: 100% !important;
-}
-
-.bangle-stage__viewer.is-live .bangle-stage__fallback {
-  opacity: 0;
-}
-
-.bangle-stage__viewer.is-live .bangle-stage__canvas {
-  opacity: 1;
+  pointer-events: none;
 }
 
 .home-values {
@@ -5289,16 +5196,8 @@ main {
     padding-top: 0;
   }
 
-  .bangle-stage__fallback {
+  .home-hero__art > .bangle-stage__fallback {
     transform: scale(1);
-  }
-
-  .bangle-stage__viewer {
-    height: 100%;
-  }
-
-  .home-hero.is-intro-complete .bangle-stage__fallback {
-    transform: scale(0.98);
   }
 
   .home-values {
@@ -5447,10 +5346,6 @@ main {
     height: clamp(17rem, 80vw, 20rem);
     padding: 0;
   }
-
-  .home-hero.is-intro-complete .bangle-stage__fallback {
-    transform: scale(0.98);
-  }
 }
 
 @media (max-width: 46rem) and (max-height: 48rem) {
@@ -5493,10 +5388,6 @@ main {
 
   .home-hero__footnote {
     display: none;
-  }
-
-  .home-hero.is-intro-complete .bangle-stage__fallback {
-    transform: scale(0.98);
   }
 }
 
@@ -5652,7 +5543,6 @@ main {
   .site-nav--desktop .site-nav__link::after,
   .home-hero__button.button,
   .icon-link,
-  .bangle-stage__fallback,
   .bangle-stage__canvas,
   .home-featured .product-card,
   .home-collections .collection-card {
@@ -5661,6 +5551,7 @@ main {
   }
 
   .home-hero__copy > *,
+  .home-hero__title,
   .home-hero::before,
   .home-hero__art::before,
   .home-hero__art::after,
@@ -5678,11 +5569,6 @@ main {
   .home-story__visual-image {
     animation: none !important;
     transition-duration: 0.01ms !important;
-  }
-
-  .home-hero.is-intro-running .home-hero__copy > * {
-    opacity: 1;
-    visibility: visible;
   }
 }
 
