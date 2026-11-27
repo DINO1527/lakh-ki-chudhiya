@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ChevronRight, Package, Truck } from "lucide-react";
 import { CatalogueNotice } from "@/features/products/components/catalogue-notice";
 import { ProductGallery } from "@/features/products/components/product-gallery";
 import { StorefrontOfferList } from "@/features/products/components/storefront-offers";
@@ -55,13 +56,13 @@ export default async function ProductPage({ params }: ProductPageProps) {
         <Link href="/shop">Shop</Link>
         {product.collections[0] && (
           <>
-            <span aria-hidden="true">/</span>
+            <ChevronRight aria-hidden="true" size={15} />
             <Link href={`/shop?collection=${encodeURIComponent(product.collections[0].slug)}`}>
               {product.collections[0].name}
             </Link>
           </>
         )}
-        <span aria-hidden="true">/</span>
+        <ChevronRight aria-hidden="true" size={15} />
         <span aria-current="page">{product.title}</span>
       </nav>
 
@@ -70,13 +71,29 @@ export default async function ProductPage({ params }: ProductPageProps) {
           className="product-detail__media"
           images={product.images}
           label={product.title}
+          priority
         />
 
         <section aria-labelledby="product-title" className="product-detail__content">
-          <p className="eyebrow">{product.collections[0]?.name ?? "Handcrafted lac bangles"}</p>
-          <h1 className="page-heading" id="product-title">
-            {product.title}
-          </h1>
+          <header className="product-detail__header">
+            <p className="eyebrow">{product.collections[0]?.name ?? "Handcrafted lac bangles"}</p>
+            <h1 className="page-heading" id="product-title">
+              {product.title}
+            </h1>
+            {product.variants.length > 0 ? (
+              <p className="product-detail__starting-price">
+                {product.variants.some((variant) => variant.isAvailable)
+                  ? `From ${formatLkrPrice(
+                      Math.min(
+                        ...product.variants
+                          .filter((variant) => variant.isAvailable)
+                          .map((variant) => variant.priceMinor),
+                      ),
+                    )} per complete set`
+                  : "Currently unavailable"}
+              </p>
+            ) : null}
+          </header>
           <p className="product-detail__description">
             {product.description ||
               "A description will be added when product details are confirmed."}
@@ -84,12 +101,16 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
           <dl className="product-facts">
             <div>
-              <dt>Sold as</dt>
+              <dt>
+                <Package aria-hidden="true" size={16} /> Sold as
+              </dt>
               <dd>{`Set of ${product.setCount} bangles`}</dd>
             </div>
             {product.deliveryFeeMinor !== null ? (
               <div>
-                <dt>Delivery</dt>
+                <dt>
+                  <Truck aria-hidden="true" size={16} /> Delivery
+                </dt>
                 <dd>
                   {product.deliveryFeeMinor === 0
                     ? "Free"
@@ -107,13 +128,15 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
           <StorefrontOfferList compact offers={product.offers} />
 
-          {product.variants.length > 0 ? (
-            <VariantPicker variants={product.variants} />
-          ) : (
-            <p className="product-detail__availability" role="status">
-              Available sizes are being confirmed.
-            </p>
-          )}
+          <div className="product-detail__purchase-card">
+            {product.variants.length > 0 ? (
+              <VariantPicker variants={product.variants} />
+            ) : (
+              <p className="product-detail__availability" role="status">
+                Available sizes are being confirmed.
+              </p>
+            )}
+          </div>
 
           {product.careInstructions && (
             <details className="product-care">
@@ -123,12 +146,9 @@ export default async function ProductPage({ params }: ProductPageProps) {
           )}
 
           <p className="product-detail__note">
-            Availability is confirmed before fulfilment. Product details are published after they
-            are verified.
+            Your selected size and current price are checked again before order confirmation. Adding
+            an item to your bag does not reserve stock.
           </p>
-          <Link className="text-link" href="/size-guide">
-            Read the size guide <span aria-hidden="true">→</span>
-          </Link>
         </section>
       </div>
       {product.reviewsEnabled ? <ProductReviews data={reviews} /> : null}

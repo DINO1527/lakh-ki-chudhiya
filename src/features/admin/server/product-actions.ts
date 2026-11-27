@@ -6,11 +6,14 @@ import { requireStaff } from "./access";
 import { logAdminActionFailure } from "./action-logger";
 import { formText, integer, lkrToMinor, positiveInteger, productSlug } from "./form-values";
 import { detectImageMime } from "./media-validation";
+import {
+  productMediaPublicationErrorType,
+  productPublicationErrorType,
+} from "../domain/product-action-errors";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_MEDIA_BYTES = 5 * 1024 * 1024;
 const MAX_PRODUCT_IMAGES = 20;
-
 export async function createProduct(formData: FormData): Promise<never> {
   const title = formText(formData, "title", 160);
   const slug = productSlug(formData);
@@ -76,10 +79,22 @@ export async function createProduct(formData: FormData): Promise<never> {
     redirect(`/admin/products/new?error=${errorType}`);
   }
   revalidatePath("/admin/products");
-  redirect(`/admin/products/${data.id}?created=1`);
+  redirect(`/admin/products/${data.id}?created=1&section=product-details`);
 }
 
 export async function updateProduct(formData: FormData): Promise<never> {
+  return saveProductDetails(formData, "product-details", "product-details");
+}
+
+export async function updateProductAndContinue(formData: FormData): Promise<never> {
+  return saveProductDetails(formData, "product-details", "product-collections");
+}
+
+async function saveProductDetails(
+  formData: FormData,
+  currentSection: "product-details",
+  nextSection: "product-details" | "product-collections",
+): Promise<never> {
   const productId = formData.get("product_id");
   const title = formText(formData, "title", 160);
   const slug = productSlug(formData);
@@ -106,6 +121,9 @@ export async function updateProduct(formData: FormData): Promise<never> {
     sortOrder > 100_000 ||
     deliveryFeeMinor === undefined
   ) {
+    if (typeof productId === "string" && UUID_PATTERN.test(productId)) {
+      redirectToProductEditor(productId, currentSection, "error=invalid");
+    }
     redirect("/admin/products?error=invalid");
   }
 
@@ -120,7 +138,7 @@ export async function updateProduct(formData: FormData): Promise<never> {
   );
   if (reviewSettingsError && !reviewSettingMissing) {
     logAdminActionFailure("updateProductReviewSetting", "products", reviewSettingsError.code);
-    redirect(`/admin/products/${productId}?error=save`);
+    redirectToProductEditor(productId, currentSection, "error=save");
   }
 
   const productFields = {
@@ -142,7 +160,7 @@ export async function updateProduct(formData: FormData): Promise<never> {
 
   if (error) {
     logAdminActionFailure("updateProduct", "products", error.code);
-    redirect(`/admin/products/${productId}?error=save`);
+    redirectToProductEditor(productId, currentSection, "error=save");
   }
   const { error: orderError } = await supabase.rpc("move_product_display_order", {
     p_product_id: productId,
@@ -150,13 +168,24 @@ export async function updateProduct(formData: FormData): Promise<never> {
   });
   if (orderError) {
     logAdminActionFailure("moveProductDisplayOrder", "products", orderError.code);
-    redirect(`/admin/products/${productId}?error=order`);
+    redirectToProductEditor(productId, currentSection, "error=order");
   }
   revalidateCatalogue(productId);
-  redirect(`/admin/products/${productId}?saved=1`);
+  redirectToProductEditor(productId, nextSection, "saved=1");
 }
 
 export async function saveProductVariant(formData: FormData): Promise<never> {
+  return saveProductVariantForm(formData, "product-variants");
+}
+
+export async function saveProductVariantAndContinue(formData: FormData): Promise<never> {
+  return saveProductVariantForm(formData, "product-images");
+}
+
+async function saveProductVariantForm(
+  formData: FormData,
+  nextSection: "product-variants" | "product-images",
+): Promise<never> {
   const productId = formData.get("product_id");
   const variantId = formData.get("variant_id");
   const sku = formText(formData, "sku", 64)?.toUpperCase() ?? null;
@@ -189,6 +218,9 @@ export async function saveProductVariant(formData: FormData): Promise<never> {
     (activeValue !== "active" && activeValue !== "inactive") ||
     (typeof variantId === "string" && variantId !== "" && !UUID_PATTERN.test(variantId))
   ) {
+    if (typeof productId === "string" && UUID_PATTERN.test(productId)) {
+      redirectToProductEditor(productId, "product-variants", "error=invalid");
+    }
     redirect("/admin/products?error=invalid");
   }
 
@@ -213,20 +245,31 @@ export async function saveProductVariant(formData: FormData): Promise<never> {
 
   if (result.error) {
     logAdminActionFailure("saveProductVariant", "product_variants", result.error.code);
-    redirect(`/admin/products/${productId}?error=variant`);
+    redirectToProductEditor(productId, "product-variants", "error=variant");
   }
   revalidateCatalogue(productId);
-  redirect(`/admin/products/${productId}?saved=1`);
+  redirectToProductEditor(productId, nextSection, "saved=1");
 }
 
 export async function setProductCollections(formData: FormData): Promise<never> {
+  return setProductCollectionsForm(formData, "product-collections");
+}
+
+export async function setProductCollectionsAndContinue(formData: FormData): Promise<never> {
+  return setProductCollectionsForm(formData, "product-variants");
+}
+
+async function setProductCollectionsForm(
+  formData: FormData,
+  nextSection: "product-collections" | "product-variants",
+): Promise<never> {
   const productId = formData.get("product_id");
   const rawIds = formData.getAll("collection_ids");
   if (typeof productId !== "string" || !UUID_PATTERN.test(productId)) {
     redirect("/admin/products?error=invalid");
   }
   if (rawIds.some((value) => typeof value !== "string" || !UUID_PATTERN.test(value))) {
-    redirect(`/admin/products/${productId}?error=invalid`);
+    redirectToProductEditor(productId, "product-collections", "error=invalid");
   }
 
   const { supabase } = await requireStaff();
@@ -236,10 +279,10 @@ export async function setProductCollections(formData: FormData): Promise<never> 
   });
   if (error) {
     logAdminActionFailure("setProductCollections", "product_collections", error.code);
-    redirect(`/admin/products/${productId}?error=collections`);
+    redirectToProductEditor(productId, "product-collections", "error=collections");
   }
   revalidateCatalogue(productId);
-  redirect(`/admin/products/${productId}?saved=1`);
+  redirectToProductEditor(productId, nextSection, "saved=1");
 }
 
 export async function publishProduct(formData: FormData): Promise<never> {
@@ -251,11 +294,36 @@ export async function publishProduct(formData: FormData): Promise<never> {
   const { error } = await supabase.rpc("publish_product", { p_product_id: productId });
   if (error) {
     logAdminActionFailure("publishProduct", "products", error.code);
-    const errorType = error.code === "22023" ? "publish_requirements" : "publish";
-    redirect(`/admin/products/${productId}?error=${errorType}`);
+    const errorType = productPublicationErrorType(error.code);
+    redirectToProductEditor(productId, "product-details", `error=${errorType}`);
   }
   revalidateCatalogue(productId);
-  redirect(`/admin/products/${productId}?published=1`);
+  redirectToProductEditor(productId, "product-details", "published=1");
+}
+
+export async function toggleProductPublication(formData: FormData): Promise<never> {
+  const productId = formData.get("product_id");
+  const nextStatus = formData.get("next_status");
+  if (
+    typeof productId !== "string" ||
+    !UUID_PATTERN.test(productId) ||
+    (nextStatus !== "draft" && nextStatus !== "published")
+  ) {
+    redirect(buildProductListLocation(formData, "error", "invalid"));
+  }
+
+  const { supabase } = await requireStaff();
+  const { error } = await supabase.rpc(
+    nextStatus === "published" ? "publish_product" : "unpublish_product",
+    { p_product_id: productId },
+  );
+  if (error) {
+    logAdminActionFailure("toggleProductPublication", "products", error.code);
+    redirect(buildProductListLocation(formData, "error", productPublicationErrorType(error.code)));
+  }
+
+  revalidateCatalogue(productId);
+  redirect(buildProductListLocation(formData, "changed", nextStatus));
 }
 
 export async function archiveProduct(formData: FormData): Promise<never> {
@@ -267,13 +335,24 @@ export async function archiveProduct(formData: FormData): Promise<never> {
   const { error } = await supabase.rpc("archive_product", { p_product_id: productId });
   if (error) {
     logAdminActionFailure("archiveProduct", "products", error.code);
-    redirect(`/admin/products/${productId}?error=archive`);
+    redirectToProductEditor(productId, "product-details", "error=archive");
   }
   revalidateCatalogue(productId);
-  redirect(`/admin/products/${productId}?archived=1`);
+  redirectToProductEditor(productId, "product-details", "archived=1");
 }
 
 export async function uploadProductImage(formData: FormData): Promise<never> {
+  return uploadProductImageForm(formData, false);
+}
+
+export async function uploadProductImageAndFinish(formData: FormData): Promise<never> {
+  return uploadProductImageForm(formData, true);
+}
+
+async function uploadProductImageForm(
+  formData: FormData,
+  finishAfterSave: boolean,
+): Promise<never> {
   const productId = formData.get("product_id");
   const altText = formText(formData, "alt_text", 250);
   const sortOrder = integer(formText(formData, "sort_order", 12));
@@ -287,6 +366,9 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
     file.size === 0 ||
     file.size > MAX_MEDIA_BYTES
   ) {
+    if (typeof productId === "string" && UUID_PATTERN.test(productId)) {
+      redirectToProductEditor(productId, "product-images", "error=invalid");
+    }
     redirect("/admin/products?error=invalid");
   }
 
@@ -300,12 +382,14 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
   if (countError || (count ?? 0) >= MAX_PRODUCT_IMAGES) {
     if (countError)
       logAdminActionFailure("uploadProductImage.count", "product_media", countError.code);
-    redirect(`/admin/products/${productId}?error=media_limit`);
+    redirectToProductEditor(productId, "product-images", "error=media_limit");
   }
 
   const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   const detected = detectImageMime(signature);
-  if (!detected || detected !== file.type) redirect(`/admin/products/${productId}?error=media`);
+  if (!detected || detected !== file.type) {
+    redirectToProductEditor(productId, "product-images", "error=media");
+  }
 
   const extension = detected === "image/jpeg" ? "jpg" : detected.split("/")[1];
   const storagePath = `products/${productId}/${crypto.randomUUID()}.${extension}`;
@@ -315,7 +399,7 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
 
   if (uploadError) {
     logAdminActionFailure("uploadProductImage.storage", "product-media", uploadError.name);
-    redirect(`/admin/products/${productId}?error=media`);
+    redirectToProductEditor(productId, "product-images", "error=media");
   }
   const { error: metadataError } = await supabase.from("product_media").insert({
     product_id: productId,
@@ -333,11 +417,14 @@ export async function uploadProductImage(formData: FormData): Promise<never> {
     if (cleanupError) {
       logAdminActionFailure("uploadProductImage.cleanup", "product-media", cleanupError.name);
     }
-    redirect(`/admin/products/${productId}?error=media`);
+    redirectToProductEditor(productId, "product-images", "error=media");
   }
 
   revalidateCatalogue(productId);
-  redirect(`/admin/products/${productId}?media=uploaded`);
+  if (finishAfterSave) {
+    redirect(buildProductListLocation(formData, "changed", "photos"));
+  }
+  redirectToProductEditor(productId, "product-images", "media=uploaded");
 }
 
 export async function archiveProductImage(formData: FormData): Promise<never> {
@@ -349,6 +436,9 @@ export async function archiveProductImage(formData: FormData): Promise<never> {
     typeof mediaId !== "string" ||
     !UUID_PATTERN.test(mediaId)
   ) {
+    if (typeof productId === "string" && UUID_PATTERN.test(productId)) {
+      redirectToProductEditor(productId, "product-images", "error=invalid");
+    }
     redirect("/admin/products?error=invalid");
   }
   const { supabase } = await requireStaff();
@@ -359,13 +449,24 @@ export async function archiveProductImage(formData: FormData): Promise<never> {
   if (error) {
     logAdminActionFailure("archiveProductImage", "product_media", error.code);
     const reason = error.code === "23514" ? "last_image" : "media";
-    redirect(`/admin/products/${productId}?error=${reason}`);
+    redirectToProductEditor(productId, "product-images", `error=${reason}`);
   }
   revalidateCatalogue(productId);
-  redirect(`/admin/products/${productId}?media=archived`);
+  redirectToProductEditor(productId, "product-images", "media=archived");
 }
 
 export async function updateProductImage(formData: FormData): Promise<never> {
+  return updateProductImageForm(formData, false);
+}
+
+export async function updateProductImageAndFinish(formData: FormData): Promise<never> {
+  return updateProductImageForm(formData, true);
+}
+
+async function updateProductImageForm(
+  formData: FormData,
+  finishAfterSave: boolean,
+): Promise<never> {
   const productId = formData.get("product_id");
   const mediaId = formData.get("media_id");
   const altText = formText(formData, "alt_text", 250);
@@ -378,6 +479,9 @@ export async function updateProductImage(formData: FormData): Promise<never> {
     !altText ||
     sortOrder === null
   ) {
+    if (typeof productId === "string" && UUID_PATTERN.test(productId)) {
+      redirectToProductEditor(productId, "product-images", "error=invalid");
+    }
     redirect("/admin/products?error=invalid");
   }
 
@@ -389,10 +493,13 @@ export async function updateProductImage(formData: FormData): Promise<never> {
     .eq("product_id", productId);
   if (error) {
     logAdminActionFailure("updateProductImage", "product_media", error.code);
-    redirect(`/admin/products/${productId}?error=media`);
+    redirectToProductEditor(productId, "product-images", "error=media");
   }
   revalidateCatalogue(productId);
-  redirect(`/admin/products/${productId}?media=updated`);
+  if (finishAfterSave) {
+    redirect(buildProductListLocation(formData, "changed", "photos"));
+  }
+  redirectToProductEditor(productId, "product-images", "media=updated");
 }
 
 export async function publishProductImage(formData: FormData): Promise<never> {
@@ -404,6 +511,9 @@ export async function publishProductImage(formData: FormData): Promise<never> {
     typeof mediaId !== "string" ||
     !UUID_PATTERN.test(mediaId)
   ) {
+    if (typeof productId === "string" && UUID_PATTERN.test(productId)) {
+      redirectToProductEditor(productId, "product-images", "error=invalid");
+    }
     redirect("/admin/products?error=invalid");
   }
 
@@ -414,10 +524,43 @@ export async function publishProductImage(formData: FormData): Promise<never> {
   });
   if (error) {
     logAdminActionFailure("publishProductImage", "product_media", error.code);
-    redirect(`/admin/products/${productId}?error=media`);
+    redirectToProductEditor(
+      productId,
+      "product-images",
+      `error=${productMediaPublicationErrorType(error.code, "publish")}`,
+    );
   }
   revalidateCatalogue(productId);
-  redirect(`/admin/products/${productId}?media=published`);
+  redirectToProductEditor(productId, "product-images", "media=published");
+}
+
+export async function unpublishProductImage(formData: FormData): Promise<never> {
+  const productId = formData.get("product_id");
+  const mediaId = formData.get("media_id");
+  if (
+    typeof productId !== "string" ||
+    !UUID_PATTERN.test(productId) ||
+    typeof mediaId !== "string" ||
+    !UUID_PATTERN.test(mediaId)
+  ) {
+    if (typeof productId === "string" && UUID_PATTERN.test(productId)) {
+      redirectToProductEditor(productId, "product-images", "error=invalid");
+    }
+    redirect("/admin/products?error=invalid");
+  }
+
+  const { supabase } = await requireStaff();
+  const { error } = await supabase.rpc("unpublish_product_media", {
+    p_media_id: mediaId,
+    p_product_id: productId,
+  });
+  if (error) {
+    logAdminActionFailure("unpublishProductImage", "product_media", error.code);
+    const reason = productMediaPublicationErrorType(error.code, "unpublish");
+    redirectToProductEditor(productId, "product-images", `error=${reason}`);
+  }
+  revalidateCatalogue(productId);
+  redirectToProductEditor(productId, "product-images", "media=drafted");
 }
 
 function revalidateCatalogue(productId: string): void {
@@ -426,6 +569,38 @@ function revalidateCatalogue(productId: string): void {
   revalidatePath("/collections");
   revalidatePath(`/admin/products/${productId}`);
   revalidatePath("/admin/products");
+}
+
+function redirectToProductEditor(
+  productId: string,
+  section: "product-details" | "product-collections" | "product-variants" | "product-images",
+  result: string,
+): never {
+  redirect(`/admin/products/${productId}?${result}&section=${section}`);
+}
+
+function buildProductListLocation(
+  formData: FormData,
+  resultKey: "changed" | "error",
+  result: string,
+): string {
+  const query = new URLSearchParams();
+  const rawSearch = formData.get("return_q");
+  const search =
+    typeof rawSearch === "string"
+      ? rawSearch
+          .normalize("NFKC")
+          .replace(/[^\p{L}\p{N}\s-]/gu, "")
+          .slice(0, 64)
+          .trim()
+      : "";
+  const rawStatus = formData.get("return_status");
+  if (search) query.set("q", search);
+  if (rawStatus === "draft" || rawStatus === "published" || rawStatus === "archived") {
+    query.set("status", rawStatus);
+  }
+  query.set(resultKey, result);
+  return `/admin/products?${query.toString()}`;
 }
 
 function parseOptionalDeliveryFee(formData: FormData): number | null | undefined {

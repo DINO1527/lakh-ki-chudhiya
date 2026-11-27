@@ -9,11 +9,29 @@ export function ConfirmButton({
   message,
   className,
   formAction,
+  triggerRole,
+  triggerAriaLabel,
+  triggerAriaChecked,
+  triggerAriaDescribedBy,
+  triggerTitle,
+  triggerDisabled = false,
+  submitClassName = "admin-button admin-button--danger",
+  submitLabel = "Confirm",
+  submitPendingLabel = "Working…",
 }: Readonly<{
   children: ReactNode;
   message: string;
   className: string;
   formAction: (formData: FormData) => void | Promise<void>;
+  triggerRole?: "switch";
+  triggerAriaLabel?: string;
+  triggerAriaChecked?: boolean;
+  triggerAriaDescribedBy?: string;
+  triggerTitle?: string;
+  triggerDisabled?: boolean;
+  submitClassName?: string;
+  submitLabel?: ReactNode;
+  submitPendingLabel?: string;
 }>) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -21,7 +39,17 @@ export function ConfirmButton({
 
   return (
     <>
-      <button className={className} onClick={() => dialogRef.current?.showModal()} type="button">
+      <button
+        aria-checked={triggerAriaChecked}
+        aria-describedby={triggerAriaDescribedBy}
+        aria-label={triggerAriaLabel}
+        className={className}
+        disabled={triggerDisabled}
+        onClick={() => dialogRef.current?.showModal()}
+        role={triggerRole}
+        title={triggerTitle}
+        type="button"
+      >
         {children}
       </button>
       <dialog
@@ -42,11 +70,11 @@ export function ConfirmButton({
               Cancel
             </button>
             <AdminSubmitButton
-              className="admin-button admin-button--danger"
+              className={submitClassName}
               formAction={formAction}
-              pendingLabel="Working…"
+              pendingLabel={submitPendingLabel}
             >
-              Confirm
+              {submitLabel}
             </AdminSubmitButton>
           </div>
         </div>

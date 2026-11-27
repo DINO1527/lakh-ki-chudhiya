@@ -8,7 +8,7 @@ export function ProductReviews({ data }: Readonly<{ data: PublicProductReviewDat
           <p className="eyebrow">Customer notes</p>
           <h2 id="product-reviews-heading">Reviews</h2>
         </div>
-        {data ? (
+        {data && data.reviewCount > 0 ? (
           <div className="product-reviews__summary">
             <span aria-label={`${data.averageRating} out of 5 stars`} className="review-stars">
               {renderStars(data.averageRating)}
@@ -24,7 +24,7 @@ export function ProductReviews({ data }: Readonly<{ data: PublicProductReviewDat
         <p className="product-reviews__empty" role="status">
           Reviews could not be loaded right now. Please try again later.
         </p>
-      ) : data.reviews.length ? (
+      ) : data.reviewCount > 0 && data.reviews.length ? (
         <div className="product-reviews__list">
           {data.reviews.map((review) => (
             <article className="product-review" key={review.id}>
@@ -41,7 +41,9 @@ export function ProductReviews({ data }: Readonly<{ data: PublicProductReviewDat
         </div>
       ) : (
         <p className="product-reviews__empty">
-          No approved reviews yet. Customers can share their experience after delivery.
+          {data.reviewCount === 0
+            ? "No reviews yet. Verified customers can leave a star rating and note after their order is delivered."
+            : "There are no published reviews to show right now."}
         </p>
       )}
     </section>

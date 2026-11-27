@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { ArrowLeft, ArrowRight, ArrowUpRight, Sparkles, Tag } from "lucide-react";
 import { useState } from "react";
 import {
   describeOfferTerms,
@@ -45,14 +46,24 @@ export function OfferCarousel({ offers }: { offers: readonly PublicStorefrontOff
             src={image.url}
             unoptimized
           />
+          <span aria-hidden="true" className={styles.imageWash} />
+          <span className={styles.imageBadge}>
+            <Tag aria-hidden="true" size={15} strokeWidth={1.9} />
+            Current offer
+          </span>
         </Link>
         <div className={styles.copy}>
-          <p className={styles.eyebrow}>A little something for you</p>
-          <p className={styles.discount}>{formatDiscountPercent(offer.discountBasisPoints)}% off</p>
+          <p className={styles.eyebrow}>
+            <Sparkles aria-hidden="true" size={15} strokeWidth={1.8} />A little something for you
+          </p>
+          <p className={styles.discount}>
+            <span>{formatDiscountPercent(offer.discountBasisPoints)}%</span>
+            <span>off</span>
+          </p>
           <h2>{offer.name}</h2>
           <p className={styles.terms}>{describeOfferTerms(offer)}</p>
           <Link className={styles.cta} href={targetHref}>
-            Shop this offer <span aria-hidden="true">↗</span>
+            Shop this offer <ArrowUpRight aria-hidden="true" size={17} strokeWidth={2} />
           </Link>
           {offer.endsAt ? (
             <p className={styles.expiry}>
@@ -69,14 +80,14 @@ export function OfferCarousel({ offers }: { offers: readonly PublicStorefrontOff
       </div>
 
       {slides.length > 1 ? (
-        <div aria-label="Offer slides" className={styles.controls}>
+        <div aria-label="Offer slides" className={styles.controls} role="group">
           <button
             aria-label="Previous offer"
             className={styles.arrow}
             onClick={() => step(-1)}
             type="button"
           >
-            <Arrow direction="previous" />
+            <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.8} />
           </button>
           <div className={styles.dots}>
             {slides.map((slide, index) => (
@@ -96,18 +107,10 @@ export function OfferCarousel({ offers }: { offers: readonly PublicStorefrontOff
             onClick={() => step(1)}
             type="button"
           >
-            <Arrow direction="next" />
+            <ArrowRight aria-hidden="true" size={17} strokeWidth={1.8} />
           </button>
         </div>
       ) : null}
     </section>
-  );
-}
-
-function Arrow({ direction }: { direction: "previous" | "next" }) {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 24 24">
-      {direction === "previous" ? <path d="m14.5 5-7 7 7 7" /> : <path d="m9.5 5 7 7-7 7" />}
-    </svg>
   );
 }

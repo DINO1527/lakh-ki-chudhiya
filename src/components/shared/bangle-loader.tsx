@@ -13,32 +13,51 @@ export function BangleLoader({
       className={`bangle-loader${compact ? " bangle-loader--compact" : ""}`}
       role="status"
     >
-      <svg aria-hidden="true" className="bangle-loader__rings" viewBox="0 0 100 64">
+      <svg aria-hidden="true" className="bangle-loader__rings" viewBox="0 0 140 110">
         <ellipse
           className="bangle-loader__ring bangle-loader__ring--back"
-          cx="50"
-          cy="30"
-          rx="34"
-          ry="12"
+          cx="70"
+          cy="23"
+          rx="56"
+          ry="15"
         />
         <ellipse
           className="bangle-loader__ring bangle-loader__ring--middle"
-          cx="50"
-          cy="33"
-          rx="34"
-          ry="12"
+          cx="70"
+          cy="53"
+          rx="56"
+          ry="15"
         />
         <ellipse
           className="bangle-loader__ring bangle-loader__ring--front"
-          cx="50"
-          cy="36"
-          rx="34"
-          ry="12"
+          cx="70"
+          cy="83"
+          rx="56"
+          ry="15"
+        />
+        <ellipse
+          className="bangle-loader__shine bangle-loader__shine--back"
+          cx="70"
+          cy="23"
+          rx="56"
+          ry="15"
+        />
+        <ellipse
+          className="bangle-loader__shine bangle-loader__shine--middle"
+          cx="70"
+          cy="53"
+          rx="56"
+          ry="15"
+        />
+        <ellipse
+          className="bangle-loader__shine bangle-loader__shine--front"
+          cx="70"
+          cy="83"
+          rx="56"
+          ry="15"
         />
       </svg>
-      <span aria-hidden="true" className="bangle-loader__label">
-        {label}
-      </span>
+      <span className="bangle-loader__label">{label}</span>
     </div>
   );
 }

@@ -39,5 +39,7 @@ The `/admin` route group uses Supabase SSR cookies refreshed in `src/proxy.ts`; 
 ## Checkout flow
 Client sends variant IDs/qty and contact/delivery data plus idempotency key -> server authenticates or establishes guest context, validates input and computes quote -> SQL transaction persists order/items snapshot -> authorized summary -> customer clicks encoded WhatsApp link -> staff manually confirms through atomic reservation RPC. Dispatch consumes reservation and stock once; cancellation before dispatch releases once. Concurrency and duplicate calls must be tested in Postgres. External link is not payment or proof of message delivery.
 
+Signed-in customers can save one default delivery address in customer_default_addresses. RLS restricts that row to its owner, and save_customer_account_details updates the profile and default address in one transaction. Checkout reads those fields only as editable defaults; each submitted order keeps its own delivery snapshot.
+
 ## Extensibility
 Use separate checkout mode and payment provider availability. No fake provider implementations. Define small future payment contracts when actual need arrives (create session, verify callback, status/refund capabilities as supported). A registry must deny unimplemented/unconfigured/unverified providers despite UI switches. Keep credentials server-side; never store raw card data. Record significant design decisions as ADRs.

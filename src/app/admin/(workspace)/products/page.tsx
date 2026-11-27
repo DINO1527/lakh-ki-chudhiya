@@ -1,10 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { AdminNotice, AdminPageHeader, StatusBadge } from "@/features/admin/components/admin-ui";
 import { AdminPagination } from "@/features/admin/components/admin-pagination";
 import { AdminSearchForm } from "@/features/admin/components/admin-search-form";
+import { ConfirmButton } from "@/features/admin/components/confirm-button";
+import { getProductPublishBlockers } from "@/features/admin/domain/product-publish-readiness";
 import { requireStaff } from "@/features/admin/server/access";
 import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
+import { toggleProductPublication } from "@/features/admin/server/product-actions";
 
 const PAGE_SIZE = 30;
 
@@ -27,7 +31,10 @@ export default async function AdminProductsPage({
       : "";
   let query = supabase
     .from("products")
-    .select("id, title, slug, status, updated_at", { count: "exact" })
+    .select(
+      "id, title, slug, status, updated_at, set_count, care_instructions, delivery_fee_minor",
+      { count: "exact" },
+    )
     .order("updated_at", { ascending: false });
   if (statusFilter) query = query.eq("status", statusFilter);
   if (search) query = query.or(`title.ilike.%${search}%,slug.ilike.%${search}%`);
@@ -38,7 +45,7 @@ export default async function AdminProductsPage({
   const mediaResult = products.length
     ? await supabase
         .from("product_media")
-        .select("id, product_id, storage_path, alt_text, sort_order")
+        .select("id, product_id, storage_path, alt_text, media_type, status, sort_order")
         .in(
           "product_id",
           products.map((product) => product.id),
@@ -49,8 +56,20 @@ export default async function AdminProductsPage({
         .order("id")
         .limit(PAGE_SIZE * 20)
     : { data: [], error: null };
+  const variantsResult = products.length
+    ? await supabase
+        .from("product_variants")
+        .select("product_id, is_active")
+        .in(
+          "product_id",
+          products.map((product) => product.id),
+        )
+        .limit(PAGE_SIZE * 40)
+    : { data: [], error: null };
   if (mediaResult.error)
     logAdminQueryFailure("loadProductCardImages", "product_media", mediaResult.error.code);
+  if (variantsResult.error)
+    logAdminQueryFailure("loadProductPublishChecks", "product_variants", variantsResult.error.code);
   const mediaRows = mediaResult.data ?? [];
   const signedMedia = mediaRows.length
     ? await supabase.storage.from("product-media").createSignedUrls(
@@ -67,6 +86,25 @@ export default async function AdminProductsPage({
       coverByProduct.set(media.product_id, { url, altText: media.alt_text });
     }
   });
+  const publishBlockersByProduct = new Map(
+    products.map((product) => {
+      const blockers =
+        mediaResult.error || variantsResult.error
+          ? ["Refresh to verify product images and active sizes before publishing."]
+          : getProductPublishBlockers({
+              title: product.title,
+              careInstructions: product.care_instructions,
+              setCount: product.set_count,
+              deliveryFeeMinor: product.delivery_fee_minor,
+              variants: (variantsResult.data ?? []).filter(
+                (variant) => variant.product_id === product.id,
+              ),
+              media: mediaRows.filter((media) => media.product_id === product.id),
+            });
+      return [product.id, blockers] as const;
+    }),
+  );
+  const changed = Array.isArray(params.changed) ? params.changed[0] : params.changed;
 
   return (
     <>
@@ -80,11 +118,40 @@ export default async function AdminProductsPage({
           </Link>
         }
       />
+      {changed === "published" ? (
+        <AdminNotice tone="success">
+          Product published and available in the public catalogue.
+        </AdminNotice>
+      ) : null}
+      {changed === "draft" ? (
+        <AdminNotice tone="success">Product moved to drafts and hidden from shoppers.</AdminNotice>
+      ) : null}
+      {changed === "photos" ? (
+        <AdminNotice tone="success">
+          Product photos saved. Review the draft status before publishing.
+        </AdminNotice>
+      ) : null}
       {params.error ? (
-        <AdminNotice tone="error">The requested product change could not be completed.</AdminNotice>
+        <AdminNotice tone="error">
+          {params.error === "publish_requirements"
+            ? "Complete the product checklist before publishing. Open Edit to review the missing details."
+            : params.error === "database_update" || params.error === "status"
+              ? "The product status could not be changed. The UAT database may be missing the current product publishing migration."
+              : params.error === "permission"
+                ? "Your staff access does not allow this change. Ask the store owner to check your role."
+                : params.error === "missing_record"
+                  ? "This product is no longer available. Refresh the product list."
+                  : "The product status could not be changed. Refresh the product list and try again."}
+        </AdminNotice>
       ) : null}
       {mediaResult.error || signedMedia.error ? (
         <AdminNotice tone="error">Some product images could not be loaded.</AdminNotice>
+      ) : null}
+      {variantsResult.error ? (
+        <AdminNotice tone="error">
+          Product sizes could not be checked. Publishing draft products is disabled until the list
+          refreshes.
+        </AdminNotice>
       ) : null}
       {error ? (
         <AdminNotice tone="error">
@@ -154,7 +221,88 @@ export default async function AdminProductsPage({
                           </div>
                         </th>
                         <td>
-                          <StatusBadge>{product.status}</StatusBadge>
+                          <div className="admin-product-visibility">
+                            <StatusBadge>{product.status}</StatusBadge>
+                            {product.status === "archived" ? null : product.status === "draft" &&
+                              (publishBlockersByProduct.get(product.id)?.length ?? 0) > 0 ? (
+                              <>
+                                <button
+                                  aria-checked={false}
+                                  aria-describedby={`publish-blockers-${product.id}`}
+                                  aria-label={`Publish ${product.title}`}
+                                  className="admin-product-status-switch"
+                                  disabled
+                                  role="switch"
+                                  title={publishBlockersByProduct.get(product.id)?.join(" ")}
+                                  type="button"
+                                >
+                                  <span
+                                    aria-hidden="true"
+                                    className="admin-product-status-switch__track"
+                                  >
+                                    <span className="admin-product-status-switch__thumb" />
+                                  </span>
+                                </button>
+                                <span className="admin-product-visibility__hint">
+                                  Complete checklist to publish
+                                </span>
+                                <span
+                                  className="admin-sr-only"
+                                  id={`publish-blockers-${product.id}`}
+                                >
+                                  {publishBlockersByProduct.get(product.id)?.join(" ")}
+                                </span>
+                              </>
+                            ) : (
+                              <form
+                                action={toggleProductPublication}
+                                className="admin-product-visibility__form"
+                              >
+                                <input name="product_id" type="hidden" value={product.id} />
+                                <input
+                                  name="next_status"
+                                  type="hidden"
+                                  value={product.status === "published" ? "draft" : "published"}
+                                />
+                                <input name="return_q" type="hidden" value={search} />
+                                <input name="return_status" type="hidden" value={statusFilter} />
+                                <ConfirmButton
+                                  className={`admin-product-status-switch${product.status === "published" ? " admin-product-status-switch--published" : ""}`}
+                                  formAction={toggleProductPublication}
+                                  message={
+                                    product.status === "published"
+                                      ? `Move ${product.title} back to drafts? It will no longer appear in the storefront.`
+                                      : `Publish ${product.title}? Shoppers will be able to see its eligible details and photos.`
+                                  }
+                                  submitClassName="admin-button admin-button--primary"
+                                  submitLabel={
+                                    product.status === "published"
+                                      ? "Move to drafts"
+                                      : "Publish product"
+                                  }
+                                  triggerAriaChecked={product.status === "published"}
+                                  triggerAriaLabel={
+                                    product.status === "published"
+                                      ? `Move ${product.title} to drafts`
+                                      : `Publish ${product.title}`
+                                  }
+                                  triggerRole="switch"
+                                  triggerTitle={
+                                    product.status === "published"
+                                      ? "Move this product back to drafts"
+                                      : "Publish this product"
+                                  }
+                                >
+                                  <span
+                                    aria-hidden="true"
+                                    className="admin-product-status-switch__track"
+                                  >
+                                    <span className="admin-product-status-switch__thumb" />
+                                  </span>
+                                </ConfirmButton>
+                              </form>
+                            )}
+                          </div>
                         </td>
                         <td>
                           {new Intl.DateTimeFormat("en-LK", {
@@ -162,9 +310,14 @@ export default async function AdminProductsPage({
                             timeZone: "Asia/Colombo",
                           }).format(new Date(product.updated_at))}
                         </td>
-                        <td>
-                          <Link className="admin-text-link" href={`/admin/products/${product.id}`}>
-                            Edit
+                        <td className="admin-product-table__action-cell">
+                          <Link
+                            aria-label={`Edit ${product.title}`}
+                            className="admin-button admin-button--icon admin-button--quiet"
+                            href={`/admin/products/${product.id}`}
+                            title={`Edit ${product.title}`}
+                          >
+                            <Pencil aria-hidden="true" size={16} strokeWidth={1.8} />
                           </Link>
                         </td>
                       </tr>

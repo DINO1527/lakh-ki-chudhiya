@@ -1,5 +1,16 @@
 import Link from "next/link";
+import {
+  CircleDollarSign,
+  FileText,
+  Gem,
+  Link2,
+  Layers,
+  Package,
+  Sparkles,
+  Truck,
+} from "lucide-react";
 import { AdminNotice, AdminPageHeader } from "@/features/admin/components/admin-ui";
+import { AdminFieldLabel } from "@/features/admin/components/admin-field-label";
 import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { createProduct } from "@/features/admin/server/product-actions";
 
@@ -29,19 +40,21 @@ export default async function NewAdminProductPage({
       <section className="admin-panel admin-panel--narrow">
         <form action={createProduct} className="admin-form">
           <label className="admin-field">
-            <span>Product name</span>
+            <AdminFieldLabel icon={Package}>Product name</AdminFieldLabel>
             <input
               autoComplete="off"
               maxLength={160}
               minLength={1}
               name="title"
+              pattern=".*\S.*"
               placeholder="Royal Wedding Set — Ruby Red"
               required
+              title="Enter a product name that includes at least one letter or number."
             />
             <small>Use one product for each design or colour.</small>
           </label>
           <label className="admin-field">
-            <span>Bangles in each set</span>
+            <AdminFieldLabel icon={Layers}>Bangles in each set</AdminFieldLabel>
             <input max="32" min="2" name="set_count" required step="1" type="number" />
             <small>
               This is the number of bangles in one sellable set. Stock counts complete sets.
@@ -55,20 +68,21 @@ export default async function NewAdminProductPage({
             <div className="admin-form-details__content">
               <label className="admin-field">
                 <span>
-                  URL slug <small>Leave blank to make it from the product name.</small>
+                  <AdminFieldLabel icon={Link2}>URL slug</AdminFieldLabel>{" "}
+                  <small>Leave blank to make it from the product name.</small>
                 </span>
                 <input autoComplete="off" maxLength={100} name="slug" />
               </label>
               <label className="admin-field">
-                <span>Description</span>
+                <AdminFieldLabel icon={FileText}>Description</AdminFieldLabel>
                 <textarea maxLength={8_000} name="description" rows={5} />
               </label>
               <label className="admin-field">
-                <span>Material</span>
+                <AdminFieldLabel icon={Gem}>Material</AdminFieldLabel>
                 <input maxLength={160} name="material" />
               </label>
               <label className="admin-field">
-                <span>Care instructions</span>
+                <AdminFieldLabel icon={Sparkles}>Care instructions</AdminFieldLabel>
                 <textarea maxLength={2_000} name="care_instructions" rows={4} />
               </label>
               <p className="admin-field__hint">
@@ -76,7 +90,7 @@ export default async function NewAdminProductPage({
                 product details page.
               </p>
               <label className="admin-field">
-                <span>Delivery fee per order (LKR)</span>
+                <AdminFieldLabel icon={Truck}>Delivery fee per order (LKR)</AdminFieldLabel>
                 <input
                   inputMode="decimal"
                   max="21474836.47"
@@ -91,7 +105,9 @@ export default async function NewAdminProductPage({
               <label className="admin-checkbox">
                 <input name="cod_enabled" type="checkbox" />
                 <span>
-                  Allow cash on delivery for this product
+                  <AdminFieldLabel icon={CircleDollarSign}>
+                    Allow cash on delivery for this product
+                  </AdminFieldLabel>
                   <small>COD also needs to be enabled in Checkout settings.</small>
                 </span>
               </label>
