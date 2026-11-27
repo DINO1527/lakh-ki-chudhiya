@@ -1,37 +1,88 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import {
+  ArrowUpDown,
+  Barcode,
+  BadgePercent,
+  CircleDollarSign,
+  FileText,
+  Gem,
+  Image as ImageIcon,
+  Layers,
+  Link2,
+  Package,
+  Ruler,
+  Sparkles,
+  Truck,
+} from "lucide-react";
 import { AdminNotice, AdminPageHeader, StatusBadge } from "@/features/admin/components/admin-ui";
 import { AdminDialog } from "@/features/admin/components/admin-dialog";
+import { AdminFieldLabel } from "@/features/admin/components/admin-field-label";
 import { AdminProductSectionTabs } from "@/features/admin/components/admin-product-section-tabs";
 import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { ImageUploadPreview } from "@/features/admin/components/image-upload-preview";
 import { ConfirmButton } from "@/features/admin/components/confirm-button";
+import { getProductPublishBlockers } from "@/features/admin/domain/product-publish-readiness";
 import {
   archiveProduct,
   archiveProductImage,
   publishProduct,
   publishProductImage,
+  unpublishProductImage,
   saveProductVariant,
+  saveProductVariantAndContinue,
   setProductCollections,
+  setProductCollectionsAndContinue,
   updateProductImage,
+  updateProductImageAndFinish,
   updateProduct,
+  updateProductAndContinue,
   uploadProductImage,
+  uploadProductImageAndFinish,
 } from "@/features/admin/server/product-actions";
 import { requireStaff } from "@/features/admin/server/access";
 import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const PRODUCT_EDITOR_SECTIONS = [
+  { id: "product-details", label: "Details & reviews" },
+  { id: "product-collections", label: "Collections" },
+  { id: "product-variants", label: "Sizes & prices" },
+  { id: "product-images", label: "Photos" },
+] as const;
 
 const statusMessages: Record<string, string> = {
   saved: "Changes saved.",
   created: "Draft created. Add at least one variant and image before publishing.",
   published: "Product published. It is now eligible to appear in the public catalogue.",
   archived: "Product archived and removed from public catalogue results.",
+  drafted: "Product returned to drafts and removed from the storefront.",
   "media=uploaded": "Image uploaded privately as a draft asset.",
   "media=archived": "Image archived. It can no longer be signed for public viewing.",
   "media=updated": "Image details saved.",
   "media=published": "Image published to the product gallery.",
+  "media=drafted": "Image returned to drafts and hidden from the product gallery.",
+  "stock=saved": "Stock saved. Continue with the product checks and publish when ready.",
+};
+
+const productErrorMessages: Readonly<Record<string, string>> = {
+  media_limit:
+    "A product can have up to 20 active gallery images. Archive one before adding another.",
+  last_image:
+    "A published product must keep at least one published photo. Publish another photo first.",
+  order:
+    "Product details were saved, but the catalogue position could not be updated. Refresh and try again.",
+  publish_requirements: "Complete the product publishing checklist below before trying again.",
+  database_update:
+    "The UAT database is missing a product workflow update. Apply the current product migrations, then retry.",
+  permission:
+    "Your staff access does not allow this change. Ask the store owner to check your role.",
+  missing_record: "This product or photo is no longer available. Refresh the page and try again.",
+  media_publish: "This photo could not be published. Refresh the photo list and try again.",
+  media_unpublish:
+    "This photo could not be returned to drafts. A published product must keep a published photo.",
+  invalid: "Check the highlighted product fields and try again.",
 };
 
 export default async function AdminProductEditorPage({
@@ -77,7 +128,7 @@ export default async function AdminProductEditorPage({
     supabase.from("product_collections").select("collection_id").eq("product_id", id).limit(1_000),
     supabase
       .from("product_media")
-      .select("id, storage_path, alt_text, status, sort_order")
+      .select("id, storage_path, alt_text, media_type, status, sort_order")
       .eq("product_id", id)
       .order("sort_order")
       .limit(100),
@@ -112,8 +163,25 @@ export default async function AdminProductEditorPage({
     reviews_enabled: reviewSettingsResult.data?.reviews_enabled ?? true,
   };
   const maximumProductPosition = Math.max(0, (productCountResult.count ?? 1) - 1);
+  const sectionParam = Array.isArray(query.section) ? query.section[0] : query.section;
+  const initialActiveSection = PRODUCT_EDITOR_SECTIONS.some(
+    (section) => section.id === sectionParam,
+  )
+    ? sectionParam
+    : PRODUCT_EDITOR_SECTIONS[0].id;
   const productDisplayPosition = Math.min(maximumProductPosition, Math.max(0, product.sort_order));
   const variants = variantsResult.data ?? [];
+  const publishBlockers = getProductPublishBlockers({
+    title: product.title,
+    careInstructions: product.care_instructions,
+    setCount: product.set_count,
+    deliveryFeeMinor: product.delivery_fee_minor,
+    variants,
+    media: mediaResult.data ?? [],
+  });
+  if (variantsResult.error || mediaResult.error) {
+    publishBlockers.push("Refresh this page to verify the size and image requirements.");
+  }
   const collections = collectionsResult.data ?? [];
   const selectedCollectionIds = new Set((linksResult.data ?? []).map((link) => link.collection_id));
   const media = await Promise.all(
@@ -124,12 +192,14 @@ export default async function AdminProductEditorPage({
       return { ...item, signedUrl: data?.signedUrl ?? null };
     }),
   );
+  const publishedImageCount = media.filter((item) => item.status === "published").length;
   const errorValue = Array.isArray(query.error) ? query.error[0] : query.error;
   const flashValue = [
     query.saved ? "saved" : "",
     query.created ? "created" : "",
     query.published ? "published" : "",
     query.archived ? "archived" : "",
+    query.stock === "saved" ? "stock=saved" : "",
   ].find(Boolean);
 
   return (
@@ -157,17 +227,13 @@ export default async function AdminProductEditorPage({
       {query.media === "updated" || query.media === "published" ? (
         <AdminNotice tone="success">{statusMessages[`media=${query.media}`]}</AdminNotice>
       ) : null}
+      {query.media === "drafted" ? (
+        <AdminNotice tone="success">{statusMessages["media=drafted"]}</AdminNotice>
+      ) : null}
       {errorValue ? (
         <AdminNotice tone="error">
-          {errorValue === "media_limit"
-            ? "A product can have up to 20 active gallery images. Archive one before adding another."
-            : errorValue === "last_image"
-              ? "Keep one published image on a published product. Archive the product first to remove the last image."
-              : errorValue === "order"
-                ? "Product details were saved, but the catalogue position could not be updated. Refresh the database setup and try again."
-                : errorValue === "publish_requirements"
-                  ? "Before publishing, complete the care instructions, set a delivery fee, add an active size and upload at least one product image."
-                  : "The change could not be saved. Check required fields and try again."}
+          {productErrorMessages[errorValue] ??
+            "The change could not be saved. Check required fields and try again."}
         </AdminNotice>
       ) : null}
       {productResult.error ||
@@ -195,13 +261,24 @@ export default async function AdminProductEditorPage({
           {product.status !== "published" ? (
             <form action={publishProduct}>
               <input name="product_id" type="hidden" value={id} />
-              <ConfirmButton
-                className="admin-button admin-button--primary"
-                formAction={publishProduct}
-                message="Publish this product? Shoppers will be able to see eligible product details and images."
-              >
-                Review and publish
-              </ConfirmButton>
+              {publishBlockers.length > 0 ? (
+                <button
+                  aria-describedby="product-publish-checklist"
+                  className="admin-button admin-button--primary"
+                  disabled
+                  type="button"
+                >
+                  Review and publish
+                </button>
+              ) : (
+                <ConfirmButton
+                  className="admin-button admin-button--primary"
+                  formAction={publishProduct}
+                  message="Publish this product? Shoppers will be able to see eligible product details and images."
+                >
+                  Review and publish
+                </ConfirmButton>
+              )}
             </form>
           ) : null}
           {product.status !== "archived" ? (
@@ -221,14 +298,23 @@ export default async function AdminProductEditorPage({
           </Link>
         </div>
       </div>
+      {product.status !== "published" && publishBlockers.length > 0 ? (
+        <div className="admin-alert" id="product-publish-checklist" role="status">
+          <strong>Complete these items before publishing</strong>
+          <ul>
+            {publishBlockers.map((blocker) => (
+              <li key={blocker}>{blocker}</li>
+            ))}
+          </ul>
+          <p>Use the product sections below to finish the checklist.</p>
+        </div>
+      ) : null}
 
       <AdminProductSectionTabs
-        sections={[
-          { id: "product-details", label: "Details & reviews" },
-          { id: "product-collections", label: "Collections" },
-          { id: "product-variants", label: "Sizes & prices" },
-          { id: "product-images", label: "Photos" },
-        ]}
+        initialActiveId={initialActiveSection}
+        key={initialActiveSection}
+        productId={id}
+        sections={PRODUCT_EDITOR_SECTIONS}
       >
         <section
           aria-labelledby="product-details-heading"
@@ -245,23 +331,33 @@ export default async function AdminProductEditorPage({
             <input name="product_id" type="hidden" value={id} />
             <div className="admin-form__row">
               <label className="admin-field">
-                <span>Product name</span>
+                <AdminFieldLabel icon={Package}>Product name</AdminFieldLabel>
                 <input
                   defaultValue={product.title}
                   maxLength={160}
                   minLength={1}
                   name="title"
+                  pattern=".*\S.*"
                   required
+                  title="Enter a product name that includes at least one letter or number."
                 />
                 <small>Include the colour in the name. Each colour is a separate product.</small>
               </label>
               <label className="admin-field">
-                <span>Slug</span>
-                <input defaultValue={product.slug} maxLength={100} name="slug" required />
+                <AdminFieldLabel icon={Link2}>Slug</AdminFieldLabel>
+                <input
+                  defaultValue={product.slug}
+                  maxLength={100}
+                  minLength={1}
+                  name="slug"
+                  pattern=".*\S.*"
+                  required
+                  title="Enter a URL slug or leave the generated slug unchanged."
+                />
               </label>
             </div>
             <label className="admin-field">
-              <span>Description</span>
+              <AdminFieldLabel icon={FileText}>Description</AdminFieldLabel>
               <textarea
                 defaultValue={product.description}
                 maxLength={8_000}
@@ -270,22 +366,28 @@ export default async function AdminProductEditorPage({
               />
             </label>
             <label className="admin-field">
-              <span>Material</span>
+              <AdminFieldLabel icon={Gem}>Material</AdminFieldLabel>
               <input defaultValue={product.material} maxLength={160} name="material" />
             </label>
             <label className="admin-field">
-              <span>Care instructions</span>
+              <AdminFieldLabel icon={Sparkles}>Care instructions</AdminFieldLabel>
               <textarea
+                data-require-trimmed={product.status === "published" ? "true" : undefined}
                 defaultValue={product.care_instructions}
                 maxLength={2_000}
                 name="care_instructions"
+                title={
+                  product.status === "published"
+                    ? "Enter at least one care instruction."
+                    : undefined
+                }
                 required={product.status === "published"}
                 rows={4}
               />
             </label>
             <div className="admin-form__row">
               <label className="admin-field">
-                <span>Bangles in each set</span>
+                <AdminFieldLabel icon={Layers}>Bangles in each set</AdminFieldLabel>
                 <input
                   defaultValue={product.set_count}
                   max="32"
@@ -297,7 +399,7 @@ export default async function AdminProductEditorPage({
                 />
               </label>
               <label className="admin-field">
-                <span>Display order</span>
+                <AdminFieldLabel icon={ArrowUpDown}>Display order</AdminFieldLabel>
                 <input
                   defaultValue={productDisplayPosition}
                   max={maximumProductPosition}
@@ -314,7 +416,7 @@ export default async function AdminProductEditorPage({
               </label>
             </div>
             <label className="admin-field">
-              <span>Delivery fee per order (LKR)</span>
+              <AdminFieldLabel icon={Truck}>Delivery fee per order (LKR)</AdminFieldLabel>
               <input
                 defaultValue={
                   product.delivery_fee_minor === null
@@ -326,6 +428,7 @@ export default async function AdminProductEditorPage({
                 min="0"
                 name="delivery_fee_lkr"
                 placeholder="Enter 0 for free delivery"
+                required={product.status === "published"}
                 step="0.01"
                 type="number"
               />
@@ -358,13 +461,26 @@ export default async function AdminProductEditorPage({
                 </small>
               </span>
             </label>
-            <ConfirmButton
-              className="admin-button admin-button--primary"
-              formAction={updateProduct}
-              message="Save these product details? If you changed the display order, products between the old and new positions will move to keep the catalogue in a clear order."
-            >
-              Save product details
-            </ConfirmButton>
+            <div className="admin-form__actions">
+              <ConfirmButton
+                className="admin-button admin-button--primary"
+                formAction={updateProduct}
+                message="Save these product details? If you changed the display order, products between the old and new positions will move to keep the catalogue in a clear order."
+                submitClassName="admin-button admin-button--primary"
+                submitLabel="Save details"
+              >
+                Save details
+              </ConfirmButton>
+              <ConfirmButton
+                className="admin-button admin-button--secondary"
+                formAction={updateProductAndContinue}
+                message="Save these product details and continue to collection assignments?"
+                submitClassName="admin-button admin-button--primary"
+                submitLabel="Save and continue"
+              >
+                Save and continue
+              </ConfirmButton>
+            </div>
           </form>
         </section>
 
@@ -409,7 +525,15 @@ export default async function AdminProductEditorPage({
                       </label>
                     ))}
                   </div>
-                  <AdminSubmitButton>Save assignments</AdminSubmitButton>
+                  <div className="admin-form__actions">
+                    <AdminSubmitButton>Save assignments</AdminSubmitButton>
+                    <AdminSubmitButton
+                      className="admin-button admin-button--secondary"
+                      formAction={setProductCollectionsAndContinue}
+                    >
+                      Save and continue
+                    </AdminSubmitButton>
+                  </div>
                 </form>
               </AdminDialog>
             </div>
@@ -428,7 +552,10 @@ export default async function AdminProductEditorPage({
               <p className="admin-eyebrow">Sellable SKUs</p>
               <h2 id="product-variants-heading">Sizes and prices</h2>
             </div>
-            <Link className="admin-text-link" href="/admin/inventory">
+            <Link
+              className="admin-text-link"
+              href={`/admin/inventory?return_product_id=${encodeURIComponent(id)}`}
+            >
               Open inventory
             </Link>
           </div>
@@ -451,7 +578,7 @@ export default async function AdminProductEditorPage({
                     </div>
                     <Link
                       className="admin-text-link"
-                      href={`/admin/inventory?q=${encodeURIComponent(variant.sku)}`}
+                      href={`/admin/inventory?q=${encodeURIComponent(variant.sku)}&return_product_id=${encodeURIComponent(id)}`}
                     >
                       Manage this size&apos;s stock
                     </Link>
@@ -465,7 +592,15 @@ export default async function AdminProductEditorPage({
                       <input name="product_id" type="hidden" value={id} />
                       <input name="variant_id" type="hidden" value={variant.id} />
                       <VariantFields variant={variant} />
-                      <AdminSubmitButton>Save size and price</AdminSubmitButton>
+                      <div className="admin-form__actions">
+                        <AdminSubmitButton>Save size and price</AdminSubmitButton>
+                        <AdminSubmitButton
+                          className="admin-button admin-button--secondary"
+                          formAction={saveProductVariantAndContinue}
+                        >
+                          Save and continue
+                        </AdminSubmitButton>
+                      </div>
                     </form>
                   </AdminDialog>
                 </article>
@@ -486,7 +621,15 @@ export default async function AdminProductEditorPage({
               <input name="product_id" type="hidden" value={id} />
               <input name="variant_id" type="hidden" value="" />
               <VariantFields />
-              <AdminSubmitButton>Add size and price</AdminSubmitButton>
+              <div className="admin-form__actions">
+                <AdminSubmitButton>Add size and price</AdminSubmitButton>
+                <AdminSubmitButton
+                  className="admin-button admin-button--secondary"
+                  formAction={saveProductVariantAndContinue}
+                >
+                  Save and continue
+                </AdminSubmitButton>
+              </div>
             </form>
           </AdminDialog>
         </section>
@@ -515,12 +658,20 @@ export default async function AdminProductEditorPage({
               <input name="product_id" type="hidden" value={id} />
               <ImageUploadPreview />
               <label className="admin-field">
-                <span>Alternative text</span>
-                <input maxLength={250} minLength={1} name="alt_text" required />
+                <AdminFieldLabel icon={ImageIcon}>Alternative text</AdminFieldLabel>
+                <input
+                  data-require-trimmed="true"
+                  maxLength={250}
+                  minLength={1}
+                  name="alt_text"
+                  pattern=".*\S.*"
+                  required
+                  title="Enter a short description that includes a visible detail."
+                />
                 <small>Describe the visible product, colour and angle.</small>
               </label>
               <label className="admin-field">
-                <span>Photo order</span>
+                <AdminFieldLabel icon={ArrowUpDown}>Photo order</AdminFieldLabel>
                 <input
                   defaultValue="0"
                   max="2147483647"
@@ -530,85 +681,140 @@ export default async function AdminProductEditorPage({
                   type="number"
                 />
               </label>
-              <AdminSubmitButton pendingLabel="Uploading…">Upload photo</AdminSubmitButton>
+              <div className="admin-form__actions">
+                <AdminSubmitButton pendingLabel="Uploading…">Upload photo</AdminSubmitButton>
+                <AdminSubmitButton
+                  className="admin-button admin-button--secondary"
+                  formAction={uploadProductImageAndFinish}
+                  pendingLabel="Uploading…"
+                >
+                  Upload and finish
+                </AdminSubmitButton>
+              </div>
             </form>
           </AdminDialog>
           {media.length ? (
             <ul className="admin-media-grid">
-              {media.map((item) => (
-                <li className="admin-media-card" key={item.id}>
-                  {item.signedUrl ? (
-                    <Image
-                      alt={item.alt_text}
-                      height={300}
-                      src={item.signedUrl}
-                      unoptimized
-                      width={240}
-                    />
-                  ) : (
-                    <div className="admin-media-card__missing">Private image unavailable</div>
-                  )}
-                  <AdminDialog
-                    description="Update how the image is described and ordered in the product gallery."
-                    title="Edit photo details"
-                    triggerLabel="Edit photo"
-                  >
-                    <form action={updateProductImage} className="admin-form">
-                      <input name="product_id" type="hidden" value={id} />
-                      <input name="media_id" type="hidden" value={item.id} />
-                      <label className="admin-field">
-                        <span>Alternative text</span>
-                        <input
-                          defaultValue={item.alt_text}
-                          maxLength={250}
-                          minLength={1}
-                          name="alt_text"
-                          required
-                        />
-                      </label>
-                      <label className="admin-field">
-                        <span>Photo order</span>
-                        <input
-                          defaultValue={item.sort_order}
-                          max="2147483647"
-                          min="-2147483648"
-                          name="sort_order"
-                          step="1"
-                          type="number"
-                        />
-                      </label>
-                      <AdminSubmitButton>Save photo details</AdminSubmitButton>
-                    </form>
-                  </AdminDialog>
-                  <StatusBadge>{item.status}</StatusBadge>
-                  {product.status === "published" && item.status === "draft" ? (
-                    <form action={publishProductImage}>
-                      <input name="product_id" type="hidden" value={id} />
-                      <input name="media_id" type="hidden" value={item.id} />
-                      <ConfirmButton
-                        className="admin-button admin-button--secondary"
-                        formAction={publishProductImage}
-                        message="Publish this image to the product gallery?"
-                      >
-                        Review and publish image
-                      </ConfirmButton>
-                    </form>
-                  ) : null}
-                  {item.status !== "archived" ? (
-                    <form action={archiveProductImage}>
-                      <input name="product_id" type="hidden" value={id} />
-                      <input name="media_id" type="hidden" value={item.id} />
-                      <ConfirmButton
-                        className="admin-button admin-button--quiet"
-                        formAction={archiveProductImage}
-                        message="Archive this image? It will stop being available to the public."
-                      >
-                        Archive image
-                      </ConfirmButton>
-                    </form>
-                  ) : null}
-                </li>
-              ))}
+              {media.map((item) => {
+                const isPublished = item.status === "published";
+                const isLastPublishedImage =
+                  product.status === "published" && isPublished && publishedImageCount <= 1;
+                return (
+                  <li className="admin-media-card" key={item.id}>
+                    {item.signedUrl ? (
+                      <Image
+                        alt={item.alt_text}
+                        height={300}
+                        src={item.signedUrl}
+                        unoptimized
+                        width={240}
+                      />
+                    ) : (
+                      <div className="admin-media-card__missing">Private image unavailable</div>
+                    )}
+                    <AdminDialog
+                      description="Update how the image is described and ordered in the product gallery."
+                      title="Edit photo details"
+                      triggerLabel="Edit photo"
+                    >
+                      <form action={updateProductImage} className="admin-form">
+                        <input name="product_id" type="hidden" value={id} />
+                        <input name="media_id" type="hidden" value={item.id} />
+                        <label className="admin-field">
+                          <AdminFieldLabel icon={ImageIcon}>Alternative text</AdminFieldLabel>
+                          <input
+                            data-require-trimmed="true"
+                            defaultValue={item.alt_text}
+                            maxLength={250}
+                            minLength={1}
+                            name="alt_text"
+                            pattern=".*\S.*"
+                            required
+                            title="Enter a short description that includes a visible detail."
+                          />
+                        </label>
+                        <label className="admin-field">
+                          <AdminFieldLabel icon={ArrowUpDown}>Photo order</AdminFieldLabel>
+                          <input
+                            defaultValue={item.sort_order}
+                            max="2147483647"
+                            min="-2147483648"
+                            name="sort_order"
+                            step="1"
+                            type="number"
+                          />
+                        </label>
+                        <div className="admin-form__actions">
+                          <AdminSubmitButton>Save photo details</AdminSubmitButton>
+                          <AdminSubmitButton
+                            className="admin-button admin-button--secondary"
+                            formAction={updateProductImageAndFinish}
+                          >
+                            Save and finish
+                          </AdminSubmitButton>
+                        </div>
+                      </form>
+                    </AdminDialog>
+                    <StatusBadge>{item.status}</StatusBadge>
+                    {item.status !== "archived" ? (
+                      <form action={isPublished ? unpublishProductImage : publishProductImage}>
+                        <input name="product_id" type="hidden" value={id} />
+                        <input name="media_id" type="hidden" value={item.id} />
+                        <ConfirmButton
+                          className={`admin-product-status-switch${isPublished ? " admin-product-status-switch--published" : ""}`}
+                          formAction={isPublished ? unpublishProductImage : publishProductImage}
+                          message={
+                            isPublished
+                              ? `Move “${item.alt_text}” back to drafts? It will no longer appear in the public gallery.`
+                              : `Publish “${item.alt_text}” for this product? Draft products stay hidden until the product itself is published.`
+                          }
+                          submitClassName="admin-button admin-button--primary"
+                          submitLabel={isPublished ? "Move photo to drafts" : "Publish photo"}
+                          triggerAriaChecked={isPublished}
+                          triggerAriaLabel={`${isPublished ? "Move" : "Publish"} photo: ${item.alt_text}`}
+                          triggerDisabled={isLastPublishedImage}
+                          triggerRole="switch"
+                          triggerTitle={
+                            isLastPublishedImage
+                              ? "Publish another photo before moving this one to drafts"
+                              : isPublished
+                                ? "Move this photo to drafts"
+                                : "Publish this photo"
+                          }
+                        >
+                          <span aria-hidden="true" className="admin-product-status-switch__track">
+                            <span className="admin-product-status-switch__thumb" />
+                          </span>
+                        </ConfirmButton>
+                        {isLastPublishedImage ? (
+                          <small className="admin-muted">
+                            Publish another photo before switching this one off.
+                          </small>
+                        ) : null}
+                      </form>
+                    ) : null}
+                    {item.status !== "archived" ? (
+                      <form action={archiveProductImage}>
+                        <input name="product_id" type="hidden" value={id} />
+                        <input name="media_id" type="hidden" value={item.id} />
+                        <ConfirmButton
+                          className="admin-button admin-button--quiet"
+                          formAction={archiveProductImage}
+                          message="Archive this image? It will stop being available to the public."
+                          triggerDisabled={isLastPublishedImage}
+                          triggerTitle={
+                            isLastPublishedImage
+                              ? "Publish another photo before archiving this one"
+                              : "Archive this photo"
+                          }
+                        >
+                          Archive image
+                        </ConfirmButton>
+                      </form>
+                    ) : null}
+                  </li>
+                );
+              })}
             </ul>
           ) : mediaResult.error ? null : (
             <p className="admin-muted">No images uploaded.</p>
@@ -634,7 +840,7 @@ function VariantFields({
   return (
     <div className="admin-form__row admin-form__row--variant">
       <label className="admin-field">
-        <span>SKU</span>
+        <AdminFieldLabel icon={Barcode}>SKU</AdminFieldLabel>
         <input
           defaultValue={variant?.sku}
           maxLength={64}
@@ -644,7 +850,7 @@ function VariantFields({
         />
       </label>
       <label className="admin-field">
-        <span>Size code</span>
+        <AdminFieldLabel icon={Layers}>Size code</AdminFieldLabel>
         <input
           defaultValue={variant?.size_code ?? ""}
           maxLength={16}
@@ -653,7 +859,7 @@ function VariantFields({
         />
       </label>
       <label className="admin-field">
-        <span>Inner diameter (mm)</span>
+        <AdminFieldLabel icon={Ruler}>Inner diameter (mm)</AdminFieldLabel>
         <input
           defaultValue={variant?.inner_diameter_mm ?? ""}
           max="999.99"
@@ -664,7 +870,7 @@ function VariantFields({
         />
       </label>
       <label className="admin-field">
-        <span>Price (LKR)</span>
+        <AdminFieldLabel icon={CircleDollarSign}>Price (LKR)</AdminFieldLabel>
         <input
           defaultValue={variant ? formatMinorInput(variant.price_minor) : ""}
           inputMode="decimal"
@@ -677,7 +883,7 @@ function VariantFields({
         />
       </label>
       <label className="admin-field">
-        <span>Compare at (LKR)</span>
+        <AdminFieldLabel icon={BadgePercent}>Compare at (LKR)</AdminFieldLabel>
         <input
           defaultValue={
             variant?.compare_at_price_minor ? formatMinorInput(variant.compare_at_price_minor) : ""
@@ -691,7 +897,7 @@ function VariantFields({
         />
       </label>
       <label className="admin-field">
-        <span>Availability</span>
+        <AdminFieldLabel icon={Package}>Availability</AdminFieldLabel>
         <select
           defaultValue={variant?.is_active === false ? "inactive" : "active"}
           name="is_active"

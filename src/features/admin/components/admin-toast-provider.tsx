@@ -7,11 +7,13 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
 } from "react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 
 type ToastTone = "success" | "error";
 type Toast = Readonly<{ id: string; tone: ToastTone; content: ReactNode }>;
@@ -35,15 +37,32 @@ const DotLottieReact = dynamic(
 );
 
 export function AdminToastProvider({ children }: Readonly<{ children: ReactNode }>) {
+  const pathname = usePathname();
+
+  return <AdminToastProviderState key={pathname}>{children}</AdminToastProviderState>;
+}
+
+function AdminToastProviderState({ children }: Readonly<{ children: ReactNode }>) {
   const [toasts, setToasts] = useState<readonly Toast[]>([]);
-  const validationToastId = useId();
+  const validationIdPrefix = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const validationIdSequence = useRef(0);
 
   const dismiss = useCallback((id: string) => {
     setToasts((current) => current.filter((toast) => toast.id !== id));
   }, []);
 
   const push = useCallback((toast: Toast) => {
-    setToasts((current) => [...current.filter((item) => item.id !== toast.id), toast].slice(-4));
+    setToasts((current) => {
+      const existing = current.find((item) => item.id === toast.id);
+      const sameToastContent =
+        existing &&
+        existing.tone === toast.tone &&
+        (typeof existing.content !== "string" ||
+          typeof toast.content !== "string" ||
+          existing.content === toast.content);
+      if (sameToastContent) return current;
+      return [...current.filter((item) => item.id !== toast.id), toast].slice(-4);
+    });
   }, []);
   const contextValue = useMemo(() => ({ toasts, push, dismiss }), [dismiss, push, toasts]);
 
@@ -59,8 +78,31 @@ export function AdminToastProvider({ children }: Readonly<{ children: ReactNode 
       return;
     event.preventDefault();
     target.setAttribute("aria-invalid", "true");
-    const form = target.form;
-    showValidationToast(form, target);
+    const firstInvalid = target.form?.querySelector<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >(":invalid");
+    if (!firstInvalid || firstInvalid === target) target.focus();
+    showInlineValidation(target, validationIdPrefix, validationIdSequence);
+  }
+
+  function validateTrimmedFields(event: FormEvent<HTMLDivElement>) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+
+    const whitespaceOnlyFields = Array.from(
+      form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+        "[data-require-trimmed='true']",
+      ),
+    ).filter((field) => field.value.trim() === "");
+    if (!whitespaceOnlyFields.length) return;
+
+    event.preventDefault();
+    for (const field of whitespaceOnlyFields) {
+      field.setCustomValidity("Enter a value that is not only spaces.");
+      field.setAttribute("aria-invalid", "true");
+      showInlineValidation(field, validationIdPrefix, validationIdSequence);
+    }
+    whitespaceOnlyFields[0]?.focus();
   }
 
   function clearResolvedValidation(event: FormEvent<HTMLDivElement>) {
@@ -73,39 +115,17 @@ export function AdminToastProvider({ children }: Readonly<{ children: ReactNode 
       )
     )
       return;
-    if (target.validity.valid) target.removeAttribute("aria-invalid");
-    const firstInvalid = target.form?.querySelector<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >(":invalid");
-    if (!firstInvalid) dismiss(validationToastId);
-    else showValidationToast(target.form, firstInvalid);
-  }
-
-  function showValidationToast(
-    form: HTMLFormElement | null,
-    firstTarget: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
-  ) {
-    const invalidFields = form
-      ? Array.from(
-          form.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
-            ":invalid",
-          ),
-        )
-      : [firstTarget];
-    const label =
-      firstTarget.labels?.[0]?.querySelector("span")?.firstChild?.textContent?.trim() ||
-      firstTarget.name ||
-      "This field";
-    const remaining =
-      invalidFields.length > 1
-        ? ` ${invalidFields.length - 1} more field${invalidFields.length === 2 ? "" : "s"} need attention.`
-        : "";
-    const validationMessage = firstTarget.validationMessage.replace(/[.!?]+$/, "");
-    push({
-      id: validationToastId,
-      tone: "error",
-      content: `${label}: ${validationMessage}.${remaining}`,
-    });
+    if (target.dataset.requireTrimmed === "true") {
+      target.setCustomValidity(
+        target.value.trim() === "" ? "Enter a value that is not only spaces." : "",
+      );
+    }
+    if (target.validity.valid) {
+      target.removeAttribute("aria-invalid");
+      removeInlineValidation(target);
+    } else if (target.dataset.adminValidationMessageId) {
+      showInlineValidation(target, validationIdPrefix, validationIdSequence);
+    }
   }
 
   return (
@@ -113,13 +133,66 @@ export function AdminToastProvider({ children }: Readonly<{ children: ReactNode 
       <div
         className="admin-feedback-root"
         onInputCapture={clearResolvedValidation}
+        onChangeCapture={clearResolvedValidation}
         onInvalidCapture={reportInvalidField}
+        onSubmitCapture={validateTrimmedFields}
       >
         {children}
         <ToastStack toasts={toasts} onDismiss={dismiss} />
       </div>
     </ToastContext.Provider>
   );
+}
+
+function showInlineValidation(
+  target: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+  idPrefix: string,
+  idSequence: { current: number },
+) {
+  const field = target.closest<HTMLElement>(".admin-field, .admin-checkbox");
+  if (!field) return;
+
+  let errorId = target.dataset.adminValidationMessageId;
+  if (!errorId) {
+    idSequence.current += 1;
+    errorId = `${idPrefix}-validation-${idSequence.current}`;
+    target.dataset.adminValidationMessageId = errorId;
+    const describedBy = new Set(target.getAttribute("aria-describedby")?.split(/\s+/) ?? []);
+    describedBy.add(errorId);
+    target.setAttribute("aria-describedby", [...describedBy].join(" "));
+  }
+
+  let error = document.getElementById(errorId);
+  if (!error) {
+    error = document.createElement("span");
+    error.id = errorId;
+    error.className = "admin-field__validation";
+    error.setAttribute("role", "alert");
+    field.insertAdjacentElement("afterend", error);
+  }
+
+  const label = target.labels?.[0]?.querySelector("span");
+  const helperText = label?.querySelector("small")?.textContent ?? "";
+  const fieldName =
+    (label?.textContent ?? "").replace(helperText, "").trim() || target.name || "This field";
+  const message = target.validationMessage.replace(/[.!?]+$/, "");
+  error.textContent = `${fieldName}: ${message}.`;
+}
+
+function removeInlineValidation(
+  target: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
+) {
+  const errorId = target.dataset.adminValidationMessageId;
+  if (!errorId) return;
+
+  document.getElementById(errorId)?.remove();
+  delete target.dataset.adminValidationMessageId;
+  const describedBy = target
+    .getAttribute("aria-describedby")
+    ?.split(/\s+/)
+    .filter((id) => id && id !== errorId);
+  if (describedBy?.length) target.setAttribute("aria-describedby", describedBy.join(" "));
+  else target.removeAttribute("aria-describedby");
 }
 
 export function AdminToastOutlet() {
@@ -145,8 +218,10 @@ function AdminToastItem({
   onDismiss,
 }: Readonly<{ toast: Toast; onDismiss: (id: string) => void }>) {
   useEffect(() => {
-    if (toast.tone !== "success") return;
-    const timeout = window.setTimeout(() => onDismiss(toast.id), 6500);
+    const timeout = window.setTimeout(
+      () => onDismiss(toast.id),
+      toast.tone === "success" ? 6500 : 12000,
+    );
     return () => window.clearTimeout(timeout);
   }, [onDismiss, toast.id, toast.tone]);
 

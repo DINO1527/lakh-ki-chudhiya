@@ -6,8 +6,8 @@ import { StorefrontIcon } from "./storefront-icon";
 import { useCart } from "@/features/cart/components/cart-provider";
 
 const navigation = [
+  { href: "/", label: "Home", icon: "home" as const },
   { href: "/shop", label: "Shop", icon: "search" as const },
-  { href: "/shop#catalogue-collection", label: "Collections", icon: "grid" as const },
   { href: "/account", label: "Account", icon: "user" as const },
   { href: "/cart", label: "Bag", icon: "bag" as const },
 ];
@@ -22,7 +22,7 @@ export function MobileNavigation({ isSignedIn }: { isSignedIn: boolean }) {
         const destination = label === "Account" && !isSignedIn ? "/account/login" : href;
         const isActive =
           href === "/shop"
-            ? pathname === "/shop"
+            ? pathname === "/shop" || pathname.startsWith("/products/")
             : href === "/account"
               ? pathname.startsWith("/account")
               : pathname === href || pathname.startsWith(`${href}/`);
@@ -49,7 +49,7 @@ export function MobileNavigation({ isSignedIn }: { isSignedIn: boolean }) {
                 </span>
               )}
             </span>
-            <span>{label}</span>
+            <span>{label === "Account" && !isSignedIn ? "Log in" : label}</span>
           </Link>
         );
       })}

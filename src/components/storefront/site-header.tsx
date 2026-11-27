@@ -2,12 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { CartIndicator } from "@/features/cart/components/cart-indicator";
 import { StorefrontIcon } from "./storefront-icon";
-
-const navigation = [
-  { href: "/shop", label: "Shop" },
-  { href: "/shop#catalogue-collection", label: "Collections" },
-  { href: "/size-guide", label: "Size guide" },
-];
+import { StorefrontPrimaryNavigation } from "./storefront-primary-navigation";
+import { MobileMenu } from "./mobile-menu";
 
 export function SiteHeader({ isSignedIn }: { isSignedIn: boolean }) {
   return (
@@ -29,13 +25,7 @@ export function SiteHeader({ isSignedIn }: { isSignedIn: boolean }) {
           </span>
         </Link>
 
-        <nav aria-label="Main navigation" className="site-nav site-nav--desktop">
-          {navigation.map(({ href, label }) => (
-            <Link className="site-nav__link" href={href} key={href}>
-              {label}
-            </Link>
-          ))}
-        </nav>
+        <StorefrontPrimaryNavigation variant="desktop" />
 
         <div className="site-header__actions">
           <Link
@@ -45,29 +35,22 @@ export function SiteHeader({ isSignedIn }: { isSignedIn: boolean }) {
           >
             <StorefrontIcon name="search" />
           </Link>
-          <Link
-            aria-label={isSignedIn ? "Your account" : "Sign in to your account"}
-            className="icon-link icon-link--account"
-            href={isSignedIn ? "/account" : "/account/login"}
-          >
-            <StorefrontIcon name="user" />
-          </Link>
+          {isSignedIn ? (
+            <Link
+              aria-label="Your account"
+              className="icon-link icon-link--account"
+              href="/account"
+            >
+              <StorefrontIcon name="user" />
+            </Link>
+          ) : (
+            <Link className="site-header__login" href="/account/login">
+              <StorefrontIcon name="user" size={18} />
+              <span>Log in</span>
+            </Link>
+          )}
           <CartIndicator />
-          <details className="mobile-menu">
-            <summary aria-label="Navigation menu" className="icon-link mobile-menu__toggle">
-              <span aria-hidden="true" className="mobile-menu__bars" />
-            </summary>
-            <nav aria-label="Mobile navigation" className="mobile-menu__panel">
-              {navigation.map(({ href, label }) => (
-                <Link className="mobile-menu__link" href={href} key={href}>
-                  {label}
-                </Link>
-              ))}
-              <Link className="mobile-menu__link" href={isSignedIn ? "/account" : "/account/login"}>
-                {isSignedIn ? "Your account" : "Sign in"}
-              </Link>
-            </nav>
-          </details>
+          <MobileMenu isSignedIn={isSignedIn} />
         </div>
       </div>
     </header>

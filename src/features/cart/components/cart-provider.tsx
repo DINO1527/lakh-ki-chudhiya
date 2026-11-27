@@ -22,6 +22,7 @@ type CartContextValue = {
   items: CartItem[];
   count: number;
   hydrated: boolean;
+  syncsToAccount: boolean;
   syncState: "idle" | "saving" | "saved" | "error";
   addItem: (variantId: string, quantity?: number) => void;
   setQuantity: (variantId: string, quantity: number) => void;
@@ -130,9 +131,10 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
     (variantId: string, quantity = 1) => {
       invalidateCheckoutKey();
       markAccountCartPending();
+      if (customerId) setSyncState("saving");
       setItems((current) => mergeCartItems(current, [{ variantId, quantity }]));
     },
-    [invalidateCheckoutKey, markAccountCartPending],
+    [customerId, invalidateCheckoutKey, markAccountCartPending],
   );
 
   const setQuantity = useCallback(
@@ -179,6 +181,7 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
       items,
       count: items.reduce((total, item) => total + item.quantity, 0),
       hydrated,
+      syncsToAccount: customerId !== null,
       syncState,
       addItem,
       setQuantity,
@@ -186,7 +189,17 @@ export function CartProvider({ children, customerId, initialItems }: CartProvide
       removeItem,
       clearCart,
     }),
-    [items, hydrated, syncState, addItem, setQuantity, replaceItem, removeItem, clearCart],
+    [
+      customerId,
+      items,
+      hydrated,
+      syncState,
+      addItem,
+      setQuantity,
+      replaceItem,
+      removeItem,
+      clearCart,
+    ],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

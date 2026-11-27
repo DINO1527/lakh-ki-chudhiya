@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { CatalogueNotice } from "@/features/products/components/catalogue-notice";
 import { CataloguePagination } from "@/features/products/components/catalogue-pagination";
@@ -88,15 +89,21 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
 
           <form action="/shop" className="catalogue-filters shop-filters" method="get">
             <div className="shop-filters__heading">
-              <div>
-                <p className="eyebrow">Your way to browse</p>
-                <h2>Find a design</h2>
+              <div className="shop-filters__title">
+                <span aria-hidden="true" className="shop-filters__title-icon">
+                  <SlidersHorizontal size={19} strokeWidth={1.8} />
+                </span>
+                <span>
+                  <p className="eyebrow">Your way to browse</p>
+                  <h2>Find a design</h2>
+                </span>
               </div>
               {(filters.search ||
                 filters.collectionSlug ||
                 filters.sizeCode ||
                 filters.sort !== "featured") && (
-                <Link className="text-link" href="/shop">
+                <Link className="shop-filters__clear" href="/shop">
+                  <X aria-hidden="true" size={16} strokeWidth={1.8} />
                   Clear filters
                 </Link>
               )}
@@ -105,19 +112,23 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
               {filters.collectionSlug ? (
                 <input name="collection" type="hidden" value={filters.collectionSlug} />
               ) : null}
-              <div className="catalogue-filters__field">
+              <div className="catalogue-filters__field shop-search-field">
                 <label htmlFor="catalogue-search">Search designs</label>
-                <input
-                  autoComplete="off"
-                  defaultValue={filters.search}
-                  id="catalogue-search"
-                  maxLength={80}
-                  name="q"
-                  type="search"
-                />
+                <div className="shop-search-field__control">
+                  <Search aria-hidden="true" size={18} strokeWidth={1.8} />
+                  <input
+                    autoComplete="off"
+                    defaultValue={filters.search}
+                    id="catalogue-search"
+                    maxLength={80}
+                    name="q"
+                    placeholder="Colour, style, or name"
+                    type="search"
+                  />
+                </div>
               </div>
               <div className="catalogue-filters__field">
-                <label htmlFor="catalogue-size">Size</label>
+                <label htmlFor="catalogue-size">Available size</label>
                 <select defaultValue={filters.sizeCode} id="catalogue-size" name="size">
                   <option value="">All sizes</option>
                   {result.data.filterOptions.sizeCodes.map((sizeCode) => (
@@ -135,7 +146,8 @@ export default async function ShopPage({ searchParams }: ShopPageProps) {
                 </select>
               </div>
               <button className="button button--primary catalogue-filters__submit" type="submit">
-                Show designs
+                <Search aria-hidden="true" size={17} strokeWidth={1.9} />
+                Apply filters
               </button>
             </div>
           </form>

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { createSupabaseServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server";
@@ -87,24 +88,39 @@ export async function signOutCustomer(): Promise<never> {
 }
 
 export async function updateCustomerProfile(formData: FormData): Promise<never> {
-  const { supabase, user } = await requireCustomer("/account/profile");
+  const { supabase } = await requireCustomer("/account/profile");
   const fullName = formData.get("full_name");
   const phone = formData.get("phone");
+  const deliveryAddress = formData.get("delivery_address");
+  const deliveryCity = formData.get("delivery_city");
+  const deliveryPostalCode = formData.get("delivery_postal_code");
   if (
     typeof fullName !== "string" ||
     fullName.trim().length < 1 ||
     fullName.length > 120 ||
     typeof phone !== "string" ||
-    phone.length > 40
+    phone.length > 40 ||
+    typeof deliveryAddress !== "string" ||
+    deliveryAddress.length > 300 ||
+    typeof deliveryCity !== "string" ||
+    deliveryCity.length > 100 ||
+    typeof deliveryPostalCode !== "string" ||
+    deliveryPostalCode.length > 24 ||
+    Boolean(deliveryAddress.trim()) !== Boolean(deliveryCity.trim())
   ) {
     redirect("/account/profile?error=invalid");
   }
 
-  const { error } = await supabase
-    .from("customer_profiles")
-    .update({ full_name: fullName.trim(), phone: phone.trim() })
-    .eq("user_id", user.id);
+  const { error } = await supabase.rpc("save_customer_account_details", {
+    p_full_name: fullName.trim(),
+    p_phone: phone.trim(),
+    p_delivery_address: deliveryAddress.trim(),
+    p_delivery_city: deliveryCity.trim(),
+    p_delivery_postal_code: deliveryPostalCode.trim(),
+  });
   if (error) redirect("/account/profile?error=save");
+  revalidatePath("/account");
+  revalidatePath("/checkout");
   redirect("/account/profile?status=saved");
 }
 

@@ -11,11 +11,14 @@ export const metadata: Metadata = {
 
 export default async function AccountPage() {
   const { supabase, user } = await requireCustomer();
-  const { data: profile } = await supabase
-    .from("customer_profiles")
-    .select("full_name, phone")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  const [{ data: profile }, { data: address }] = await Promise.all([
+    supabase
+      .from("customer_profiles")
+      .select("full_name, phone")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabase.from("customer_default_addresses").select("city").eq("user_id", user.id).maybeSingle(),
+  ]);
 
   return (
     <main className="page-shell account-page" id="main-content">
@@ -30,7 +33,11 @@ export default async function AccountPage() {
         </Link>
         <Link className="account-card" href="/account/profile">
           <strong>Profile</strong>
-          <span>{profile?.phone || "Add a contact number for checkout."}</span>
+          <span>
+            {address?.city
+              ? "Delivery address saved for " + address.city
+              : profile?.phone || "Add contact and delivery details for checkout."}
+          </span>
         </Link>
         <Link className="account-card" href="/account/security">
           <strong>Account security</strong>
