@@ -58,11 +58,7 @@ export default async function AdminReviewsPage({
 
   return (
     <>
-      <AdminPageHeader
-        eyebrow="Customer feedback"
-        title="Reviews"
-        description="Check verified customer comments before they appear on product pages."
-      />
+      <AdminPageHeader eyebrow="Customer feedback" title="Reviews" />
       {saved === "approved" ? (
         <AdminNotice tone="success">Review approved and published.</AdminNotice>
       ) : null}

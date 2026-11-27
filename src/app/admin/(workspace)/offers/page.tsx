@@ -1,7 +1,13 @@
 import Image from "next/image";
-import { AdminNotice, AdminPageHeader, StatusBadge } from "@/features/admin/components/admin-ui";
+import {
+  AdminNotice,
+  AdminPageHeader,
+  AdminSectionHeading,
+  StatusBadge,
+} from "@/features/admin/components/admin-ui";
 import { AdminDialog } from "@/features/admin/components/admin-dialog";
 import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
+import { AdminStatusSwitch } from "@/features/admin/components/admin-status-switch";
 import { ConfirmButton } from "@/features/admin/components/confirm-button";
 import { ImageUploadPreview } from "@/features/admin/components/image-upload-preview";
 import { AdminPagination } from "@/features/admin/components/admin-pagination";
@@ -10,6 +16,7 @@ import {
   archiveOfferBanner,
   publishOfferBanner,
   updateOfferBanner,
+  toggleOfferPublication,
   uploadOfferBanner,
 } from "@/features/admin/server/commerce-actions";
 import { OfferForm, type OfferFormValues } from "@/features/promotions/components/offer-form";
@@ -94,11 +101,15 @@ export default async function AdminOffersPage({
 
   return (
     <>
-      <AdminPageHeader
-        eyebrow="Promotions"
-        title="Offers"
-        description="Create product or collection offers. Checkout calculates the discount again from current server data."
-      />
+      <AdminPageHeader eyebrow="Promotions" title="Offers" />
+      {params.changed === "enabled" ? (
+        <AdminNotice tone="success">
+          Offer enabled. Checkout will apply it when eligible.
+        </AdminNotice>
+      ) : null}
+      {params.changed === "disabled" ? (
+        <AdminNotice tone="success">Offer disabled.</AdminNotice>
+      ) : null}
       {saved ? <AdminNotice tone="success">Offer saved.</AdminNotice> : null}
       {bannerFlash ? (
         <AdminNotice tone="success">
@@ -115,13 +126,21 @@ export default async function AdminOffersPage({
         <AdminNotice tone="error">
           {error === "banner_required"
             ? "Publish an offer banner before enabling this offer."
-            : error === "banner_active"
-              ? "Disable the offer before archiving its only published banner."
-              : error === "banner_exists"
-                ? "This offer already has a banner. Archive it before adding a replacement."
-                : error.startsWith("banner_")
-                  ? "Offer banner could not be saved. Check the image type, size and required text."
-                  : "Offer could not be saved. Check its target, discount and schedule."}
+            : error === "target_required"
+              ? "Publish the selected product or collection before enabling this offer."
+              : error === "target_check"
+                ? "The selected target could not be checked. Refresh the list and try again."
+                : error === "banner_active"
+                  ? "Disable the offer before archiving its only published banner."
+                  : error === "banner_exists"
+                    ? "This offer already has a banner. Archive it before adding a replacement."
+                    : error === "missing_record"
+                      ? "This offer is no longer available. Refresh the list."
+                      : error === "toggle"
+                        ? "Offer availability could not be changed. Refresh the list and retry."
+                        : error.startsWith("banner_")
+                          ? "Offer banner could not be saved. Check the image type, size and required text."
+                          : "Offer could not be saved. Check its target, discount and schedule."}
         </AdminNotice>
       ) : null}
       {queryError ? (
@@ -129,22 +148,16 @@ export default async function AdminOffersPage({
       ) : null}
 
       <section aria-labelledby="new-offer-heading" className="admin-panel">
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">New promotion</p>
-            <h2 id="new-offer-heading">Create an offer</h2>
-          </div>
-        </div>
+        <AdminSectionHeading
+          eyebrow="New promotion"
+          id="new-offer-heading"
+          title="Create an offer"
+        />
         <OfferForm collections={collectionTargets} products={productTargets} />
       </section>
 
       <section aria-labelledby="offer-list-heading" className="admin-panel">
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">Saved rules</p>
-            <h2 id="offer-list-heading">Offer list</h2>
-          </div>
-        </div>
+        <AdminSectionHeading eyebrow="Saved rules" id="offer-list-heading" title="Offer list" />
         <AdminSearchForm
           action="/admin/offers"
           label="Search offers"
@@ -173,6 +186,11 @@ export default async function AdminOffersPage({
                 isEnabled: offer.is_enabled,
               };
               const banner = bannerByOffer.get(offer.id);
+              const targetIsPublished =
+                (targetType === "product" ? productTargets : collectionTargets).find(
+                  (target) => target.id === targetId,
+                )?.isPublished ?? false;
+              const canEnable = banner?.status === "published" && targetIsPublished;
               return (
                 <article className="admin-offer-card" key={offer.id}>
                   {banner?.signedUrl ? (
@@ -201,7 +219,35 @@ export default async function AdminOffersPage({
                         {formatPercent(offer.discount_basis_points)}% off
                       </p>
                     </div>
-                    <StatusBadge>{offer.is_enabled ? "on" : "off"}</StatusBadge>
+                    <div className="admin-offer-card__availability">
+                      <AdminStatusSwitch
+                        action={toggleOfferPublication}
+                        checked={offer.is_enabled}
+                        disabled={!offer.is_enabled && !canEnable}
+                        disabledHint={
+                          !offer.is_enabled && !canEnable
+                            ? banner?.status !== "published"
+                              ? "Publish a banner first."
+                              : "Publish the target first."
+                            : undefined
+                        }
+                        fields={{
+                          offer_id: offer.id,
+                          next_enabled: String(!offer.is_enabled),
+                          return_q: search,
+                          return_page: String(pageNumber),
+                        }}
+                        label={`${offer.is_enabled ? "Disable" : "Enable"} ${offer.name}`}
+                        message={
+                          offer.is_enabled
+                            ? `Disable ${offer.name}? Checkout will stop applying this offer.`
+                            : `Enable ${offer.name}? Checkout may apply it when the target, schedule and minimum quantity match.`
+                        }
+                        offLabel="Disabled"
+                        onLabel="Enabled"
+                        submitLabel={offer.is_enabled ? "Disable offer" : "Enable offer"}
+                      />
+                    </div>
                   </div>
                   <AdminDialog
                     description="Update the target, minimum set count, discount and availability schedule."

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { getAdminNavigationGroups, isAdminNavigationItemActive } from "./admin-navigation-state";
 
 const iconPaths: Readonly<Record<string, string>> = {
@@ -24,50 +26,96 @@ const iconPaths: Readonly<Record<string, string>> = {
 };
 
 export function AdminNavigation({
+  id,
   isOwner,
   isCollapsed,
-}: Readonly<{ isOwner: boolean; isCollapsed: boolean }>) {
+  isMobile = false,
+}: Readonly<{ id: string; isOwner: boolean; isCollapsed: boolean; isMobile?: boolean }>) {
   const pathname = usePathname() ?? "/admin";
+  const groups = getAdminNavigationGroups(isOwner);
+  const activeGroup =
+    groups.find((group) =>
+      group.items.some((item) => isAdminNavigationItemActive(pathname, item.href)),
+    )?.label ?? groups[0]?.label;
+  const [openGroupState, setOpenGroupState] = useState<{
+    pathname: string;
+    label: string | undefined;
+  }>({ pathname, label: activeGroup });
+  const openGroup = openGroupState.pathname === pathname ? openGroupState.label : activeGroup;
 
   return (
-    <nav aria-label="Admin navigation" className="admin-navigation">
-      {getAdminNavigationGroups(isOwner).map((group) => (
-        <div className="admin-navigation__group" key={group.label}>
-          <h2 className="admin-navigation__group-title">{group.label}</h2>
-          <ul className="admin-navigation__list">
-            {group.items.map((item) => {
-              const isCurrent = isAdminNavigationItemActive(pathname, item.href);
-              return (
-                <li key={item.href}>
-                  <Link
-                    aria-current={isCurrent ? "page" : undefined}
-                    aria-label={isCollapsed ? item.label : undefined}
-                    className="admin-navigation__link"
-                    href={item.href}
-                    title={isCollapsed ? item.label : undefined}
-                  >
-                    <svg
-                      aria-hidden="true"
-                      className="admin-navigation__icon"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        d={iconPaths[item.label] ?? "M4 12h16M12 4v16"}
-                        stroke="currentColor"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="1.65"
-                      />
-                    </svg>
-                    <span className="admin-navigation__label">{item.label}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+    <nav aria-label="Admin navigation" className="admin-navigation" id={id}>
+      {groups.map((group) => {
+        const items = group.items.map((item) => {
+          const isCurrent = isAdminNavigationItemActive(pathname, item.href);
+          return (
+            <li key={item.href}>
+              <Link
+                aria-current={isCurrent ? "page" : undefined}
+                aria-label={isCollapsed ? item.label : undefined}
+                className="admin-navigation__link"
+                href={item.href}
+                title={isCollapsed ? item.label : undefined}
+              >
+                <svg
+                  aria-hidden="true"
+                  className="admin-navigation__icon"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d={iconPaths[item.label] ?? "M4 12h16M12 4v16"}
+                    stroke="currentColor"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="1.65"
+                  />
+                </svg>
+                <span className="admin-navigation__label">{item.label}</span>
+              </Link>
+            </li>
+          );
+        });
+
+        if (isMobile) {
+          const isOpen = openGroup === group.label;
+          const groupId = `${id}-${group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+          return (
+            <section
+              className="admin-navigation__group admin-navigation__group--mobile"
+              key={group.label}
+            >
+              <button
+                aria-controls={groupId}
+                aria-expanded={isOpen}
+                className="admin-navigation__group-toggle"
+                onClick={() =>
+                  setOpenGroupState({ pathname, label: isOpen ? undefined : group.label })
+                }
+                type="button"
+              >
+                <span>{group.label}</span>
+                <ChevronDown aria-hidden="true" size={17} strokeWidth={1.8} />
+              </button>
+              <ul
+                className="admin-navigation__list admin-navigation__list--mobile"
+                hidden={!isOpen}
+                id={groupId}
+              >
+                {items}
+              </ul>
+            </section>
+          );
+        }
+
+        return (
+          <div className="admin-navigation__group" key={group.label}>
+            <h2 className="admin-navigation__group-title">{group.label}</h2>
+            <ul className="admin-navigation__list">{items}</ul>
+          </div>
+        );
+      })}
     </nav>
   );
 }

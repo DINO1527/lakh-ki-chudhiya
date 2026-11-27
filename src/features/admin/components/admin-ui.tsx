@@ -6,16 +6,33 @@ export function AdminPageHeader({
   title,
   description,
   action,
-}: Readonly<{ eyebrow: string; title: string; description: string; action?: ReactNode }>) {
+}: Readonly<{ eyebrow: string; title: string; description?: string; action?: ReactNode }>) {
   return (
     <header className="admin-page-header">
       <div>
         <p className="admin-eyebrow">{eyebrow}</p>
         <h1>{title}</h1>
-        <p className="admin-page-header__description">{description}</p>
+        {description ? <p className="admin-page-header__description">{description}</p> : null}
       </div>
       {action ? <div className="admin-page-header__action">{action}</div> : null}
     </header>
+  );
+}
+
+export function AdminSectionHeading({
+  eyebrow,
+  title,
+  id,
+  action,
+}: Readonly<{ eyebrow: string; title: string; id?: string; action?: ReactNode }>) {
+  return (
+    <div className="admin-section-heading">
+      <div>
+        <p className="admin-eyebrow">{eyebrow}</p>
+        <h2 id={id}>{title}</h2>
+      </div>
+      {action ? <div className="admin-section-heading__action">{action}</div> : null}
+    </div>
   );
 }
 

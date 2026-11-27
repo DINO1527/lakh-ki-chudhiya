@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { ArrowDownUp, ClipboardList } from "lucide-react";
 import {
   AdminNotice,
   AdminPageHeader,
+  AdminSectionHeading,
   StatusBadge,
   formatAdminDate,
 } from "@/features/admin/components/admin-ui";
@@ -12,6 +14,7 @@ import { ConfirmButton } from "@/features/admin/components/confirm-button";
 import { adjustInventory } from "@/features/admin/server/inventory-actions";
 import { requireStaff } from "@/features/admin/server/access";
 import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
+import { AdminFieldLabel } from "@/features/admin/components/admin-field-label";
 
 const PAGE_SIZE = 25;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -62,7 +65,14 @@ export default async function AdminInventoryPage({
       ...(movementResult.data ?? []).map((movement) => movement.variant_id),
     ]),
   ];
-  const [productResult, variantLookupResult] = await Promise.all([
+  const actorIds = [
+    ...new Set(
+      (movementResult.data ?? []).flatMap((movement) =>
+        movement.actor_user_id ? [movement.actor_user_id] : [],
+      ),
+    ),
+  ];
+  const [productResult, variantLookupResult, actorEmailsResult] = await Promise.all([
     supabase
       .from("products")
       .select("id, title, slug")
@@ -77,6 +87,9 @@ export default async function AdminInventoryPage({
           .from("product_variants")
           .select("id, product_id, sku, size_code")
           .in("id", relevantIds)
+      : Promise.resolve({ data: [], error: null }),
+    actorIds.length
+      ? supabase.rpc("get_admin_actor_emails", { p_user_ids: actorIds })
       : Promise.resolve({ data: [], error: null }),
   ]);
   if (variantsResult.error)
@@ -95,9 +108,14 @@ export default async function AdminInventoryPage({
       "product_variants",
       variantLookupResult.error.code,
     );
+  if (actorEmailsResult.error)
+    logAdminQueryFailure("loadInventoryActorEmails", "staff_members", actorEmailsResult.error.code);
   const productById = new Map((productResult.data ?? []).map((product) => [product.id, product]));
   const variantById = new Map(
     (variantLookupResult.data ?? []).map((variant) => [variant.id, variant]),
+  );
+  const actorEmailById = new Map(
+    (actorEmailsResult.data ?? []).map((actor) => [actor.user_id, actor.email]),
   );
   const returnProduct = returnProductId ? productById.get(returnProductId) : undefined;
 
@@ -106,7 +124,6 @@ export default async function AdminInventoryPage({
       <AdminPageHeader
         eyebrow="Stock control"
         title="Inventory"
-        description="Manage how many complete sets are physically in stock for each size. Every change needs a reason and is recorded."
         action={
           <Link
             className="admin-button admin-button--quiet"
@@ -139,19 +156,16 @@ export default async function AdminInventoryPage({
         <AdminNotice tone="error">Some inventory data could not be loaded.</AdminNotice>
       ) : null}
       <AdminNotice>
-        Available stock is on hand minus reserved. Orders reserve stock when confirmed, dispatch
-        consumes it, and cancellation before dispatch releases it. Carts and pending orders do not
-        reserve stock. Enter a positive change to add complete sets or a negative change to remove
-        them; changes below the reserved quantity are rejected.
+        Available = on hand − reserved. Confirmed orders reserve sets; dispatch consumes them, and
+        pre-dispatch cancellation releases them. Adjustments cannot go below reserved stock.
       </AdminNotice>
 
       <section aria-labelledby="inventory-list-heading" className="admin-panel">
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">Per-variant quantities</p>
-            <h2 id="inventory-list-heading">Stock by SKU</h2>
-          </div>
-        </div>
+        <AdminSectionHeading
+          eyebrow="Per-variant quantities"
+          id="inventory-list-heading"
+          title="Stock by SKU"
+        />
         <AdminSearchForm
           action="/admin/inventory"
           hasFilters={unavailableOnly}
@@ -170,7 +184,7 @@ export default async function AdminInventoryPage({
           </label>
         </AdminSearchForm>
         {variantRows.length ? (
-          <div className="admin-table-wrap">
+          <div className="admin-table-wrap admin-table-wrap--cards">
             <table className="admin-table admin-inventory-table">
               <caption className="admin-sr-only">
                 On-hand stock, reserved quantities and adjustments by product variant
@@ -208,19 +222,20 @@ export default async function AdminInventoryPage({
                           {variant.is_active ? "Active" : "Inactive"}
                         </span>
                       </th>
-                      <td>{variant.stock_on_hand}</td>
-                      <td>{variant.reserved_quantity}</td>
-                      <td>
+                      <td data-label="On hand">{variant.stock_on_hand}</td>
+                      <td data-label="Reserved">{variant.reserved_quantity}</td>
+                      <td data-label="Available">
                         <StatusBadge>
                           {variant.is_available
                             ? String(variant.stock_on_hand - variant.reserved_quantity)
                             : "Unavailable"}
                         </StatusBadge>
                       </td>
-                      <td>
+                      <td data-label="Actions">
                         <AdminDialog
                           description="Adjust complete sets by a positive or negative amount. The reason is added to the stock audit trail."
                           title={`Adjust ${variant.sku}`}
+                          triggerAriaLabel={`Adjust stock for ${variant.sku}`}
                           triggerLabel="Adjust stock"
                           triggerClassName="admin-button admin-button--secondary admin-button--compact"
                         >
@@ -235,7 +250,7 @@ export default async function AdminInventoryPage({
                             ) : null}
                             <input name="return_sku" type="hidden" value={variant.sku} />
                             <label className="admin-field">
-                              <span>Quantity change</span>
+                              <AdminFieldLabel icon={ArrowDownUp}>Quantity change</AdminFieldLabel>
                               <input
                                 aria-describedby={`quantity-help-${variant.id}`}
                                 inputMode="numeric"
@@ -253,7 +268,7 @@ export default async function AdminInventoryPage({
                               </small>
                             </label>
                             <label className="admin-field">
-                              <span>Reason</span>
+                              <AdminFieldLabel icon={ClipboardList}>Reason</AdminFieldLabel>
                               <input
                                 maxLength={500}
                                 minLength={1}
@@ -265,7 +280,7 @@ export default async function AdminInventoryPage({
                             <ConfirmButton
                               className="admin-button admin-button--primary"
                               formAction={adjustInventory}
-                              message="Record this stock change in the inventory history?"
+                              message={`Record the stock adjustment for ${variant.sku}?`}
                             >
                               Review stock adjustment
                             </ConfirmButton>
@@ -294,14 +309,13 @@ export default async function AdminInventoryPage({
       </section>
 
       <section aria-labelledby="inventory-history-heading" className="admin-panel">
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">Audit trail</p>
-            <h2 id="inventory-history-heading">Recent stock movements</h2>
-          </div>
-        </div>
+        <AdminSectionHeading
+          eyebrow="Audit trail"
+          id="inventory-history-heading"
+          title="Recent stock movements"
+        />
         {movementResult.data?.length ? (
-          <div className="admin-table-wrap">
+          <div className="admin-table-wrap admin-table-wrap--cards">
             <table className="admin-table">
               <caption className="admin-sr-only">Most recent inventory adjustments</caption>
               <thead>
@@ -318,15 +332,17 @@ export default async function AdminInventoryPage({
                   const variant = variantById.get(movement.variant_id);
                   return (
                     <tr key={movement.id}>
-                      <td>{formatAdminDate(movement.created_at)}</td>
-                      <td>{variant?.sku ?? "SKU no longer available"}</td>
-                      <td>
+                      <td data-label="Time">{formatAdminDate(movement.created_at)}</td>
+                      <td data-label="SKU">{variant?.sku ?? "SKU no longer available"}</td>
+                      <td data-label="Change">
                         {movement.on_hand_delta > 0 ? "+" : ""}
                         {movement.on_hand_delta}
                       </td>
-                      <td>{movement.reason}</td>
-                      <td>
-                        <code>{movement.actor_user_id ?? "Account removed"}</code>
+                      <td data-label="Reason">{movement.reason}</td>
+                      <td data-label="Actor">
+                        {movement.actor_user_id
+                          ? (actorEmailById.get(movement.actor_user_id) ?? "Staff account")
+                          : "Account removed"}
                       </td>
                     </tr>
                   );

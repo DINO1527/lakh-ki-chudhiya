@@ -20,11 +20,12 @@ export function AdminSubmitButton({
   name?: string;
   value?: string;
 }>) {
-  const { pending } = useFormStatus();
+  const { action, pending } = useFormStatus();
+  const isThisActionPending = pending && (!formAction || action === formAction);
 
   return (
     <button
-      aria-busy={pending || undefined}
+      aria-busy={isThisActionPending || undefined}
       className={className}
       disabled={disabled || pending}
       formAction={formAction}
@@ -32,8 +33,8 @@ export function AdminSubmitButton({
       type="submit"
       value={value}
     >
-      {pending ? <span aria-hidden="true" className="admin-button__spinner" /> : null}
-      <span>{pending ? pendingLabel : children}</span>
+      {isThisActionPending ? <span aria-hidden="true" className="admin-button__spinner" /> : null}
+      <span>{isThisActionPending ? pendingLabel : children}</span>
     </button>
   );
 }

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Search, X } from "lucide-react";
 import type { ReactNode } from "react";
 
 export function AdminSearchForm({
@@ -33,10 +34,12 @@ export function AdminSearchForm({
       </div>
       <div className="admin-filter__actions">
         <button className="admin-button admin-button--secondary" type="submit">
+          <Search aria-hidden="true" className="admin-button__icon" size={16} strokeWidth={1.8} />
           Search
         </button>
         {query || hasFilters ? (
-          <Link className="admin-text-link" href={action}>
+          <Link className="admin-text-link admin-filter__clear" href={action}>
+            <X aria-hidden="true" size={15} strokeWidth={1.8} />
             Clear
           </Link>
         ) : null}

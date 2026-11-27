@@ -1,15 +1,32 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AdminNotice, AdminPageHeader, StatusBadge } from "@/features/admin/components/admin-ui";
+import {
+  ChevronDown,
+  Eye,
+  FileText,
+  Image as ImageIcon,
+  Link2,
+  ListOrdered,
+  Tag,
+} from "lucide-react";
+import {
+  AdminNotice,
+  AdminPageHeader,
+  AdminSectionHeading,
+  StatusBadge,
+} from "@/features/admin/components/admin-ui";
 import { AdminDialog } from "@/features/admin/components/admin-dialog";
 import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
+import { AdminStatusSwitch } from "@/features/admin/components/admin-status-switch";
 import { ImageUploadPreview } from "@/features/admin/components/image-upload-preview";
 import { ConfirmButton } from "@/features/admin/components/confirm-button";
 import { AdminPagination } from "@/features/admin/components/admin-pagination";
 import { AdminSearchForm } from "@/features/admin/components/admin-search-form";
+import { AdminFieldLabel } from "@/features/admin/components/admin-field-label";
 import {
   archiveCollectionImage,
   saveCollection,
+  toggleCollectionPublication,
   updateCollectionImage,
   uploadCollectionImage,
 } from "@/features/admin/server/collection-actions";
@@ -23,6 +40,7 @@ export default async function AdminCollectionsPage({
 }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const [params, { supabase }] = await Promise.all([searchParams, requireStaff()]);
   const createdId = Array.isArray(params.created) ? params.created[0] : params.created;
+  const openCollectionId = Array.isArray(params.open) ? params.open[0] : params.open;
   const rawPage = Array.isArray(params.page) ? params.page[0] : params.page;
   const pageNumber = rawPage && /^[0-9]{1,5}$/.test(rawPage) ? Math.max(1, Number(rawPage)) : 1;
   const rawSearch = Array.isArray(params.q) ? params.q[0] : params.q;
@@ -101,13 +119,22 @@ export default async function AdminCollectionsPage({
       <AdminPageHeader
         eyebrow="Catalogue"
         title="Collections"
-        description="Group related products for shoppers. A collection stays private until you publish it."
         action={
           <Link className="admin-button admin-button--primary" href="#new-collection">
             Create collection
           </Link>
         }
       />
+      {params.changed === "published" ? (
+        <AdminNotice tone="success">
+          Collection published and visible in the storefront.
+        </AdminNotice>
+      ) : null}
+      {params.changed === "draft" ? (
+        <AdminNotice tone="success">
+          Collection moved to drafts and hidden from shoppers.
+        </AdminNotice>
+      ) : null}
       {createdId ? (
         <AdminNotice tone="success">
           Draft created. Add its images, then set visibility to Published and save to show it in the
@@ -119,13 +146,17 @@ export default async function AdminCollectionsPage({
       ) : null}
       {params.error ? (
         <AdminNotice tone="error">
-          {params.error === "image_required"
-            ? "Add at least one image before publishing this collection."
-            : params.error === "last_image"
-              ? "Keep one published image on a published collection. Move the collection to draft or archive first to remove the last image."
-              : params.error === "image_limit"
-                ? "A collection can have up to 20 active images. Archive one before adding another."
-                : "Collection changes were not saved. Check the form values and retry. If the error continues, ask an owner to review database access."}
+          {params.error === "permission"
+            ? "Your staff access does not allow this change. Ask the store owner to check your role."
+            : params.error === "missing_record"
+              ? "This collection is no longer available. Refresh the list."
+              : params.error === "image_required"
+                ? "Add at least one image before publishing this collection."
+                : params.error === "last_image"
+                  ? "Keep one published image on a published collection. Move the collection to draft or archive first to remove the last image."
+                  : params.error === "image_limit"
+                    ? "A collection can have up to 20 active images. Archive one before adding another."
+                    : "Collection changes were not saved. Check the form values and retry. If the error continues, ask an owner to review database access."}
         </AdminNotice>
       ) : null}
       {params.image === "uploaded" ? (
@@ -144,37 +175,35 @@ export default async function AdminCollectionsPage({
       ) : null}
 
       <section aria-labelledby="new-collection-heading" className="admin-panel" id="new-collection">
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">Step 1 · Create</p>
-            <h2 id="new-collection-heading">Create a collection</h2>
-          </div>
-        </div>
+        <AdminSectionHeading
+          eyebrow="Step 1 · Create"
+          id="new-collection-heading"
+          title="Create a collection"
+        />
         <p className="admin-muted">
-          Begin with a name. Add collection images here, then assign products from each
-          product&apos;s editor.
+          Create the collection first, then add images and assign products.
         </p>
         <form action={saveCollection} className="admin-form">
           <input name="collection_id" type="hidden" value="" />
           <label className="admin-field">
-            <span>Collection name</span>
+            <AdminFieldLabel icon={Tag}>Collection name</AdminFieldLabel>
             <input maxLength={120} minLength={1} name="name" required />
           </label>
           <details className="admin-form-details">
             <summary>Add optional details now</summary>
             <div className="admin-form-details__content">
               <label className="admin-field">
-                <span>
+                <AdminFieldLabel icon={Link2}>
                   URL slug <small>Leave blank to derive it from the name.</small>
-                </span>
+                </AdminFieldLabel>
                 <input maxLength={100} name="slug" />
               </label>
               <label className="admin-field">
-                <span>Description</span>
+                <AdminFieldLabel icon={FileText}>Description</AdminFieldLabel>
                 <textarea maxLength={2_000} name="description" rows={3} />
               </label>
               <label className="admin-field">
-                <span>Display order</span>
+                <AdminFieldLabel icon={ListOrdered}>Display order</AdminFieldLabel>
                 <input
                   defaultValue="0"
                   max="2147483647"
@@ -197,12 +226,11 @@ export default async function AdminCollectionsPage({
         className="admin-panel"
         id="existing-collections"
       >
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">Step 2 · Images and visibility</p>
-            <h2 id="existing-collections-heading">Existing collections</h2>
-          </div>
-        </div>
+        <AdminSectionHeading
+          eyebrow="Step 2 · Images and visibility"
+          id="existing-collections-heading"
+          title="Existing collections"
+        />
         <AdminSearchForm
           action="/admin/collections"
           label="Search collections"
@@ -216,7 +244,7 @@ export default async function AdminCollectionsPage({
                 className="admin-collection"
                 id={`collection-${collection.id}`}
                 key={collection.id}
-                open={createdId === collection.id}
+                open={createdId === collection.id || openCollectionId === collection.id}
               >
                 <summary>
                   <div className="admin-collection__summary">
@@ -246,19 +274,60 @@ export default async function AdminCollectionsPage({
                       </span>
                     </span>
                   </div>
-                  <span>Edit collection</span>
+                  <span className="admin-collection__toggle">
+                    Manage collection
+                    <ChevronDown aria-hidden="true" size={18} strokeWidth={1.8} />
+                  </span>
                 </summary>
                 <div className="admin-collection__actions">
+                  {collection.status !== "archived" ? (
+                    <AdminStatusSwitch
+                      action={toggleCollectionPublication}
+                      checked={collection.status === "published"}
+                      disabled={
+                        collection.status === "draft" &&
+                        !(imagesByCollectionId.get(collection.id) ?? []).some(
+                          (image) => image.status !== "archived",
+                        )
+                      }
+                      disabledHint={
+                        collection.status === "draft" &&
+                        !(imagesByCollectionId.get(collection.id) ?? []).some(
+                          (image) => image.status !== "archived",
+                        )
+                          ? "Add an image before publishing."
+                          : undefined
+                      }
+                      fields={{
+                        collection_id: collection.id,
+                        next_status: collection.status === "published" ? "draft" : "published",
+                        return_q: search,
+                        return_page: String(pageNumber),
+                      }}
+                      label={`${collection.status === "published" ? "Move" : "Publish"} ${collection.name} ${collection.status === "published" ? "to drafts" : "collection"}`}
+                      message={
+                        collection.status === "published"
+                          ? `Move ${collection.name} back to drafts? It will no longer appear in the storefront.`
+                          : `Publish ${collection.name}? Its active images will be visible in the storefront.`
+                      }
+                      offLabel="Draft"
+                      onLabel="Published"
+                      submitLabel={
+                        collection.status === "published" ? "Move to drafts" : "Publish collection"
+                      }
+                    />
+                  ) : null}
                   <AdminDialog
                     description="Update the collection name, public URL, description, order and visibility."
                     title={collection.name}
+                    triggerAriaLabel={`Edit collection ${collection.name}`}
                     triggerLabel="Edit collection"
                   >
                     <form action={saveCollection} className="admin-form">
                       <input name="collection_id" type="hidden" value={collection.id} />
                       <div className="admin-form__row">
                         <label className="admin-field">
-                          <span>Name</span>
+                          <AdminFieldLabel icon={Tag}>Name</AdminFieldLabel>
                           <input
                             defaultValue={collection.name}
                             maxLength={120}
@@ -268,7 +337,7 @@ export default async function AdminCollectionsPage({
                           />
                         </label>
                         <label className="admin-field">
-                          <span>Slug</span>
+                          <AdminFieldLabel icon={Link2}>Slug</AdminFieldLabel>
                           <input
                             defaultValue={collection.slug}
                             maxLength={100}
@@ -279,7 +348,7 @@ export default async function AdminCollectionsPage({
                         </label>
                       </div>
                       <label className="admin-field">
-                        <span>Description</span>
+                        <AdminFieldLabel icon={FileText}>Description</AdminFieldLabel>
                         <textarea
                           defaultValue={collection.description}
                           maxLength={2_000}
@@ -289,7 +358,7 @@ export default async function AdminCollectionsPage({
                       </label>
                       <div className="admin-form__row admin-form__row--small">
                         <label className="admin-field">
-                          <span>Display order</span>
+                          <AdminFieldLabel icon={ListOrdered}>Display order</AdminFieldLabel>
                           <input
                             defaultValue={collection.sort_order}
                             max="2147483647"
@@ -300,7 +369,7 @@ export default async function AdminCollectionsPage({
                           />
                         </label>
                         <label className="admin-field">
-                          <span>Visibility</span>
+                          <AdminFieldLabel icon={Eye}>Visibility</AdminFieldLabel>
                           <select defaultValue={collection.status} name="status">
                             <option value="draft">Draft</option>
                             <option value="published">Published</option>
@@ -318,20 +387,21 @@ export default async function AdminCollectionsPage({
                   <AdminDialog
                     description="Choose a real collection image and preview it before uploading."
                     title={`Add photo to ${collection.name}`}
+                    triggerAriaLabel={`Add a photo to ${collection.name}`}
                     triggerLabel="Add photo"
                   >
                     <form action={uploadCollectionImage} className="admin-form">
                       <input name="collection_id" type="hidden" value={collection.id} />
                       <ImageUploadPreview />
                       <label className="admin-field">
-                        <span>Alternative text</span>
+                        <AdminFieldLabel icon={ImageIcon}>Alternative text</AdminFieldLabel>
                         <input maxLength={250} minLength={1} name="alt_text" required />
                         <small>
                           Describe the collection image for shoppers using assistive technology.
                         </small>
                       </label>
                       <label className="admin-field">
-                        <span>Photo order</span>
+                        <AdminFieldLabel icon={ListOrdered}>Photo order</AdminFieldLabel>
                         <input
                           defaultValue="0"
                           max="2147483647"
@@ -373,13 +443,14 @@ export default async function AdminCollectionsPage({
                           <AdminDialog
                             description="Adjust accessible text and the photo order for this collection."
                             title="Edit collection photo"
+                            triggerAriaLabel={`Edit a photo for ${collection.name}`}
                             triggerLabel="Edit photo"
                           >
                             <form action={updateCollectionImage} className="admin-form">
                               <input name="collection_id" type="hidden" value={collection.id} />
                               <input name="media_id" type="hidden" value={item.id} />
                               <label className="admin-field">
-                                <span>Alternative text</span>
+                                <AdminFieldLabel icon={ImageIcon}>Alternative text</AdminFieldLabel>
                                 <input
                                   defaultValue={item.alt_text}
                                   maxLength={250}
@@ -389,7 +460,7 @@ export default async function AdminCollectionsPage({
                                 />
                               </label>
                               <label className="admin-field">
-                                <span>Photo order</span>
+                                <AdminFieldLabel icon={ListOrdered}>Photo order</AdminFieldLabel>
                                 <input
                                   defaultValue={item.sort_order}
                                   max="2147483647"
@@ -411,6 +482,7 @@ export default async function AdminCollectionsPage({
                                 className="admin-button admin-button--quiet"
                                 formAction={archiveCollectionImage}
                                 message="Archive this image? It will stop being shown publicly."
+                                triggerAriaLabel={`Archive a photo for ${collection.name}`}
                               >
                                 Archive image
                               </ConfirmButton>

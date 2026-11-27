@@ -61,7 +61,6 @@ export default async function PrivateProductPreviewPage({
       <AdminPageHeader
         eyebrow="Private draft preview"
         title={productResult.data.title}
-        description="This page is visible only to signed-in staff. Signed image links expire after five minutes."
         action={
           <Link className="admin-button admin-button--secondary" href={`/admin/products/${id}`}>
             Back to editor
