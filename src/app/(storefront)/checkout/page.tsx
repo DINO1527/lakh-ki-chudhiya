@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { CommerceSteps } from "@/features/cart/components/commerce-steps";
-import { CheckoutForm } from "@/features/orders/components/checkout-form";
+import { CheckoutForm, type CheckoutPrefill } from "@/features/orders/components/checkout-form";
 import { createSupabaseServerClient, isSupabaseServerConfigured } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +11,34 @@ export const metadata: Metadata = {
 
 export default async function CheckoutPage() {
   let isSignedIn = false;
+  let initialValues: CheckoutPrefill | undefined;
   if (isSupabaseServerConfigured()) {
     const supabase = await createSupabaseServerClient();
     const { data } = await supabase.auth.getUser();
-    isSignedIn = Boolean(data.user);
+    const user = data.user;
+    isSignedIn = Boolean(user);
+    if (user) {
+      const [{ data: profile }, { data: address }] = await Promise.all([
+        supabase
+          .from("customer_profiles")
+          .select("full_name, phone")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("customer_default_addresses")
+          .select("address, city, postal_code")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
+      initialValues = {
+        customerName: profile?.full_name ?? "",
+        customerEmail: user.email ?? "",
+        customerPhone: profile?.phone ?? "",
+        deliveryAddress: address?.address ?? "",
+        deliveryCity: address?.city ?? "",
+        deliveryPostalCode: address?.postal_code ?? "",
+      };
+    }
   }
 
   return (
@@ -26,7 +50,7 @@ export default async function CheckoutPage() {
         staff confirm your order.
       </p>
       <CommerceSteps current="delivery" />
-      <CheckoutForm isSignedIn={isSignedIn} />
+      <CheckoutForm initialValues={initialValues} isSignedIn={isSignedIn} />
     </main>
   );
 }

@@ -9,20 +9,17 @@ import {
   GUEST_ORDER_ACCESS_COOKIE,
   hashGuestOrderAccessToken,
 } from "@/features/orders/server/guest-access";
+import {
+  validateCheckoutDetails,
+  type CheckoutDetails,
+} from "@/features/orders/domain/checkout-validation";
 import type { CartQuote } from "@/features/cart/domain/cart";
 
 export const dynamic = "force-dynamic";
 
-type CheckoutBody = {
+type CheckoutBody = CheckoutDetails & {
   items: unknown;
   idempotencyKey: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  deliveryAddress: string;
-  deliveryCity: string;
-  deliveryPostalCode: string;
-  deliveryNote: string;
   paymentMethod: "manual" | "cod";
   confirmedSubtotalMinor: number;
   confirmedQuoteHash: string;
@@ -42,6 +39,14 @@ export async function POST(request: Request): Promise<Response> {
     return jsonError("Checkout request is invalid.", 400);
   }
   if (!isCheckoutBody(body)) return jsonError("Contact or delivery details are incomplete.", 400);
+
+  const fieldErrors = validateCheckoutDetails(body);
+  if (Object.keys(fieldErrors).length > 0) {
+    return Response.json(
+      { error: "Please correct the highlighted contact and delivery details.", fieldErrors },
+      { status: 400, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
 
   const items = parseCartRequest(body);
   if (!items || items.length === 0) return jsonError("Cart items are invalid.", 400);
@@ -141,13 +146,6 @@ function isCheckoutBody(value: unknown): value is CheckoutBody {
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       body.idempotencyKey,
     ) &&
-    (body.customerName as string).length <= 120 &&
-    (body.customerEmail as string).length <= 254 &&
-    (body.customerPhone as string).length <= 40 &&
-    (body.deliveryAddress as string).length <= 300 &&
-    (body.deliveryCity as string).length <= 100 &&
-    (body.deliveryPostalCode as string).length <= 24 &&
-    (body.deliveryNote as string).length <= 500 &&
     (body.paymentMethod === "manual" || body.paymentMethod === "cod")
   );
 }

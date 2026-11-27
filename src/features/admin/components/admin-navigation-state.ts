@@ -11,6 +11,7 @@ export function getAdminNavigationGroups(isOwner: boolean): readonly AdminNaviga
       label: "Catalogue",
       items: [
         { href: "/admin/products", label: "Products" },
+        { href: "/admin/inventory", label: "Stock & inventory" },
         { href: "/admin/collections", label: "Collections" },
         { href: "/admin/offers", label: "Offers" },
         { href: "/admin/reviews", label: "Reviews" },
@@ -19,7 +20,6 @@ export function getAdminNavigationGroups(isOwner: boolean): readonly AdminNaviga
     {
       label: "Orders",
       items: [
-        { href: "/admin/inventory", label: "Stock & inventory" },
         { href: "/admin/orders", label: "Orders" },
         { href: "/admin/customers", label: "Customers" },
       ],

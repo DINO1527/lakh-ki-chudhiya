@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   AdminNotice,
   AdminPageHeader,
@@ -13,6 +14,7 @@ import { requireStaff } from "@/features/admin/server/access";
 import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
 
 const PAGE_SIZE = 25;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export default async function AdminInventoryPage({
   searchParams,
@@ -27,6 +29,11 @@ export default async function AdminInventoryPage({
   const rawPage = Array.isArray(params.page) ? params.page[0] : params.page;
   const pageNumber = rawPage && /^[0-9]{1,5}$/.test(rawPage) ? Math.max(1, Number(rawPage)) : 1;
   const unavailableOnly = params.availability === "unavailable";
+  const rawReturnProductId = Array.isArray(params.return_product_id)
+    ? params.return_product_id[0]
+    : params.return_product_id;
+  const returnProductId =
+    rawReturnProductId && UUID_PATTERN.test(rawReturnProductId) ? rawReturnProductId : null;
   let variantsQuery = supabase
     .from("product_variants")
     .select(
@@ -59,7 +66,12 @@ export default async function AdminInventoryPage({
     supabase
       .from("products")
       .select("id, title, slug")
-      .in("id", [...new Set(variantRows.map((variant) => variant.product_id))]),
+      .in("id", [
+        ...new Set([
+          ...variantRows.map((variant) => variant.product_id),
+          ...(returnProductId ? [returnProductId] : []),
+        ]),
+      ]),
     relevantIds.length
       ? supabase
           .from("product_variants")
@@ -87,6 +99,7 @@ export default async function AdminInventoryPage({
   const variantById = new Map(
     (variantLookupResult.data ?? []).map((variant) => [variant.id, variant]),
   );
+  const returnProduct = returnProductId ? productById.get(returnProductId) : undefined;
 
   return (
     <>
@@ -94,11 +107,29 @@ export default async function AdminInventoryPage({
         eyebrow="Stock control"
         title="Inventory"
         description="Manage how many complete sets are physically in stock for each size. Every change needs a reason and is recorded."
+        action={
+          <Link
+            className="admin-button admin-button--quiet"
+            href={
+              returnProduct
+                ? `/admin/products/${returnProduct.id}?section=product-variants`
+                : "/admin/products"
+            }
+          >
+            {returnProduct ? "Back to product setup" : "Back to products"}
+          </Link>
+        }
       />
       {params.saved ? <AdminNotice tone="success">Stock adjustment recorded.</AdminNotice> : null}
       {params.error ? (
         <AdminNotice tone="error">
-          Stock could not be changed. The requested quantity may be invalid or below reserved stock.
+          {params.error === "invalid"
+            ? "Enter a nonzero whole-number quantity change and a reason."
+            : params.error === "database_update"
+              ? "The UAT database is missing the current inventory update. Apply the current inventory migrations, then retry."
+              : params.error === "permission"
+                ? "Your staff access does not allow this stock adjustment."
+                : "Stock was not changed. It cannot be reduced below reserved stock; check the quantity and try again."}
         </AdminNotice>
       ) : null}
       {variantsResult.error ||
@@ -161,7 +192,17 @@ export default async function AdminInventoryPage({
                       <th scope="row">
                         <strong>{variant.sku}</strong>
                         <span className="admin-table__subtext">
-                          {product?.title ?? "Unknown product"} · {variant.size_code ?? "One size"}
+                          {product ? (
+                            <Link
+                              className="admin-text-link"
+                              href={`/admin/products/${product.id}?section=product-variants`}
+                            >
+                              {product.title}
+                            </Link>
+                          ) : (
+                            "Unknown product"
+                          )}{" "}
+                          · {variant.size_code ?? "One size"}
                         </span>
                         <span className="admin-table__subtext">
                           {variant.is_active ? "Active" : "Inactive"}
@@ -185,6 +226,14 @@ export default async function AdminInventoryPage({
                         >
                           <form action={adjustInventory} className="admin-form">
                             <input name="variant_id" type="hidden" value={variant.id} />
+                            {returnProductId === variant.product_id ? (
+                              <input
+                                name="return_product_id"
+                                type="hidden"
+                                value={returnProductId}
+                              />
+                            ) : null}
+                            <input name="return_sku" type="hidden" value={variant.sku} />
                             <label className="admin-field">
                               <span>Quantity change</span>
                               <input

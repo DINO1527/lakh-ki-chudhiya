@@ -8,8 +8,15 @@ export type AdminProductSection = Readonly<{ id: string; label: string }>;
 export function AdminProductSectionTabs({
   sections,
   children,
-}: Readonly<{ sections: readonly AdminProductSection[]; children: ReactNode }>) {
-  const [activeId, setActiveId] = useState(sections[0]?.id ?? "");
+  initialActiveId,
+  productId,
+}: Readonly<{
+  sections: readonly AdminProductSection[];
+  children: ReactNode;
+  initialActiveId?: string;
+  productId?: string;
+}>) {
+  const [activeId, setActiveId] = useState(initialActiveId ?? sections[0]?.id ?? "");
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const sectionNodes = Children.toArray(children);
   const activeIndex = Math.max(
@@ -60,8 +67,15 @@ export function AdminProductSectionTabs({
             </button>
           ))}
         </div>
-        <Link className="admin-section-nav__inventory" href="/admin/inventory">
-          Inventory
+        <Link
+          className="admin-section-nav__inventory"
+          href={
+            productId
+              ? `/admin/inventory?return_product_id=${encodeURIComponent(productId)}`
+              : "/admin/inventory"
+          }
+        >
+          Stock &amp; inventory
         </Link>
       </nav>
       <div

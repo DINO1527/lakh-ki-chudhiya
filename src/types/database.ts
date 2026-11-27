@@ -217,6 +217,14 @@ export type Database = {
         created_at: string;
         updated_at: string;
       }>;
+      customer_default_addresses: TableDefinition<{
+        user_id: string;
+        address: string;
+        city: string;
+        postal_code: string;
+        created_at: string;
+        updated_at: string;
+      }>;
       cart_items: TableDefinition<{
         user_id: string;
         variant_id: string;
@@ -340,6 +348,10 @@ export type Database = {
         Args: { p_product_id: string };
         Returns: undefined;
       };
+      unpublish_product: {
+        Args: { p_product_id: string };
+        Returns: undefined;
+      };
       archive_product: {
         Args: { p_product_id: string };
         Returns: undefined;
@@ -349,6 +361,10 @@ export type Database = {
         Returns: undefined;
       };
       publish_product_media: {
+        Args: { p_media_id: string; p_product_id: string };
+        Returns: undefined;
+      };
+      unpublish_product_media: {
         Args: { p_media_id: string; p_product_id: string };
         Returns: undefined;
       };
@@ -423,6 +439,16 @@ export type Database = {
       };
       save_commerce_settings: {
         Args: { p_whatsapp_number: string | null; p_cod_enabled: boolean };
+        Returns: undefined;
+      };
+      save_customer_account_details: {
+        Args: {
+          p_full_name: string;
+          p_phone: string;
+          p_delivery_address: string;
+          p_delivery_city: string;
+          p_delivery_postal_code: string;
+        };
         Returns: undefined;
       };
       save_offer: {

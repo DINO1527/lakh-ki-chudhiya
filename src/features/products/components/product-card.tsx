@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ProductSelectionDialog } from "@/features/cart/components/product-selection-dialog";
+import { ShoppingBag } from "lucide-react";
 import { formatLkrPrice } from "../domain/product-variant";
 import { formatDiscountPercent, priceAfterOffer } from "../domain/merchandising";
 import type { PublicProduct } from "../domain/catalogue";
@@ -75,7 +75,7 @@ export function ProductCard({
               </span>
             )}
             <span className="product-card__title">{product.title}</span>
-            {product.reviewsEnabled && (
+            {product.reviewsEnabled && product.reviewCount > 0 && (
               <span className="product-card__rating">
                 {product.reviewCount > 0 ? (
                   <>
@@ -124,23 +124,13 @@ export function ProductCard({
           </span>
         </Link>
         <div className="product-card__footer">
-          {lowestPrice !== null ? (
-            <ProductSelectionDialog
-              product={{
-                slug: product.slug,
-                title: product.title,
-                setCount: product.setCount,
-                image: product.images[0] ?? null,
-                variants: product.variants,
-              }}
-            />
-          ) : (
-            <Link className="product-card__details-link" href={`/products/${product.slug}`}>
-              View details
-            </Link>
-          )}
-          <Link className="product-card__more-link" href={`/products/${product.slug}`}>
-            More details <span aria-hidden="true">↗</span>
+          <Link
+            aria-label={`View ${product.title}, choose a size and add it to your bag`}
+            className="product-card__view-button"
+            href={`/products/${product.slug}`}
+          >
+            <ShoppingBag aria-hidden="true" size={18} strokeWidth={1.8} />
+            <span>View design</span>
           </Link>
         </div>
       </article>

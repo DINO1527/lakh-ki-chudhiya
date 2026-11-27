@@ -19,4 +19,13 @@ describe("admin navigation state", () => {
     expect(labels).not.toContain("Team access");
     expect(labels).not.toContain("Activity");
   });
+
+  it("keeps stock and inventory with the catalogue instead of order operations", () => {
+    const groups = getAdminNavigationGroups(false);
+    const catalogue = groups.find((group) => group.label === "Catalogue");
+    const orders = groups.find((group) => group.label === "Orders");
+
+    expect(catalogue?.items.map((item) => item.label)).toContain("Stock & inventory");
+    expect(orders?.items.map((item) => item.label)).not.toContain("Stock & inventory");
+  });
 });
