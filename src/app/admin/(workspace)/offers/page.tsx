@@ -127,6 +127,20 @@ export default async function AdminOffersPage({
   return (
     <>
       <AdminPageHeader eyebrow="Promotions" title="Offers" />
+      <nav aria-label="Offer workflow" className="admin-section-nav admin-workflow-nav">
+        <a className="admin-section-nav__tab" href="#new-offer">
+          1. Create
+        </a>
+        <a className="admin-section-nav__tab" href="#saved-offers">
+          2. Details
+        </a>
+        <a className="admin-section-nav__tab" href="#saved-offers">
+          3. Banner
+        </a>
+        <a className="admin-section-nav__tab" href="#saved-offers">
+          4. Publish
+        </a>
+      </nav>
       {params.changed === "enabled" ? (
         <AdminNotice tone="success">
           Offer enabled. Checkout will apply it when eligible.
@@ -151,13 +165,17 @@ export default async function AdminOffersPage({
       {bannerFlash ? (
         <AdminNotice tone={bannerFlash === "cleanup_pending" ? "error" : "success"}>
           {bannerFlash === "uploaded"
-            ? "Offer banner uploaded privately. Publish the banner before enabling the offer."
+            ? params.publish === "1"
+              ? "Offer banner uploaded and published. Enable the offer when its target is published."
+              : "Offer banner uploaded privately. Publish the banner before enabling the offer."
             : bannerFlash === "published"
               ? "Offer banner published. It remains private until the offer is enabled and eligible."
               : bannerFlash === "deleted"
                 ? "Offer banner and its private image file were deleted."
                 : bannerFlash === "replaced"
-                  ? "Banner replaced with a private draft. Publish it before enabling this offer."
+                  ? params.publish === "1"
+                    ? "Banner replaced and published. The offer remains disabled until you enable it."
+                    : "Banner replaced with a private draft. Publish it before enabling this offer."
                   : bannerFlash === "cleanup_pending"
                     ? "Banner replaced, but an older private image file could not be removed. Ask an owner to review storage cleanup."
                     : "Offer banner details saved."}
@@ -208,7 +226,7 @@ export default async function AdminOffersPage({
         </AdminNotice>
       ) : null}
 
-      <section aria-labelledby="new-offer-heading" className="admin-panel">
+      <section aria-labelledby="new-offer-heading" className="admin-panel" id="new-offer">
         <AdminSectionHeading
           eyebrow="New promotion"
           id="new-offer-heading"
@@ -223,7 +241,7 @@ export default async function AdminOffersPage({
         />
       </section>
 
-      <section aria-labelledby="offer-list-heading" className="admin-panel">
+      <section aria-labelledby="offer-list-heading" className="admin-panel" id="saved-offers">
         <AdminSectionHeading eyebrow="Saved rules" id="offer-list-heading" title="Offer list" />
         <AdminSearchForm
           action="/admin/offers"
@@ -299,8 +317,24 @@ export default async function AdminOffersPage({
                     <span className="admin-muted">Open offer workspace</span>
                   </summary>
                   <div className="admin-offer-card__workspace">
+                    <nav
+                      aria-label={`${offer.name} setup`}
+                      className="admin-section-nav admin-workflow-nav"
+                    >
+                      <a className="admin-section-nav__tab" href={`#offer-details-${offer.id}`}>
+                        Details
+                      </a>
+                      <a className="admin-section-nav__tab" href={`#offer-banner-${offer.id}`}>
+                        Banner
+                      </a>
+                      <a className="admin-section-nav__tab" href={`#offer-publish-${offer.id}`}>
+                        Publish
+                      </a>
+                    </nav>
                     <section>
+                      <div id={`offer-details-${offer.id}`} />
                       <p className="admin-eyebrow">Offer details and availability</p>
+                      <div id={`offer-publish-${offer.id}`} />
                       <div className="admin-offer-card__availability">
                         <AdminStatusSwitch
                           action={toggleOfferPublication}
@@ -344,7 +378,7 @@ export default async function AdminOffersPage({
                         showEnableToggle={false}
                       />
                     </section>
-                    <section>
+                    <section id={`offer-banner-${offer.id}`}>
                       <p className="admin-eyebrow">Offer banner</p>
                       <StatusBadge>{banner?.status ?? "not added"}</StatusBadge>
                       {banner ? (
@@ -424,6 +458,13 @@ export default async function AdminOffersPage({
                                   required
                                 />
                               </label>
+                              <label className="admin-checkbox">
+                                <input name="publish_after_upload" type="checkbox" />
+                                <span>
+                                  Publish replacement when uploaded
+                                  <small>The offer must remain disabled until you enable it.</small>
+                                </span>
+                              </label>
                               <AdminSubmitButton pendingLabel="Replacing banner…">
                                 Replace banner
                               </AdminSubmitButton>
@@ -445,6 +486,13 @@ export default async function AdminOffersPage({
                               placeholder="Describe the offer banner"
                               required
                             />
+                          </label>
+                          <label className="admin-checkbox">
+                            <input name="publish_after_upload" type="checkbox" />
+                            <span>
+                              Publish banner when uploaded
+                              <small>You can enable the offer after its target is published.</small>
+                            </span>
                           </label>
                           <AdminSubmitButton pendingLabel="Uploading banner…">
                             Upload banner

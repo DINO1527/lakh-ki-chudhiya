@@ -587,3 +587,11 @@ Brand/logo, product photos/models, size chart, LKR prices, inventory, verified W
 - Added guarded admin-only RPC migration and rollback-only SQL assertions. The migration has not been applied to local, UAT, or live databases, and no hosted record or storage object was changed during this implementation.
 - PASS: `pnpm exec tsc --noEmit --incremental false`, `pnpm lint`, `pnpm test` (14 files, 71 tests), `pnpm format:check`, and `git diff --check` after this implementation. Prettier formatting was applied to the edited TypeScript files.
 - NOT RUN: the rollback-only `supabase/tests/admin_permanent_deletes.sql` assertions, migration application, browser/admin fixture workflow, accessibility review, and Cloudflare Worker preview. Supabase was not connected and no hosted UAT/live data or storage objects were changed. The existing Windows OpenNext middleware symlink limitation remains recorded above.
+
+## Collection and offer form flow follow-up — 2026-11-28
+
+- Added top workflow navigation and per-record section links for collection Details/Photos/Publish and offer Details/Banner/Publish. Collection and offer forms provide Save and Save and continue actions with action-specific pending labels.
+- Collection upload feedback now distinguishes invalid images, storage failures, missing media RPC/migration, and image limits. Deletion still requires the guarded admin migration to be applied in the target environment; this implementation did not write UAT data.
+- Offer banner forms now offer publish-on-upload for both initial upload and replacement. Replacing remains restricted to disabled offers. Added synthetic file-signature cases for JPEG, PNG, WebP, AVIF, mislabeled and unsupported files.
+- Reduced form spacing and scoped the default cursor to non-editable collection/offer workspace regions. No CSS zoom was introduced.
+- PASS: `pnpm typecheck`, `pnpm lint`, `pnpm test` (15 files, 76 tests), `pnpm format:check`, Prettier for touched source and docs, and `git diff --check`. No hosted uploads, deletion, or publish actions were performed.

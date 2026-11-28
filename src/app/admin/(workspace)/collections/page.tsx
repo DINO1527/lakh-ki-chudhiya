@@ -159,6 +159,20 @@ export default async function AdminCollectionsPage({
           </Link>
         }
       />
+      <nav aria-label="Collection workflow" className="admin-section-nav admin-workflow-nav">
+        <a className="admin-section-nav__tab" href="#new-collection">
+          1. Create
+        </a>
+        <a className="admin-section-nav__tab" href="#existing-collections">
+          2. Details
+        </a>
+        <a className="admin-section-nav__tab" href="#existing-collections">
+          3. Photos
+        </a>
+        <a className="admin-section-nav__tab" href="#existing-collections">
+          4. Publish
+        </a>
+      </nav>
       {params.changed === "published" ? (
         <AdminNotice tone="success">
           Collection published and visible in the storefront.
@@ -189,23 +203,25 @@ export default async function AdminCollectionsPage({
               ? "This collection is used by one or more offers. Retarget or delete those offers before deleting the collection."
               : params.error === "database_update"
                 ? "The database is missing an admin workflow update. Apply the current admin migrations, then retry."
-                : params.error === "storage_cleanup"
-                  ? "The collection was deleted, but one or more private image files could not be removed. Ask an owner to review storage cleanup."
-                  : params.error === "delete"
-                    ? "The collection could not be deleted. Refresh the list and try again."
-                    : params.error === "missing_record"
-                      ? "This collection is no longer available. Refresh the list."
-                      : params.error === "image_required"
-                        ? "Add at least one image before publishing this collection."
-                        : params.error === "last_image"
-                          ? "Keep one published image on a published collection. Move the collection to draft or archive first to remove the last image."
-                          : params.error === "image_limit"
-                            ? "A collection can have up to 20 active images. Delete an active image before adding another."
-                            : params.error === "order"
-                              ? "Display order could not be updated. Refresh the list and try again."
-                              : params.error === "image"
-                                ? "Image could not be saved. Check the image type, size and required alternative text."
-                                : "Collection changes were not saved. Check the form values and retry. If the error continues, ask an owner to review database access."}
+                : params.error === "storage_upload"
+                  ? "The image could not be uploaded to private storage. Check that the file is under 5 MiB and try again."
+                  : params.error === "storage_cleanup"
+                    ? "The collection was deleted, but one or more private image files could not be removed. Ask an owner to review storage cleanup."
+                    : params.error === "delete"
+                      ? "The collection could not be deleted. Refresh the list and try again."
+                      : params.error === "missing_record"
+                        ? "This collection is no longer available. Refresh the list."
+                        : params.error === "image_required"
+                          ? "Add at least one image before publishing this collection."
+                          : params.error === "last_image"
+                            ? "Keep one published image on a published collection. Move the collection to draft or archive first to remove the last image."
+                            : params.error === "image_limit"
+                              ? "A collection can have up to 20 active images. Delete an active image before adding another."
+                              : params.error === "order"
+                                ? "Display order could not be updated. Refresh the list and try again."
+                                : params.error === "image"
+                                  ? "Image could not be saved. Check the image type, size and required alternative text."
+                                  : "Collection changes were not saved. Check the form values and retry. If the error continues, ask an owner to review database access."}
         </AdminNotice>
       ) : null}
       {params.image === "uploaded" ? (
@@ -264,7 +280,7 @@ export default async function AdminCollectionsPage({
               </label>
             </div>
           </details>
-          <AdminSubmitButton pendingLabel="Creating draft…">
+          <AdminSubmitButton name="save_intent" value="continue" pendingLabel="Creating draft…">
             Create draft and continue
           </AdminSubmitButton>
         </form>
@@ -337,6 +353,23 @@ export default async function AdminCollectionsPage({
                     </span>
                   </summary>
                   <div className="admin-collection__actions">
+                    <nav
+                      aria-label={`${collection.name} setup`}
+                      className="admin-section-nav admin-workflow-nav"
+                    >
+                      <a
+                        className="admin-section-nav__tab"
+                        href={`#collection-details-${collection.id}`}
+                      >
+                        Details
+                      </a>
+                      <a className="admin-section-nav__tab" href={`#images-${collection.id}`}>
+                        Photos
+                      </a>
+                      <a className="admin-section-nav__tab" href={`#publish-${collection.id}`}>
+                        Publish
+                      </a>
+                    </nav>
                     <div className="admin-collection__order">
                       <div>
                         <p className="admin-eyebrow">Collection position</p>
@@ -363,6 +396,7 @@ export default async function AdminCollectionsPage({
                         </div>
                       )}
                     </div>
+                    <div id={`publish-${collection.id}`} />
                     {collection.status !== "archived" ? (
                       <AdminStatusSwitch
                         action={toggleCollectionPublication}
@@ -401,7 +435,11 @@ export default async function AdminCollectionsPage({
                         }
                       />
                     ) : null}
-                    <form action={saveCollection} className="admin-form">
+                    <form
+                      action={saveCollection}
+                      className="admin-form"
+                      id={`collection-details-${collection.id}`}
+                    >
                       <input name="collection_id" type="hidden" value={collection.id} />
                       <input name="return_q" type="hidden" value={search} />
                       <input name="return_page" type="hidden" value={pageNumber} />
@@ -449,7 +487,23 @@ export default async function AdminCollectionsPage({
                           shoppers.
                         </small>
                       </label>
-                      <AdminSubmitButton>Save collection details</AdminSubmitButton>
+                      <div className="admin-form__actions">
+                        <AdminSubmitButton
+                          name="save_intent"
+                          value="save"
+                          pendingLabel="Saving details…"
+                        >
+                          Save
+                        </AdminSubmitButton>
+                        <AdminSubmitButton
+                          className="admin-button admin-button--secondary"
+                          name="save_intent"
+                          value="photos"
+                          pendingLabel="Saving and opening photos…"
+                        >
+                          Save and continue to photos
+                        </AdminSubmitButton>
+                      </div>
                     </form>
                     <form action={deleteCollection}>
                       <input name="collection_id" type="hidden" value={collection.id} />
@@ -467,7 +521,11 @@ export default async function AdminCollectionsPage({
                         Delete collection
                       </ConfirmButton>
                     </form>
-                    <form action={uploadCollectionImage} className="admin-form">
+                    <form
+                      action={uploadCollectionImage}
+                      className="admin-form"
+                      id={`images-${collection.id}`}
+                    >
                       <input name="collection_id" type="hidden" value={collection.id} />
                       <input name="return_q" type="hidden" value={search} />
                       <input name="return_page" type="hidden" value={pageNumber} />
@@ -481,7 +539,10 @@ export default async function AdminCollectionsPage({
                       <AdminSubmitButton pendingLabel="Uploading…">Add photo</AdminSubmitButton>
                     </form>
                   </div>
-                  <div className="admin-collection__images">
+                  <div
+                    className="admin-collection__images"
+                    id={`collection-images-${collection.id}`}
+                  >
                     <h3>Collection images</h3>
                     <p className="admin-muted">
                       Add a cover or several collection photos (up to 20). JPEG, PNG, WebP or AVIF,

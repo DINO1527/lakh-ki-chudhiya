@@ -109,7 +109,7 @@ export async function saveOffer(formData: FormData): Promise<never> {
   revalidatePath("/admin/offers");
   revalidatePath("/cart");
   revalidatePath("/checkout");
-  redirect(offerResultUrl(savedOfferId, offerId === null ? "created" : "saved", "1"));
+  redirect(offerResultUrl(savedOfferId, offerId === null ? "created" : "saved", "1", formData));
 }
 
 export async function toggleOfferPublication(formData: FormData): Promise<never> {
@@ -204,6 +204,7 @@ export async function uploadOfferBanner(formData: FormData): Promise<never> {
   const offerId = formText(formData, "offer_id", 36);
   const altText = formText(formData, "alt_text", 250);
   const file = formData.get("file");
+  const publishAfterUpload = formData.get("publish_after_upload") === "on";
   const returnOfferId = validUuid(offerId) ? offerId : null;
   if (
     !validUuid(offerId) ||
@@ -258,6 +259,7 @@ export async function uploadOfferBanner(formData: FormData): Promise<never> {
     offer_id: offerId,
     storage_path: storagePath,
     alt_text: altText,
+    status: publishAfterUpload ? "published" : "draft",
   });
   if (metadataError) {
     logAdminActionFailure("uploadOfferBanner.metadata", "offer_media", metadataError.code);
@@ -270,7 +272,7 @@ export async function uploadOfferBanner(formData: FormData): Promise<never> {
   }
 
   revalidateOfferPages();
-  redirect(offerResultUrl(offerId, "banner", "uploaded"));
+  redirect(offerResultUrl(offerId, "banner", "uploaded", formData));
 }
 
 export async function updateOfferBanner(formData: FormData): Promise<never> {
@@ -323,6 +325,7 @@ export async function replaceOfferBanner(formData: FormData): Promise<never> {
   const offerId = formText(formData, "offer_id", 36);
   const altText = formText(formData, "alt_text", 250);
   const file = formData.get("file");
+  const publishAfterUpload = formData.get("publish_after_upload") === "on";
   if (
     !validUuid(offerId) ||
     !altText ||
@@ -385,6 +388,18 @@ export async function replaceOfferBanner(formData: FormData): Promise<never> {
         formData,
       ),
     );
+  }
+
+  if (publishAfterUpload) {
+    const { error: publishError } = await supabase
+      .from("offer_media")
+      .update({ status: "published" })
+      .eq("offer_id", offerId)
+      .eq("storage_path", storagePath);
+    if (publishError) {
+      logAdminActionFailure("replaceOfferBanner.publish", "offer_media", publishError.code);
+      redirect(offerResultUrl(offerId, "error", "banner_publish", formData));
+    }
   }
 
   revalidateOfferPages();
@@ -497,8 +512,11 @@ function offerResultUrl(
     const page = formText(formData, "return_page", 5);
     if (search) query.set("q", search);
     if (page && /^[0-9]{1,5}$/.test(page) && Number(page) > 1) query.set("page", page);
+    if (formData.get("publish_after_upload") === "on") query.set("publish", "1");
   }
-  return "/admin/offers?" + query.toString() + "#offer-" + offerId;
+  const anchor =
+    formData?.get("save_intent") === "banner" ? `offer-banner-${offerId}` : `offer-${offerId}`;
+  return "/admin/offers?" + query.toString() + "#" + anchor;
 }
 
 function offerListResultUrl(formData: FormData, key: string, value: string): string {
