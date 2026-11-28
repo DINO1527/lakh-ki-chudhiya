@@ -4,25 +4,18 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./access";
 import { logAdminActionFailure } from "./action-logger";
-import { formText, integer, validUuid } from "./form-values";
+import { formText, validUuid } from "./form-values";
 import { detectImageMime } from "./media-validation";
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_MEDIA_BYTES = 5 * 1024 * 1024;
 const MAX_COLLECTION_IMAGES = 20;
 
-function collectionResultLocation(query: string, collectionId?: string): string {
-  return collectionId
-    ? `/admin/collections?${query}&open=${collectionId}#collection-${collectionId}`
-    : `/admin/collections?${query}`;
-}
-
 export async function saveCollection(formData: FormData): Promise<never> {
   const collectionId = formData.get("collection_id");
   const name = formText(formData, "name", 120);
   const slugInput = formText(formData, "slug", 100);
   const description = formText(formData, "description", 2_000);
-  const sortOrder = integer(formText(formData, "sort_order", 12));
   const existingCollectionId =
     typeof collectionId === "string" && collectionId !== "" ? collectionId : null;
   const status = existingCollectionId ? formData.get("status") : "draft";
@@ -37,23 +30,28 @@ export async function saveCollection(formData: FormData): Promise<never> {
     !name ||
     !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug) ||
     description === null ||
-    sortOrder === null ||
     (status !== "draft" && status !== "published" && status !== "archived") ||
     (collectionId !== null && typeof collectionId !== "string") ||
     (typeof collectionId === "string" && collectionId !== "" && !UUID_PATTERN.test(collectionId))
   ) {
-    redirect("/admin/collections?error=invalid");
+    redirect(
+      existingCollectionId
+        ? collectionResultUrl(existingCollectionId, "error", "invalid")
+        : "/admin/collections?error=invalid",
+    );
   }
 
   const { supabase } = await requireStaff();
   if (status === "published" && existingCollectionId) {
-    const { error: detailsError } = await supabase
+    const { data: details, error: detailsError } = await supabase
       .from("collections")
-      .update({ name, slug, description, sort_order: sortOrder })
-      .eq("id", existingCollectionId);
-    if (detailsError) {
-      logAdminActionFailure("saveCollection.details", "collections", detailsError.code);
-      redirect(collectionResultLocation("error=save", existingCollectionId));
+      .update({ name, slug, description })
+      .eq("id", existingCollectionId)
+      .select("id")
+      .maybeSingle();
+    if (detailsError || !details) {
+      logAdminActionFailure("saveCollection.details", "collections", detailsError?.code);
+      redirect(collectionResultUrl(existingCollectionId, "error", "save"));
     }
 
     const { error: publishError } = await supabase.rpc("publish_collection", {
@@ -61,40 +59,40 @@ export async function saveCollection(formData: FormData): Promise<never> {
     });
     if (publishError) {
       logAdminActionFailure("saveCollection.publish", "collections", publishError.code);
-      redirect(collectionResultLocation("error=image_required", existingCollectionId));
+      redirect(collectionResultUrl(existingCollectionId, "error", "image_required"));
     }
 
     revalidateCollectionPages();
-    redirect(collectionResultLocation("saved=1", existingCollectionId));
+    redirect(collectionResultUrl(existingCollectionId, "saved", "1"));
   }
 
   if (!existingCollectionId) {
-    const { data: created, error } = await supabase
-      .from("collections")
-      .insert({ name, slug, description, sort_order: sortOrder, status: "draft" })
-      .select("id")
-      .single();
-    if (error || !created) {
+    const { data: createdId, error } = await supabase.rpc("create_collection_draft", {
+      p_name: name,
+      p_slug: slug,
+      p_description: description,
+    });
+    if (error || !createdId) {
       logAdminActionFailure("saveCollection.create", "collections", error?.code);
       redirect("/admin/collections?error=save");
     }
 
     revalidateCollectionPages();
-    redirect(`/admin/collections?created=${created.id}#collection-${created.id}`);
+    redirect(`/admin/collections?created=${createdId}#collection-${createdId}`);
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from("collections")
-    .update({ name, slug, description, sort_order: sortOrder, status })
-    .eq("id", existingCollectionId);
-  if (error) {
-    logAdminActionFailure("saveCollection.update", "collections", error.code);
-    redirect(collectionResultLocation("error=save", existingCollectionId));
+    .update({ name, slug, description, status })
+    .eq("id", existingCollectionId)
+    .select("id")
+    .maybeSingle();
+  if (error || !updated) {
+    logAdminActionFailure("saveCollection.update", "collections", error?.code);
+    redirect(collectionResultUrl(existingCollectionId, "error", "save"));
   }
-  revalidatePath("/collections");
-  revalidatePath("/shop");
-  revalidatePath("/");
-  redirect(collectionResultLocation("saved=1", existingCollectionId));
+  revalidateCollectionPages();
+  redirect(collectionResultUrl(existingCollectionId, "saved", "1"));
 }
 
 export async function toggleCollectionPublication(formData: FormData): Promise<never> {
@@ -176,19 +174,23 @@ function collectionListLocation(
 
 export async function uploadCollectionImage(formData: FormData): Promise<never> {
   const rawCollectionId = formData.get("collection_id");
+  const returnCollectionId =
+    typeof rawCollectionId === "string" && validUuid(rawCollectionId) ? rawCollectionId : null;
   const altText = formText(formData, "alt_text", 250);
-  const sortOrder = integer(formText(formData, "sort_order", 12));
   const file = formData.get("file");
   if (
     typeof rawCollectionId !== "string" ||
     !validUuid(rawCollectionId) ||
     !altText ||
-    sortOrder === null ||
     !(file instanceof File) ||
     file.size === 0 ||
     file.size > MAX_MEDIA_BYTES
   ) {
-    redirect("/admin/collections?error=image");
+    redirect(
+      returnCollectionId
+        ? collectionResultUrl(returnCollectionId, "error", "image")
+        : "/admin/collections?error=image",
+    );
   }
   const collectionId = rawCollectionId;
 
@@ -196,26 +198,35 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
   const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   const detected = detectImageMime(signature);
   if (!detected || detected !== file.type) {
-    redirect(collectionResultLocation("error=image", collectionId));
+    redirect(collectionResultUrl(collectionId, "error", "image"));
   }
 
-  const { data: collection } = await supabase
+  const { data: collection, error: collectionError } = await supabase
     .from("collections")
     .select("id")
     .eq("id", collectionId)
     .maybeSingle();
-  if (!collection) redirect(collectionResultLocation("error=image", collectionId));
+  if (collectionError || !collection) {
+    if (collectionError)
+      logAdminActionFailure(
+        "uploadCollectionImage.collection",
+        "collections",
+        collectionError.code,
+      );
+    redirect(collectionResultUrl(collectionId, "error", "image"));
+  }
 
   const { count, error: countError } = await supabase
     .from("collection_media")
     .select("id", { count: "exact", head: true })
     .eq("collection_id", collectionId)
     .neq("status", "archived");
-  if (countError || (count ?? 0) >= MAX_COLLECTION_IMAGES) {
-    if (countError) {
-      logAdminActionFailure("uploadCollectionImage.count", "collection_media", countError.code);
-    }
-    redirect(collectionResultLocation("error=image_limit", collectionId));
+  if (countError) {
+    logAdminActionFailure("uploadCollectionImage.count", "collection_media", countError.code);
+    redirect(collectionResultUrl(collectionId, "error", "image"));
+  }
+  if ((count ?? 0) >= MAX_COLLECTION_IMAGES) {
+    redirect(collectionResultUrl(collectionId, "error", "image_limit"));
   }
 
   const extension = detected === "image/jpeg" ? "jpg" : detected.split("/")[1];
@@ -225,14 +236,13 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
     .upload(storagePath, file, { contentType: detected, upsert: false, cacheControl: "3600" });
   if (uploadError) {
     logAdminActionFailure("uploadCollectionImage.storage", "product-media", uploadError.name);
-    redirect(collectionResultLocation("error=image", collectionId));
+    redirect(collectionResultUrl(collectionId, "error", "image"));
   }
 
-  const { error: metadataError } = await supabase.from("collection_media").insert({
-    collection_id: collectionId,
-    storage_path: storagePath,
-    alt_text: altText,
-    sort_order: sortOrder,
+  const { error: metadataError } = await supabase.rpc("add_collection_media", {
+    p_collection_id: collectionId,
+    p_storage_path: storagePath,
+    p_alt_text: altText,
   });
   if (metadataError) {
     logAdminActionFailure("uploadCollectionImage.metadata", "collection_media", metadataError.code);
@@ -242,11 +252,20 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
     if (cleanupError) {
       logAdminActionFailure("uploadCollectionImage.cleanup", "product-media", cleanupError.name);
     }
-    redirect(collectionResultLocation("error=image", collectionId));
+    redirect(
+      collectionResultUrl(
+        collectionId,
+        "error",
+        metadataError.code === "23514" &&
+          metadataError.message === "A collection can have at most 20 active images"
+          ? "image_limit"
+          : "image",
+      ),
+    );
   }
 
   revalidateCollectionPages();
-  redirect(collectionResultLocation("image=uploaded", collectionId));
+  redirect(collectionResultUrl(collectionId, "image", "uploaded"));
 }
 
 export async function archiveCollectionImage(formData: FormData): Promise<never> {
@@ -271,46 +290,112 @@ export async function archiveCollectionImage(formData: FormData): Promise<never>
   if (error) {
     logAdminActionFailure("archiveCollectionImage", "collection_media", error.code);
     redirect(
-      collectionResultLocation(
-        `error=${error.code === "23514" ? "last_image" : "image"}`,
-        collectionId,
-      ),
+      collectionResultUrl(collectionId, "error", error.code === "23514" ? "last_image" : "image"),
     );
   }
 
   revalidateCollectionPages();
-  redirect(collectionResultLocation("image=archived", collectionId));
+  redirect(collectionResultUrl(collectionId, "image", "archived"));
 }
 
 export async function updateCollectionImage(formData: FormData): Promise<never> {
   const rawCollectionId = formData.get("collection_id");
   const rawMediaId = formData.get("media_id");
   const altText = formText(formData, "alt_text", 250);
-  const sortOrder = integer(formText(formData, "sort_order", 12));
   if (
     typeof rawCollectionId !== "string" ||
     !validUuid(rawCollectionId) ||
     typeof rawMediaId !== "string" ||
     !validUuid(rawMediaId) ||
-    !altText ||
-    sortOrder === null
+    !altText
   ) {
     redirect("/admin/collections?error=image");
   }
 
   const { supabase } = await requireStaff();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("collection_media")
-    .update({ alt_text: altText, sort_order: sortOrder })
+    .update({ alt_text: altText })
     .eq("id", rawMediaId)
-    .eq("collection_id", rawCollectionId);
-  if (error) {
-    logAdminActionFailure("updateCollectionImage", "collection_media", error.code);
-    redirect(collectionResultLocation("error=image", rawCollectionId));
+    .eq("collection_id", rawCollectionId)
+    .select("id")
+    .maybeSingle();
+  if (error || !data) {
+    logAdminActionFailure("updateCollectionImage", "collection_media", error?.code);
+    redirect(collectionResultUrl(rawCollectionId, "error", "image"));
   }
 
   revalidateCollectionPages();
-  redirect(collectionResultLocation("image=updated", rawCollectionId));
+  redirect(collectionResultUrl(rawCollectionId, "image", "updated"));
+}
+
+export async function moveCollectionOrder(formData: FormData): Promise<never> {
+  const collectionId = formText(formData, "collection_id", 36);
+  const direction = formText(formData, "direction", 4);
+  if (!validUuid(collectionId) || (direction !== "up" && direction !== "down")) {
+    redirect("/admin/collections?error=invalid");
+  }
+
+  const { supabase } = await requireStaff();
+  const { data: moved, error } = await supabase.rpc("move_collection_order", {
+    p_collection_id: collectionId,
+    p_direction: direction,
+  });
+  if (error) {
+    logAdminActionFailure("moveCollectionOrder", "collections", error.code);
+    redirect(collectionResultUrl(collectionId, "error", "order"));
+  }
+
+  revalidateCollectionPages();
+  redirect(
+    collectionResultUrl(
+      collectionId,
+      "order",
+      moved ? "updated" : direction === "up" ? "first" : "last",
+    ),
+  );
+}
+
+export async function moveCollectionImageOrder(formData: FormData): Promise<never> {
+  const collectionId = formText(formData, "collection_id", 36);
+  const mediaId = formText(formData, "media_id", 36);
+  const direction = formText(formData, "direction", 4);
+  if (
+    !validUuid(collectionId) ||
+    !validUuid(mediaId) ||
+    (direction !== "up" && direction !== "down")
+  ) {
+    redirect("/admin/collections?error=invalid");
+  }
+
+  const { supabase } = await requireStaff();
+  const { data: moved, error } = await supabase.rpc("move_collection_media_order", {
+    p_collection_id: collectionId,
+    p_media_id: mediaId,
+    p_direction: direction,
+  });
+  if (error) {
+    logAdminActionFailure("moveCollectionImageOrder", "collection_media", error.code);
+    redirect(collectionResultUrl(collectionId, "error", "order"));
+  }
+
+  revalidateCollectionPages();
+  redirect(
+    collectionResultUrl(
+      collectionId,
+      "order",
+      moved ? "updated" : direction === "up" ? "first" : "last",
+    ),
+  );
+}
+
+function collectionResultUrl(
+  collectionId: string,
+  parameter: "error" | "image" | "order" | "saved",
+  value: string,
+): string {
+  const query = new URLSearchParams({ open: collectionId, [parameter]: value });
+  return "/admin/collections?" + query.toString() + "#collection-" + collectionId;
 }
 
 function revalidateCollectionPages(): void {

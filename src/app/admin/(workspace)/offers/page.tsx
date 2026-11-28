@@ -25,11 +25,15 @@ import { requireStaff } from "@/features/admin/server/access";
 import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
 
 const PAGE_SIZE = 20;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export default async function AdminOffersPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const [{ supabase }, params] = await Promise.all([requireStaff(), searchParams]);
+  const rawOfferId = Array.isArray(params.offer) ? params.offer[0] : params.offer;
+  const selectedOfferId =
+    typeof rawOfferId === "string" && UUID_PATTERN.test(rawOfferId) ? rawOfferId : null;
   const rawPage = Array.isArray(params.page) ? params.page[0] : params.page;
   const pageNumber = rawPage && /^[0-9]{1,5}$/.test(rawPage) ? Math.max(1, Number(rawPage)) : 1;
   const rawSearch = Array.isArray(params.q) ? params.q[0] : params.q;
@@ -44,12 +48,21 @@ export default async function AdminOffersPage({
     .order("created_at", { ascending: false });
   if (search) offersQuery = offersQuery.ilike("name", `%${search}%`);
   offersQuery = offersQuery.range((pageNumber - 1) * PAGE_SIZE, pageNumber * PAGE_SIZE - 1);
-  const [offersResult, productsResult, collectionsResult] = await Promise.all([
+  const [offersResult, productsResult, collectionsResult, selectedOfferResult] = await Promise.all([
     offersQuery,
     supabase.from("products").select("id, title, status").order("title").limit(1_000),
     supabase.from("collections").select("id, name, status").order("name").limit(1_000),
+    selectedOfferId
+      ? supabase.from("offers").select("*").eq("id", selectedOfferId).maybeSingle()
+      : Promise.resolve({ data: null, error: null }),
   ]);
-  const offers = offersResult.data ?? [];
+  const offers = [...(offersResult.data ?? [])];
+  if (
+    selectedOfferResult.data &&
+    !offers.some((offer) => offer.id === selectedOfferResult.data?.id)
+  ) {
+    offers.unshift(selectedOfferResult.data);
+  }
   const bannerResult = offers.length
     ? await supabase
         .from("offer_media")
@@ -69,8 +82,14 @@ export default async function AdminOffersPage({
       )
     : { data: [], error: null };
   const queryError =
-    offersResult.error || productsResult.error || collectionsResult.error || bannerResult.error;
+    offersResult.error ||
+    selectedOfferResult.error ||
+    productsResult.error ||
+    collectionsResult.error ||
+    bannerResult.error;
   if (offersResult.error) logAdminQueryFailure("loadOffers", "offers", offersResult.error.code);
+  if (selectedOfferResult.error)
+    logAdminQueryFailure("loadSelectedOffer", "offers", selectedOfferResult.error.code);
   if (productsResult.error)
     logAdminQueryFailure("loadOfferProductTargets", "products", productsResult.error.code);
   if (collectionsResult.error)
@@ -96,6 +115,7 @@ export default async function AdminOffersPage({
     isPublished: collection.status === "published",
   }));
   const saved = Array.isArray(params.saved) ? params.saved[0] : params.saved;
+  const created = Array.isArray(params.created) ? params.created[0] : params.created;
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
   const bannerFlash = Array.isArray(params.banner) ? params.banner[0] : params.banner;
 
@@ -110,7 +130,14 @@ export default async function AdminOffersPage({
       {params.changed === "disabled" ? (
         <AdminNotice tone="success">Offer disabled.</AdminNotice>
       ) : null}
-      {saved ? <AdminNotice tone="success">Offer saved.</AdminNotice> : null}
+      {created ? (
+        <AdminNotice tone="success">
+          Draft offer created and opened below. Add and publish its banner, then enable it in the
+          same offer workspace.
+        </AdminNotice>
+      ) : saved ? (
+        <AdminNotice tone="success">Offer saved. Its workspace is open below.</AdminNotice>
+      ) : null}
       {bannerFlash ? (
         <AdminNotice tone="success">
           {bannerFlash === "uploaded"
@@ -130,17 +157,21 @@ export default async function AdminOffersPage({
               ? "Publish the selected product or collection before enabling this offer."
               : error === "target_check"
                 ? "The selected target could not be checked. Refresh the list and try again."
-                : error === "banner_active"
-                  ? "Disable the offer before archiving its only published banner."
-                  : error === "banner_exists"
-                    ? "This offer already has a banner. Archive it before adding a replacement."
-                    : error === "missing_record"
-                      ? "This offer is no longer available. Refresh the list."
-                      : error === "toggle"
-                        ? "Offer availability could not be changed. Refresh the list and retry."
-                        : error.startsWith("banner_")
-                          ? "Offer banner could not be saved. Check the image type, size and required text."
-                          : "Offer could not be saved. Check its target, discount and schedule."}
+                : error === "target_missing"
+                  ? "The selected target no longer exists. Choose another target."
+                  : error === "invalid"
+                    ? "Check the offer name, target, discount and schedule."
+                    : error === "banner_active"
+                      ? "Disable the offer before archiving its only published banner."
+                      : error === "banner_exists"
+                        ? "This offer already has a banner. Archive it before adding a replacement."
+                        : error === "missing_record"
+                          ? "This offer is no longer available. Refresh the list."
+                          : error === "toggle"
+                            ? "Offer availability could not be changed. Refresh the list and retry."
+                            : error.startsWith("banner_")
+                              ? "Offer banner could not be saved. Check the image type, size and required text."
+                              : "Offer could not be saved. Check its target, discount and schedule."}
         </AdminNotice>
       ) : null}
       {queryError ? (
@@ -153,7 +184,13 @@ export default async function AdminOffersPage({
           id="new-offer-heading"
           title="Create an offer"
         />
-        <OfferForm collections={collectionTargets} products={productTargets} />
+        <OfferForm
+          collections={collectionTargets}
+          products={productTargets}
+          returnPage={pageNumber}
+          returnSearch={search}
+          showEnableToggle={false}
+        />
       </section>
 
       <section aria-labelledby="offer-list-heading" className="admin-panel">
@@ -192,150 +229,160 @@ export default async function AdminOffersPage({
                 )?.isPublished ?? false;
               const canEnable = banner?.status === "published" && targetIsPublished;
               return (
-                <article className="admin-offer-card" key={offer.id}>
-                  {banner?.signedUrl ? (
-                    <Image
-                      alt={banner.alt_text}
-                      className="admin-offer-card__banner"
-                      height={240}
-                      src={banner.signedUrl}
-                      unoptimized
-                      width={960}
-                    />
-                  ) : (
-                    <div
-                      aria-label="No offer banner uploaded"
-                      className="admin-offer-card__banner admin-offer-card__banner--empty"
-                      role="img"
-                    >
-                      Add an offer banner
-                    </div>
-                  )}
-                  <div className="admin-offer-card__heading">
-                    <div>
-                      <h3>{offer.name}</h3>
-                      <p>
-                        {targetLabel} · {offer.minimum_sets}+ sets ·{" "}
-                        {formatPercent(offer.discount_basis_points)}% off
-                      </p>
-                    </div>
-                    <div className="admin-offer-card__availability">
-                      <AdminStatusSwitch
-                        action={toggleOfferPublication}
-                        checked={offer.is_enabled}
-                        disabled={!offer.is_enabled && !canEnable}
-                        disabledHint={
-                          !offer.is_enabled && !canEnable
-                            ? banner?.status !== "published"
-                              ? "Publish a banner first."
-                              : "Publish the target first."
-                            : undefined
-                        }
-                        fields={{
-                          offer_id: offer.id,
-                          next_enabled: String(!offer.is_enabled),
-                          return_q: search,
-                          return_page: String(pageNumber),
-                        }}
-                        label={`${offer.is_enabled ? "Disable" : "Enable"} ${offer.name}`}
-                        message={
-                          offer.is_enabled
-                            ? `Disable ${offer.name}? Checkout will stop applying this offer.`
-                            : `Enable ${offer.name}? Checkout may apply it when the target, schedule and minimum quantity match.`
-                        }
-                        offLabel="Disabled"
-                        onLabel="Enabled"
-                        submitLabel={offer.is_enabled ? "Disable offer" : "Enable offer"}
+                <details
+                  className="admin-offer-card"
+                  id={"offer-" + offer.id}
+                  key={offer.id}
+                  open={selectedOfferId === offer.id}
+                >
+                  <summary className="admin-offer-card__summary">
+                    {banner?.signedUrl ? (
+                      <Image
+                        alt={banner.alt_text}
+                        className="admin-offer-card__banner"
+                        height={240}
+                        src={banner.signedUrl}
+                        unoptimized
+                        width={960}
                       />
+                    ) : (
+                      <div
+                        aria-label="No offer banner uploaded"
+                        className="admin-offer-card__banner admin-offer-card__banner--empty"
+                        role="img"
+                      >
+                        Add an offer banner
+                      </div>
+                    )}
+                    <div className="admin-offer-card__heading">
+                      <span>
+                        <strong>{offer.name}</strong>
+                        <span>
+                          {targetLabel} · {offer.minimum_sets}+ sets ·{" "}
+                          {formatPercent(offer.discount_basis_points)}% off
+                        </span>
+                      </span>
+                      <StatusBadge>{offer.is_enabled ? "enabled" : "draft"}</StatusBadge>
                     </div>
-                  </div>
-                  <AdminDialog
-                    description="Update the target, minimum set count, discount and availability schedule."
-                    title={offer.name}
-                    triggerLabel="Edit offer"
-                  >
-                    <OfferForm
-                      collections={collectionTargets}
-                      hasPublishedBanner={banner?.status === "published"}
-                      offer={values}
-                      products={productTargets}
-                    />
-                  </AdminDialog>
-                  <AdminDialog
-                    description="Upload a private banner, preview and crop it, then publish it before enabling the offer."
-                    title={`${offer.name} banner`}
-                    triggerLabel={banner ? "Edit banner" : "Add banner"}
-                  >
-                    {banner ? (
-                      <div className="admin-form">
-                        {banner.signedUrl ? (
-                          <Image
-                            alt={banner.alt_text}
-                            className="admin-offer-card__banner"
-                            height={240}
-                            src={banner.signedUrl}
-                            unoptimized
-                            width={960}
-                          />
-                        ) : null}
-                        <StatusBadge>{banner.status}</StatusBadge>
-                        <form action={updateOfferBanner} className="admin-form">
+                    <span className="admin-muted">Open offer workspace</span>
+                  </summary>
+                  <div className="admin-offer-card__workspace">
+                    <section>
+                      <p className="admin-eyebrow">Offer details and availability</p>
+                      <div className="admin-offer-card__availability">
+                        <AdminStatusSwitch
+                          action={toggleOfferPublication}
+                          checked={offer.is_enabled}
+                          disabled={!offer.is_enabled && !canEnable}
+                          disabledHint={
+                            !offer.is_enabled && !canEnable
+                              ? banner?.status !== "published"
+                                ? "Publish a banner first."
+                                : "Publish the target first."
+                              : undefined
+                          }
+                          fields={{
+                            offer_id: offer.id,
+                            next_enabled: String(!offer.is_enabled),
+                            return_q: search,
+                            return_page: String(pageNumber),
+                          }}
+                          label={(offer.is_enabled ? "Disable " : "Enable ") + offer.name}
+                          message={
+                            offer.is_enabled
+                              ? "Disable " +
+                                offer.name +
+                                "? Checkout will stop applying this offer."
+                              : "Enable " +
+                                offer.name +
+                                "? Checkout may apply it when the target, schedule and minimum quantity match."
+                          }
+                          offLabel="Disabled"
+                          onLabel="Enabled"
+                          submitLabel={offer.is_enabled ? "Disable offer" : "Enable offer"}
+                        />
+                      </div>
+                      <OfferForm
+                        collections={collectionTargets}
+                        hasPublishedBanner={banner?.status === "published"}
+                        offer={values}
+                        products={productTargets}
+                        returnPage={pageNumber}
+                        returnSearch={search}
+                        showEnableToggle={false}
+                      />
+                    </section>
+                    <section>
+                      <p className="admin-eyebrow">Offer banner</p>
+                      <StatusBadge>{banner?.status ?? "not added"}</StatusBadge>
+                      {banner ? (
+                        <>
+                          <form action={updateOfferBanner} className="admin-form">
+                            <input name="offer_id" type="hidden" value={offer.id} />
+                            <input name="media_id" type="hidden" value={banner.id} />
+                            <input name="return_q" type="hidden" value={search} />
+                            <input name="return_page" type="hidden" value={pageNumber} />
+                            <label className="admin-field">
+                              <span>Alternative text</span>
+                              <input
+                                defaultValue={banner.alt_text}
+                                maxLength={250}
+                                minLength={1}
+                                name="alt_text"
+                                required
+                              />
+                            </label>
+                            <AdminSubmitButton>Save banner details</AdminSubmitButton>
+                          </form>
+                          {banner.status === "draft" ? (
+                            <form action={publishOfferBanner}>
+                              <input name="offer_id" type="hidden" value={offer.id} />
+                              <input name="media_id" type="hidden" value={banner.id} />
+                              <input name="return_q" type="hidden" value={search} />
+                              <input name="return_page" type="hidden" value={pageNumber} />
+                              <AdminSubmitButton className="admin-button admin-button--primary">
+                                Publish banner
+                              </AdminSubmitButton>
+                            </form>
+                          ) : null}
+                          <form action={archiveOfferBanner}>
+                            <input name="offer_id" type="hidden" value={offer.id} />
+                            <input name="media_id" type="hidden" value={banner.id} />
+                            <input name="return_q" type="hidden" value={search} />
+                            <input name="return_page" type="hidden" value={pageNumber} />
+                            <ConfirmButton
+                              className="admin-button admin-button--danger"
+                              formAction={archiveOfferBanner}
+                              message="Archive this offer banner? It will no longer be available for signing."
+                            >
+                              Archive banner
+                            </ConfirmButton>
+                          </form>
+                        </>
+                      ) : (
+                        <form action={uploadOfferBanner} className="admin-form">
                           <input name="offer_id" type="hidden" value={offer.id} />
-                          <input name="media_id" type="hidden" value={banner.id} />
+                          <input name="return_q" type="hidden" value={search} />
+                          <input name="return_page" type="hidden" value={pageNumber} />
+                          <ImageUploadPreview aspectRatio={3} />
                           <label className="admin-field">
                             <span>Alternative text</span>
                             <input
-                              defaultValue={banner.alt_text}
                               maxLength={250}
                               minLength={1}
                               name="alt_text"
+                              placeholder="Describe the offer banner"
                               required
                             />
                           </label>
-                          <AdminSubmitButton>Save banner details</AdminSubmitButton>
+                          <AdminSubmitButton pendingLabel="Uploading banner…">
+                            Upload banner
+                          </AdminSubmitButton>
                         </form>
-                        {banner.status === "draft" ? (
-                          <form action={publishOfferBanner}>
-                            <input name="offer_id" type="hidden" value={offer.id} />
-                            <input name="media_id" type="hidden" value={banner.id} />
-                            <AdminSubmitButton className="admin-button admin-button--primary">
-                              Publish banner
-                            </AdminSubmitButton>
-                          </form>
-                        ) : null}
-                        <form action={archiveOfferBanner}>
-                          <input name="offer_id" type="hidden" value={offer.id} />
-                          <input name="media_id" type="hidden" value={banner.id} />
-                          <ConfirmButton
-                            className="admin-button admin-button--danger"
-                            formAction={archiveOfferBanner}
-                            message="Archive this offer banner? It will no longer be available for signing."
-                          >
-                            Archive banner
-                          </ConfirmButton>
-                        </form>
-                      </div>
-                    ) : (
-                      <form action={uploadOfferBanner} className="admin-form">
-                        <input name="offer_id" type="hidden" value={offer.id} />
-                        <ImageUploadPreview aspectRatio={3} />
-                        <label className="admin-field">
-                          <span>Alternative text</span>
-                          <input
-                            maxLength={250}
-                            minLength={1}
-                            name="alt_text"
-                            placeholder="Describe the offer banner"
-                            required
-                          />
-                        </label>
-                        <AdminSubmitButton pendingLabel="Uploading banner…">
-                          Upload banner
-                        </AdminSubmitButton>
-                      </form>
-                    )}
-                  </AdminDialog>
-                </article>
+                      )}
+                    </section>
+                  </div>
+                </details>
               );
             })}
             <AdminPagination
