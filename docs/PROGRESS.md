@@ -1,6 +1,6 @@
 # Development progress
 
-**Last updated:** 2026-11-27
+**Last updated:** 2026-11-28
 
 **Current milestone:** Stage 5/6 — customer reviews and admin experience (in progress by owner direction; UAT schema and product workflow checks pass, broader authenticated and Worker runtime acceptance remains incomplete)
 
@@ -610,3 +610,19 @@ Brand/logo, product photos/models, size chart, LKR prices, inventory, verified W
 - Placed published collections immediately below the single-fill hero curve, followed by four newest published products, offers, craft story, closing action and the footer feature panel. Reused the storefront product grid and publication ordering. Full-bleed offer banners fade into their text. Both galleries rotate automatically and accept native swiping without playback controls.
 - Chromium on localhost:3000 showed four arrivals, the requested order, zero horizontal overflow and a flush hero-to-collections boundary at 390, 768 and 1366 pixels. At phone width both rails advanced automatically. A simulated touch swipe moved offers from 301 to 555 pixels. Inspected the overlapping mobile footer panel. Reduced-motion settings disable automatic rotation and background drift.
 - TypeScript and scoped ESLint passed, npm test passed 72 tests, and git diff --check passed. Physical iOS and Worker preview were not checked in this pass.
+## Collection and offer workflow simplification — 2026-11-28
+
+- Work is on `codex/admin-collection-offers-ux`, rebased onto `origin/dev` at `308b0a3`. Collection creation opens the new draft in its expanded workspace; its details, private image upload, image order, and publication controls are on that page. Offer creation returns to the selected offer workspace containing its rule, banner upload/edit/publish/archive controls, and the existing confirmation-backed availability switch.
+- Removed manual display-order number fields. New collection and image positions are assigned by database functions; adjacent move controls atomically renumber active positions. Archived images are excluded from the active image ordering. The migration and SQL permission tests are committed locally and have not been applied to UAT.
+- Reviewed form scenarios in code: required name/target/rule fields, slug derivation, invalid schedules, image type/size/alt-text limits, the 20-image cap and storage cleanup on metadata failure, no-image collection publish blocking, last-published-image protection, search-aware list movement, and offer banner plus published-target requirements. This was code review, not a browser acceptance pass.
+- PASS: `pnpm exec tsc --noEmit --incremental false`, `pnpm lint`, `pnpm test` (14 files, 71 tests), `pnpm format:check`, and `git diff --check` after the latest edits.
+- `pnpm cf:build` compiled Next.js, typechecked and generated routes, then failed during OpenNext middleware bundling because Windows denied creation of a traced-file symlink (`EPERM`). No Worker bundle or preview result is claimed. Supabase CLI/local database and browser workflow checks were unavailable in this pass; no UAT or production data was changed.
+
+## Admin media and record cleanup — 2026-11-28
+
+- Continued on `codex/admin-collection-offers-ux`, created from `origin/dev`. Replaced archive-only product, collection and offer image controls with confirmed permanent deletion, including legacy archived media. Storage objects are removed after database metadata deletion; cleanup errors are surfaced and logged.
+- Added offer banner replacement inside the offer workspace. It uploads a new private draft, requires the offer to be disabled, removes prior banner metadata, and then removes old private objects. Publishing the new banner remains a separate explicit step before enabling the offer.
+- Added permanent offer and collection deletion. Offer order snapshots remain intact; collection deletion removes product links and fails while an offer still targets the collection. Delete audit events are captured by database triggers.
+- Added guarded admin-only RPC migration and rollback-only SQL assertions. The migration has not been applied to local, UAT, or live databases, and no hosted record or storage object was changed during this implementation.
+- PASS: `pnpm exec tsc --noEmit --incremental false`, `pnpm lint`, `pnpm test` (14 files, 71 tests), `pnpm format:check`, and `git diff --check` after this implementation. Prettier formatting was applied to the edited TypeScript files.
+- NOT RUN: the rollback-only `supabase/tests/admin_permanent_deletes.sql` assertions, migration application, browser/admin fixture workflow, accessibility review, and Cloudflare Worker preview. Supabase was not connected and no hosted UAT/live data or storage objects were changed. The existing Windows OpenNext middleware symlink limitation remains recorded above.

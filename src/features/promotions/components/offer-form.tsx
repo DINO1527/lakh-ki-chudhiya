@@ -24,18 +24,27 @@ export function OfferForm({
   products,
   collections,
   hasPublishedBanner = false,
+  showEnableToggle = true,
+  returnSearch = "",
+  returnPage,
 }: Readonly<{
   offer?: OfferFormValues;
   products: readonly OfferTarget[];
   collections: readonly OfferTarget[];
   hasPublishedBanner?: boolean;
+  showEnableToggle?: boolean;
+  returnSearch?: string;
+  returnPage?: number;
 }>) {
   const [targetType, setTargetType] = useState<OfferTargetType>(offer?.targetType ?? "product");
   const [targetId, setTargetId] = useState(offer?.targetId ?? "");
+  const [isEnabled, setIsEnabled] = useState(offer?.isEnabled ?? false);
   const startsAtRef = useRef<HTMLInputElement>(null);
   const endsAtRef = useRef<HTMLInputElement>(null);
   const enableRef = useRef<HTMLInputElement>(null);
   const targets = targetType === "product" ? products : collections;
+  const selectedTarget = targets.find((target) => target.id === targetId);
+  const canEnable = hasPublishedBanner && selectedTarget?.isPublished === true;
 
   function updateEnableValidity(
     nextType: OfferTargetType,
@@ -69,6 +78,8 @@ export function OfferForm({
   return (
     <form action={saveOffer} className="admin-form offer-form">
       <input name="offer_id" type="hidden" value={offer?.id ?? ""} />
+      <input name="return_q" type="hidden" value={returnSearch} />
+      {returnPage ? <input name="return_page" type="hidden" value={returnPage} /> : null}
       <p className="admin-eyebrow">1 · Name the offer and choose what it applies to</p>
       <label className="admin-field">
         <span>Offer name</span>
@@ -89,6 +100,7 @@ export function OfferForm({
               const nextType = event.target.value as OfferTargetType;
               setTargetType(nextType);
               setTargetId("");
+              setIsEnabled(enableRef.current?.checked ?? false);
               updateEnableValidity(nextType, "", enableRef.current?.checked ?? false);
             }}
             required
@@ -184,24 +196,35 @@ export function OfferForm({
           />
         </label>
       </div>
-      <label className="admin-checkbox">
-        <input
-          defaultChecked={offer?.isEnabled ?? false}
-          name="is_enabled"
-          onChange={(event) =>
-            updateEnableValidity(targetType, targetId, event.currentTarget.checked)
-          }
-          ref={enableRef}
-          type="checkbox"
-        />
-        <span>
-          Enable this offer
-          <small>
-            Checkout uses the best single eligible offer; discounts do not stack. Scheduled or
-            expired offers do not apply. Publish a banner before enabling this offer.
-          </small>
-        </span>
-      </label>
+      {showEnableToggle ? (
+        <label className="admin-checkbox">
+          <input
+            checked={isEnabled}
+            disabled={!isEnabled && !canEnable}
+            name="is_enabled"
+            onChange={(event) => {
+              setIsEnabled(event.currentTarget.checked);
+              updateEnableValidity(targetType, targetId, event.currentTarget.checked);
+            }}
+            ref={enableRef}
+            type="checkbox"
+          />
+          <span>
+            Enable this offer
+            <small>
+              {!hasPublishedBanner
+                ? "Publish a banner before enabling this offer. "
+                : !selectedTarget?.isPublished
+                  ? "Choose a published product or collection before enabling this offer. "
+                  : "A published banner and target are ready. "}
+              Checkout uses the best single eligible offer; discounts do not stack. Scheduled or
+              expired offers do not apply.
+            </small>
+          </span>
+        </label>
+      ) : offer?.isEnabled ? (
+        <input name="is_enabled" type="hidden" value="on" />
+      ) : null}
       <AdminSubmitButton
         className="admin-button admin-button--secondary"
         disabled={!targets.length}
