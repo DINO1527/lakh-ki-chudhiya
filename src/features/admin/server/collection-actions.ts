@@ -78,7 +78,9 @@ export async function saveCollection(formData: FormData): Promise<never> {
     }
 
     revalidateCollectionPages();
-    redirect(`/admin/collections?created=${createdId}#collection-${createdId}`);
+    const destination =
+      formData.get("save_intent") === "continue" ? "images" : "collection-details";
+    redirect(`/admin/collections?created=${createdId}#${destination}-${createdId}`);
   }
 
   const { data: updated, error } = await supabase
@@ -92,7 +94,7 @@ export async function saveCollection(formData: FormData): Promise<never> {
     redirect(collectionResultUrl(existingCollectionId, "error", "save"));
   }
   revalidateCollectionPages();
-  redirect(collectionResultUrl(existingCollectionId, "saved", "1"));
+  redirect(collectionResultUrl(existingCollectionId, "saved", "1", formData));
 }
 
 export async function toggleCollectionPublication(formData: FormData): Promise<never> {
@@ -213,7 +215,7 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
         "collections",
         collectionError.code,
       );
-    redirect(collectionResultUrl(collectionId, "error", "image"));
+    redirect(collectionResultUrl(collectionId, "error", "missing_record"));
   }
 
   const { count, error: countError } = await supabase
@@ -236,7 +238,7 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
     .upload(storagePath, file, { contentType: detected, upsert: false, cacheControl: "3600" });
   if (uploadError) {
     logAdminActionFailure("uploadCollectionImage.storage", "product-media", uploadError.name);
-    redirect(collectionResultUrl(collectionId, "error", "image"));
+    redirect(collectionResultUrl(collectionId, "error", "storage_upload"));
   }
 
   const { error: metadataError } = await supabase.rpc("add_collection_media", {
@@ -256,10 +258,12 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
       collectionResultUrl(
         collectionId,
         "error",
-        metadataError.code === "23514" &&
-          metadataError.message === "A collection can have at most 20 active images"
-          ? "image_limit"
-          : "image",
+        metadataError.code === "42883" || metadataError.code === "PGRST202"
+          ? "database_update"
+          : metadataError.code === "23514" &&
+              metadataError.message === "A collection can have at most 20 active images"
+            ? "image_limit"
+            : "image",
       ),
     );
   }
@@ -459,7 +463,10 @@ function collectionResultUrl(
     if (search) query.set("q", search);
     if (page && /^[0-9]{1,5}$/.test(page) && Number(page) > 1) query.set("page", page);
   }
-  return "/admin/collections?" + query.toString() + "#collection-" + collectionId;
+  const intent = formData?.get("save_intent");
+  const section = intent === "photos" ? "images" : "collection";
+  const anchor = section === "images" ? `images-${collectionId}` : `collection-${collectionId}`;
+  return "/admin/collections?" + query.toString() + "#" + anchor;
 }
 
 function collectionListResultUrl(formData: FormData, key: string, value: string): string {

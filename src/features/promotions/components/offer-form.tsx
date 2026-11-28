@@ -225,12 +225,25 @@ export function OfferForm({
       ) : offer?.isEnabled ? (
         <input name="is_enabled" type="hidden" value="on" />
       ) : null}
-      <AdminSubmitButton
-        className="admin-button admin-button--secondary"
-        disabled={!targets.length}
-      >
-        {offer ? "Save offer changes" : "Create offer"}
-      </AdminSubmitButton>
+      <div className="admin-form__actions">
+        <AdminSubmitButton
+          className="admin-button admin-button--secondary"
+          disabled={!targets.length}
+          name="save_intent"
+          value="save"
+          pendingLabel={offer ? "Saving offer…" : "Creating offer…"}
+        >
+          {offer ? "Save" : "Create offer"}
+        </AdminSubmitButton>
+        <AdminSubmitButton
+          disabled={!targets.length}
+          name="save_intent"
+          value="banner"
+          pendingLabel="Saving and opening banner…"
+        >
+          {offer ? "Save and continue to banner" : "Create and continue to banner"}
+        </AdminSubmitButton>
+      </div>
       {!targets.length ? (
         <p className="admin-muted">Create a {targetType} before you can attach an offer to it.</p>
       ) : null}
