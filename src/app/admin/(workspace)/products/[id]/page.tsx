@@ -14,6 +14,7 @@ import {
   Package,
   Ruler,
   Sparkles,
+  Trash2,
   Truck,
 } from "lucide-react";
 import {
@@ -31,7 +32,7 @@ import { ConfirmButton } from "@/features/admin/components/confirm-button";
 import { getProductPublishBlockers } from "@/features/admin/domain/product-publish-readiness";
 import {
   archiveProduct,
-  archiveProductImage,
+  deleteProductImage,
   publishProduct,
   publishProductImage,
   unpublishProductImage,
@@ -64,7 +65,7 @@ const statusMessages: Record<string, string> = {
   archived: "Product archived and removed from public catalogue results.",
   drafted: "Product returned to drafts and removed from the storefront.",
   "media=uploaded": "Image uploaded privately as a draft asset.",
-  "media=archived": "Image archived. It can no longer be signed for public viewing.",
+  "media=deleted": "Image permanently deleted.",
   "media=updated": "Image details saved.",
   "media=published": "Image published to the product gallery.",
   "media=drafted": "Image returned to drafts and hidden from the product gallery.",
@@ -73,17 +74,19 @@ const statusMessages: Record<string, string> = {
 
 const productErrorMessages: Readonly<Record<string, string>> = {
   media_limit:
-    "A product can have up to 20 active gallery images. Archive one before adding another.",
+    "A product can have up to 20 active gallery images. Delete an active image before adding another.",
   last_image:
     "A published product must keep at least one published photo. Publish another photo first.",
   order:
     "Product details were saved, but the catalogue position could not be updated. Refresh and try again.",
   publish_requirements: "Complete the product publishing checklist below before trying again.",
   database_update:
-    "The UAT database is missing a product workflow update. Apply the current product migrations, then retry.",
+    "The database is missing an admin workflow update. Apply the current admin migrations, then retry.",
   permission:
     "Your staff access does not allow this change. Ask the store owner to check your role.",
   missing_record: "This product or photo is no longer available. Refresh the page and try again.",
+  storage_cleanup:
+    "The image record was deleted, but its private storage file could not be removed. Ask an owner to review storage cleanup.",
   media_publish: "This photo could not be published. Refresh the photo list and try again.",
   media_unpublish:
     "This photo could not be returned to drafts. A published product must keep a published photo.",
@@ -225,8 +228,8 @@ export default async function AdminProductEditorPage({
       {query.media === "uploaded" ? (
         <AdminNotice tone="success">{statusMessages["media=uploaded"]}</AdminNotice>
       ) : null}
-      {query.media === "archived" ? (
-        <AdminNotice tone="success">{statusMessages["media=archived"]}</AdminNotice>
+      {query.media === "deleted" ? (
+        <AdminNotice tone="success">{statusMessages["media=deleted"]}</AdminNotice>
       ) : null}
       {query.media === "updated" || query.media === "published" ? (
         <AdminNotice tone="success">{statusMessages[`media=${query.media}`]}</AdminNotice>
@@ -801,24 +804,30 @@ export default async function AdminProductEditorPage({
                         ) : null}
                       </form>
                     ) : null}
-                    {item.status !== "archived" ? (
-                      <form action={archiveProductImage}>
-                        <input name="product_id" type="hidden" value={id} />
-                        <input name="media_id" type="hidden" value={item.id} />
-                        <ConfirmButton
-                          className="admin-button admin-button--quiet"
-                          formAction={archiveProductImage}
-                          message="Archive this image? It will stop being available to the public."
-                          triggerDisabled={isLastPublishedImage}
-                          triggerTitle={
-                            isLastPublishedImage
-                              ? "Publish another photo before archiving this one"
-                              : "Archive this photo"
-                          }
-                        >
-                          Archive image
-                        </ConfirmButton>
-                      </form>
+                    <form action={deleteProductImage}>
+                      <input name="product_id" type="hidden" value={id} />
+                      <input name="media_id" type="hidden" value={item.id} />
+                      <ConfirmButton
+                        className="admin-button admin-button--quiet"
+                        formAction={deleteProductImage}
+                        message={`Permanently delete “${item.alt_text}”? This removes the image and its stored file.`}
+                        submitLabel="Delete image"
+                        triggerAriaLabel={`Delete image: ${item.alt_text}`}
+                        triggerDisabled={isLastPublishedImage}
+                        triggerTitle={
+                          isLastPublishedImage
+                            ? "Publish another photo before deleting this one"
+                            : "Delete this photo permanently"
+                        }
+                      >
+                        <Trash2 aria-hidden="true" size={16} />
+                        Delete image
+                      </ConfirmButton>
+                    </form>
+                    {isLastPublishedImage ? (
+                      <small className="admin-muted">
+                        Publish another photo before deleting this one.
+                      </small>
                     ) : null}
                   </li>
                 );

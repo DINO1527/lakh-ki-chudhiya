@@ -360,6 +360,10 @@ export type Database = {
         Args: { p_media_id: string; p_product_id: string };
         Returns: undefined;
       };
+      delete_product_media: {
+        Args: { p_product_id: string; p_media_id: string };
+        Returns: string;
+      };
       publish_product_media: {
         Args: { p_media_id: string; p_product_id: string };
         Returns: undefined;
@@ -375,6 +379,30 @@ export type Database = {
       archive_collection_media: {
         Args: { p_media_id: string; p_collection_id: string };
         Returns: undefined;
+      };
+      delete_collection_media: {
+        Args: { p_collection_id: string; p_media_id: string };
+        Returns: string;
+      };
+      delete_collection: {
+        Args: { p_collection_id: string };
+        Returns: string[];
+      };
+      create_collection_draft: {
+        Args: { p_name: string; p_slug: string; p_description: string };
+        Returns: string;
+      };
+      add_collection_media: {
+        Args: { p_collection_id: string; p_storage_path: string; p_alt_text: string };
+        Returns: string;
+      };
+      move_collection_order: {
+        Args: { p_collection_id: string; p_direction: string };
+        Returns: boolean;
+      };
+      move_collection_media_order: {
+        Args: { p_collection_id: string; p_media_id: string; p_direction: string };
+        Returns: boolean;
       };
       set_product_collections: {
         Args: { p_product_id: string; p_collection_ids: string[] };
@@ -481,6 +509,18 @@ export type Database = {
           p_is_enabled: boolean;
         };
         Returns: string;
+      };
+      replace_offer_banner: {
+        Args: { p_offer_id: string; p_storage_path: string; p_alt_text: string };
+        Returns: string[];
+      };
+      delete_offer_media: {
+        Args: { p_offer_id: string; p_media_id: string };
+        Returns: string;
+      };
+      delete_offer: {
+        Args: { p_offer_id: string };
+        Returns: string[];
       };
       get_active_storefront_offers: {
         Args: { p_limit?: number };
