@@ -20,10 +20,14 @@ export function WaveDivider({ placement }: WaveDividerProps) {
         preserveAspectRatio="none"
         viewBox="0 0 1440 180"
       >
-        <path className={styles.shadow} d={wavePath} />
+        {placement === "footer" && <path className={styles.shadow} d={wavePath} />}
         <path className={styles.base} d={wavePath} />
-        <path className={styles.secondaryLine} d={secondaryWaveLinePath} />
-        <path className={styles.line} d={waveLinePath} />
+        {placement === "footer" && (
+          <>
+            <path className={styles.secondaryLine} d={secondaryWaveLinePath} />
+            <path className={styles.line} d={waveLinePath} />
+          </>
+        )}
       </svg>
     </div>
   );

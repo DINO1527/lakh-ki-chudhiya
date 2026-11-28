@@ -13,12 +13,7 @@ import {
   Vector3,
 } from "three";
 import { LACORA_BANGLE_PALETTE } from "./bangle-palette";
-import {
-  createHeroRingMotion,
-  HERO_RING_ORDER,
-  heroIntroDuration,
-  type HeroRingId,
-} from "../domain/hero-motion";
+import { createHeroRingMotion, heroIntroDuration, heroRingSpacing } from "../domain/hero-motion";
 import type { HeroLayout } from "../domain/hero-layout";
 
 const OUTER_RADIUS = 0.82;
@@ -40,16 +35,7 @@ const BRAID_COLORS = [
   LACORA_BANGLE_PALETTE.burgundy,
   LACORA_BANGLE_PALETTE.burgundyDeep,
 ] as const;
-const MODEL_SEGMENTS = 448;
-const RING_START_TILT: Record<HeroRingId, [number, number, number]> = {
-  outerTop: [-0.32, 0.2, 0.48],
-  spacerTop: [0.3, -0.32, -0.38],
-  centre: [0.4, 0.15, 0.62],
-  spacerBottom: [-0.28, 0.24, -0.42],
-  outerBottom: [0.36, -0.2, 0.45],
-};
-const SHOWCASE_CYCLE_SECONDS = 8;
-
+const MODEL_SEGMENTS = 256;
 type SceneFrame = { center: Vector3; scale: number; worldWidth: number; worldHeight: number };
 
 function getSceneFrame(
@@ -75,29 +61,12 @@ function getSceneFrame(
   );
   const stageWorldWidth = (layout.stage.width / Math.max(layout.width, 1)) * worldWidth;
   const stageWorldHeight = (layout.stage.height / Math.max(layout.height, 1)) * worldHeight;
-  const scale = Math.max(0.5, Math.min(1.82, stageWorldWidth / 2.15, stageWorldHeight / 1.85));
+  const scale = Math.max(0.5, Math.min(1.82, stageWorldWidth / 2.25, stageWorldHeight / 2.3));
 
   return { center, scale, worldWidth, worldHeight };
 }
 
-function localScreenPoint(
-  point: { x: number; y: number },
-  frame: SceneFrame,
-  camera: PerspectiveCamera,
-) {
-  const distance = camera.position.length();
-  const world = camera.localToWorld(
-    new Vector3(
-      (point.x * 2 - 1) * frame.worldWidth * 0.5,
-      (1 - point.y * 2) * frame.worldHeight * 0.5,
-      -distance,
-    ),
-  );
-  return world.sub(frame.center).divideScalar(frame.scale);
-}
-
 type RingRef = { current: Group | null };
-type RingVectors = { start: Vector3; path: CatmullRomCurve3; target: Vector3 };
 
 function WebGLContextGuard({ onContextLost }: { onContextLost: () => void }) {
   const { gl } = useThree();
@@ -123,54 +92,21 @@ function setDockedRing(ringRef: RingRef, target: Vector3) {
   ring.scale.setScalar(1);
 }
 
-function animateRing(
-  ringRef: RingRef,
-  index: number,
-  progress: number,
-  showcaseTime: number,
-  eject: number,
-  stacked: boolean,
-  choreography: ReturnType<typeof createHeroRingMotion>[HeroRingId],
-  vectors: RingVectors,
-) {
+function animateRing(ringRef: RingRef, index: number, time: number) {
   const ring = ringRef.current;
   if (!ring) return;
-
-  const local = MathUtils.clamp((progress - index * 0.038) / 0.84, 0, 1);
-  // Keep drifting through the highlight between the two faster sections.
-  const flight =
-    0.16 * local +
-    0.28 * MathUtils.smootherstep(local, 0, 0.3) +
-    0.56 * MathUtils.smootherstep(local, 0.47, 1);
-  const level = MathUtils.smootherstep(flight, 0.63, 1);
-  const dock = MathUtils.smootherstep(
-    progress,
-    0.76 + choreography.dockStart * 0.12,
-    0.84 + choreography.dockEnd * 0.16,
-  );
+  // Shared parallel planes preserve clearance through the whole breathing cycle.
   const slot = 2 - index;
-  vectors.path.getPointAt(flight, ring.position);
-  ring.position.lerp(vectors.target, level);
-  ring.position.y += slot * level * (0.16 * (1 - dock) + 0.032 * eject);
-  const spinSign = index % 2 === 0 ? 1 : -1;
-  const spin = spinSign * (flight * Math.PI * 1.7 + showcaseTime * 0.23);
-  const bank = Math.sin(2 * Math.PI * flight);
-  ring.rotation.set(
-    (1 - level) * (0.24 + Math.sin(Math.PI * flight) * (stacked ? 0.44 : 0.78)),
-    spin,
-    (1 - level) * (0.36 - bank * 0.8),
-    "ZXY",
-  );
-  ring.scale.setScalar(
-    MathUtils.lerp(stacked ? 0.36 : 0.46, 1, MathUtils.smootherstep(progress, 0.51, 0.92)),
-  );
+  ring.position.set(slot * 0.018, slot * heroRingSpacing(time), 0);
+  ring.rotation.set(0, time * 0.1 + index * 0.16, 0);
+  ring.scale.setScalar(1);
 }
 
 type RingProfile = { radial: number; vertical: number };
 
 function makeRoundedBandGeometry(majorRadius: number, profile: RingProfile) {
-  const ringSegments = 288;
-  const crossSegments = 36;
+  const ringSegments = 192;
+  const crossSegments = 24;
   const rowSize = crossSegments;
   const positions = new Float32Array(ringSegments * rowSize * 3);
   const indices: number[] = [];
@@ -511,7 +447,7 @@ function BangleSet({
   onForegroundSafe: (safe: boolean) => void;
   onReady: () => void;
 }) {
-  const { camera: activeCamera, size } = useThree();
+  const { camera: activeCamera, size, gl } = useThree();
   const camera = activeCamera as PerspectiveCamera;
   const stack = useRef<Group | null>(null);
   const outerTop = useRef<Group | null>(null);
@@ -520,6 +456,36 @@ function BangleSet({
   const spacerBottom = useRef<Group | null>(null);
   const outerBottom = useRef<Group | null>(null);
   const elapsed = useRef(0);
+  const pointer = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    if (!active || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    const move = (event: PointerEvent) => {
+      const bounds = gl.domElement.getBoundingClientRect();
+      if (
+        event.clientX < bounds.left ||
+        event.clientX > bounds.right ||
+        event.clientY < bounds.top ||
+        event.clientY > bounds.bottom
+      ) {
+        pointer.current = { x: 0, y: 0 };
+        return;
+      }
+      pointer.current.x = ((event.clientX - bounds.left) / bounds.width) * 2 - 1;
+      pointer.current.y = ((event.clientY - bounds.top) / bounds.height) * 2 - 1;
+    };
+    const reset = () => {
+      pointer.current = { x: 0, y: 0 };
+    };
+    window.addEventListener("pointermove", move, { passive: true });
+    document.documentElement.addEventListener("pointerleave", reset);
+    window.addEventListener("blur", reset);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      document.documentElement.removeEventListener("pointerleave", reset);
+      window.removeEventListener("blur", reset);
+      reset();
+    };
+  }, [active, gl]);
   const introStarted = useRef(false);
   const introCompleted = useRef(false);
   const duration = heroIntroDuration(layout.mode);
@@ -528,39 +494,6 @@ function BangleSet({
     [camera, layout, size.height, size.width],
   );
   const motion = useMemo(() => createHeroRingMotion(layout), [layout]);
-  const vectors = useMemo(() => {
-    const stagePoint = (x: number, y: number) =>
-      localScreenPoint(
-        {
-          x: (layout.stage.x + x * layout.stage.width) / layout.width,
-          y: (layout.stage.y + y * layout.stage.height) / layout.height,
-        },
-        frame,
-        camera,
-      );
-    return Object.fromEntries(
-      HERO_RING_ORDER.map((id, index) => {
-        const start = localScreenPoint(motion[id].start, frame, camera);
-        const target = new Vector3(0, motion[id].dockY, 0);
-        // Separate the trails in depth and height as the camera sees their specular faces.
-        const lane = (index - 2) * 0.055;
-        const nearTurn = stagePoint(0.73 - lane * 0.25, 0.66 + lane);
-        nearTurn.addScaledVector(camera.position.clone().normalize(), 0.38 - lane);
-        const path = new CatmullRomCurve3([
-          start,
-          stagePoint(layout.mode === "stacked" ? 0.36 : -0.22, 0.26 + lane),
-          stagePoint(0.48, 0.5 + lane),
-          nearTurn,
-          stagePoint(0.82, 0.49 + lane),
-          stagePoint(0.72, 0.27 + lane),
-          stagePoint(0.52, 0.24 + lane),
-          localScreenPoint(motion[id].fan, frame, camera),
-        ]);
-        return [id, { start, target, path }];
-      }),
-    ) as Record<HeroRingId, RingVectors>;
-  }, [camera, frame, layout, motion]);
-
   useEffect(() => onReady(), [onReady]);
 
   useEffect(() => {
@@ -568,13 +501,13 @@ function BangleSet({
 
     elapsed.current = duration;
     introCompleted.current = true;
-    setDockedRing(outerTop, vectors.outerTop.target);
-    setDockedRing(spacerTop, vectors.spacerTop.target);
-    setDockedRing(centre, vectors.centre.target);
-    setDockedRing(spacerBottom, vectors.spacerBottom.target);
-    setDockedRing(outerBottom, vectors.outerBottom.target);
+    setDockedRing(outerTop, new Vector3(0, motion.outerTop.dockY, 0));
+    setDockedRing(spacerTop, new Vector3(0, motion.spacerTop.dockY, 0));
+    setDockedRing(centre, new Vector3(0, motion.centre.dockY, 0));
+    setDockedRing(spacerBottom, new Vector3(0, motion.spacerBottom.dockY, 0));
+    setDockedRing(outerBottom, new Vector3(0, motion.outerBottom.dockY, 0));
     onForegroundSafe(layout.foregroundSafe);
-  }, [animateIntro, duration, layout.foregroundSafe, onForegroundSafe, vectors]);
+  }, [animateIntro, duration, layout.foregroundSafe, onForegroundSafe, motion]);
 
   useFrame((state, delta) => {
     if (!active) return;
@@ -604,64 +537,30 @@ function BangleSet({
 
     if (stack.current) {
       stack.current.position.copy(frame.center);
-      stack.current.scale.setScalar(frame.scale);
-      stack.current.rotation.y = -0.22 * (1 - MathUtils.smoothstep(progress, 0.3, 1));
-      stack.current.rotation.z = -0.16 * (1 - MathUtils.smootherstep(progress, 0.35, 0.8));
-      stack.current.rotation.x = 0.035 + Math.sin((showcaseTime * Math.PI * 2) / 18) * 0.004;
+      stack.current.scale.setScalar(
+        frame.scale * MathUtils.lerp(0.78, 1, MathUtils.smootherstep(progress, 0, 0.8)),
+      );
+      const settled = MathUtils.smootherstep(progress, 0.75, 1);
+      stack.current.position.y += Math.sin(showcaseTime * 0.7) * 0.07 * settled;
+      stack.current.rotation.y = MathUtils.damp(
+        stack.current.rotation.y,
+        -0.22 * (1 - settled) +
+          (pointer.current.x * 0.34 + Math.sin(showcaseTime * 0.3) * 0.1) * settled,
+        4,
+        delta,
+      );
+      stack.current.rotation.z = -0.16 + Math.sin(showcaseTime * 0.38) * 0.035 * settled;
+      stack.current.rotation.x = MathUtils.damp(
+        stack.current.rotation.x,
+        0.08 + pointer.current.y * 0.2 * settled,
+        4,
+        delta,
+      );
     }
 
-    const idlePhase = (showcaseTime % SHOWCASE_CYCLE_SECONDS) / SHOWCASE_CYCLE_SECONDS;
-    const eject = (1 - Math.cos(idlePhase * Math.PI * 2)) * 0.5;
-    animateRing(
-      outerTop,
-      0,
-      progress,
-      showcaseTime,
-      eject,
-      layout.mode === "stacked",
-      motion.outerTop,
-      vectors.outerTop,
-    );
-    animateRing(
-      spacerTop,
-      1,
-      progress,
-      showcaseTime,
-      eject,
-      layout.mode === "stacked",
-      motion.spacerTop,
-      vectors.spacerTop,
-    );
-    animateRing(
-      centre,
-      2,
-      progress,
-      showcaseTime,
-      eject,
-      layout.mode === "stacked",
-      motion.centre,
-      vectors.centre,
-    );
-    animateRing(
-      spacerBottom,
-      3,
-      progress,
-      showcaseTime,
-      eject,
-      layout.mode === "stacked",
-      motion.spacerBottom,
-      vectors.spacerBottom,
-    );
-    animateRing(
-      outerBottom,
-      4,
-      progress,
-      showcaseTime,
-      eject,
-      layout.mode === "stacked",
-      motion.outerBottom,
-      vectors.outerBottom,
-    );
+    [outerTop, spacerTop, centre, spacerBottom, outerBottom].forEach((ring, index) => {
+      animateRing(ring, index, showcaseTime);
+    });
 
     if (progress >= 1 && !introCompleted.current) {
       introCompleted.current = true;
@@ -673,7 +572,15 @@ function BangleSet({
   return (
     <>
       <hemisphereLight args={["#fff9f0", "#45101f", 1.3]} />
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.3} />
+      <spotLight
+        color="#fff9f0"
+        intensity={34}
+        position={[0, 4, 4]}
+        angle={0.65}
+        penumbra={1}
+        distance={14}
+      />
       <directionalLight
         castShadow
         intensity={2.5}
@@ -685,45 +592,19 @@ function BangleSet({
       <pointLight color="#b33451" intensity={7} position={[-3.2, 0.1, -2.4]} />
 
       <group ref={stack} position={frame.center.toArray()} scale={frame.scale}>
-        <group
-          ref={outerTop}
-          position={animateIntro ? vectors.outerTop.start.toArray() : [0, motion.outerTop.dockY, 0]}
-          rotation={animateIntro ? RING_START_TILT.outerTop : [0, 0, 0]}
-        >
+        <group ref={outerTop} position={[0, motion.outerTop.dockY, 0]} rotation={[0, 0, 0]}>
           <OrnamentedOuterRing profile={OUTER_RING_PROFILE} />
         </group>
-        <group
-          ref={spacerTop}
-          position={
-            animateIntro ? vectors.spacerTop.start.toArray() : [0, motion.spacerTop.dockY, 0]
-          }
-          rotation={animateIntro ? RING_START_TILT.spacerTop : [0, 0, 0]}
-        >
+        <group ref={spacerTop} position={[0, motion.spacerTop.dockY, 0]} rotation={[0, 0, 0]}>
           <SmoothSpacerRing profile={SPACER_RING_PROFILE} />
         </group>
-        <group
-          ref={centre}
-          position={animateIntro ? vectors.centre.start.toArray() : [0, motion.centre.dockY, 0]}
-          rotation={animateIntro ? RING_START_TILT.centre : [0, 0, 0]}
-        >
+        <group ref={centre} position={[0, motion.centre.dockY, 0]} rotation={[0, 0, 0]}>
           <CentreBraid />
         </group>
-        <group
-          ref={spacerBottom}
-          position={
-            animateIntro ? vectors.spacerBottom.start.toArray() : [0, motion.spacerBottom.dockY, 0]
-          }
-          rotation={animateIntro ? RING_START_TILT.spacerBottom : [0, 0, 0]}
-        >
+        <group ref={spacerBottom} position={[0, motion.spacerBottom.dockY, 0]} rotation={[0, 0, 0]}>
           <SmoothSpacerRing profile={SPACER_RING_PROFILE} />
         </group>
-        <group
-          ref={outerBottom}
-          position={
-            animateIntro ? vectors.outerBottom.start.toArray() : [0, motion.outerBottom.dockY, 0]
-          }
-          rotation={animateIntro ? RING_START_TILT.outerBottom : [0, 0, 0]}
-        >
+        <group ref={outerBottom} position={[0, motion.outerBottom.dockY, 0]} rotation={[0, 0, 0]}>
           <OrnamentedOuterRing profile={OUTER_RING_PROFILE} />
         </group>
       </group>
@@ -754,7 +635,7 @@ export function BangleScene({
     <Canvas
       camera={{ fov: 31, position: [2.9, 2.05, 5.2] }}
       dpr={[1, 1.25]}
-      frameloop={active ? "always" : "never"}
+      frameloop={active ? "always" : "demand"}
       gl={{ alpha: true, antialias: true, powerPreference: "low-power" }}
       shadows
     >

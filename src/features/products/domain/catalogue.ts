@@ -51,7 +51,7 @@ export type HomeCollectionShelf = {
 
 export type PublicHomeCatalogue = {
   offers: readonly PublicStorefrontOffer[];
-  shelves: readonly HomeCollectionShelf[];
+  collections: readonly PublicCollection[];
 };
 
 export type PublicProduct = {

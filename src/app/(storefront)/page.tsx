@@ -1,14 +1,18 @@
 import { HomeHero } from "@/features/content/components/home-hero";
 import { HomePageSections } from "@/features/content/components/home-page-sections";
 import { getPublishedHomepageHero } from "@/features/content/server/homepage";
-import { getPublicHomeCatalogue } from "@/features/products/server/public-catalogue";
+import {
+  getLatestPublicProducts,
+  getPublicHomeCatalogue,
+} from "@/features/products/server/public-catalogue";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const [catalogue, hero] = await Promise.all([
+  const [catalogue, hero, arrivals] = await Promise.all([
     getPublicHomeCatalogue(),
     getPublishedHomepageHero(),
+    getLatestPublicProducts(4),
   ]);
 
   return (
@@ -20,7 +24,7 @@ export default async function HomePage() {
         eyebrow={hero.eyebrow}
         title={hero.title}
       />
-      <HomePageSections catalogueResult={catalogue} />
+      <HomePageSections catalogueResult={catalogue} arrivals={arrivals} />
     </main>
   );
 }

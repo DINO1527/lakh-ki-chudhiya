@@ -38,12 +38,7 @@
 .hero {
   z-index: 2;
   bottom: -1px;
-  height: clamp(2.5rem, 4vw, 4rem);
-}
-
-.hero .shadow {
-  fill: #390813;
-  opacity: 0.7;
+  height: clamp(4rem, 8vw, 8rem);
 }
 
 .hero .base {
@@ -52,16 +47,8 @@
 
 @media (max-width: 46rem) {
   .hero {
-    height: clamp(1.5rem, 7vw, 2.5rem);
+    height: clamp(2.7rem, 9vw, 4rem);
   }
-}
-
-.hero .line {
-  stroke: rgb(255 250 242 / 75%);
-}
-
-.hero .secondaryLine {
-  stroke: rgb(255 245 228 / 46%);
 }
 
 .footer {
