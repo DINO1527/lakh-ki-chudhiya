@@ -268,7 +268,7 @@ export async function uploadCollectionImage(formData: FormData): Promise<never> 
   redirect(collectionResultUrl(collectionId, "image", "uploaded"));
 }
 
-export async function archiveCollectionImage(formData: FormData): Promise<never> {
+export async function deleteCollectionImage(formData: FormData): Promise<never> {
   const rawCollectionId = formData.get("collection_id");
   const rawMediaId = formData.get("media_id");
   if (
@@ -283,19 +283,76 @@ export async function archiveCollectionImage(formData: FormData): Promise<never>
   const mediaId = rawMediaId;
 
   const { supabase } = await requireStaff();
-  const { error } = await supabase.rpc("archive_collection_media", {
+  const { data: storagePath, error } = await supabase.rpc("delete_collection_media", {
     p_media_id: mediaId,
     p_collection_id: collectionId,
   });
   if (error) {
-    logAdminActionFailure("archiveCollectionImage", "collection_media", error.code);
+    logAdminActionFailure("deleteCollectionImage", "collection_media", error.code);
     redirect(
-      collectionResultUrl(collectionId, "error", error.code === "23514" ? "last_image" : "image"),
+      collectionResultUrl(
+        collectionId,
+        "error",
+        error.code === "23514"
+          ? "last_image"
+          : error.code === "P0002"
+            ? "missing_record"
+            : error.code === "42883" || error.code === "PGRST202"
+              ? "database_update"
+              : "image",
+        formData,
+      ),
     );
+  }
+  if (!storagePath) {
+    logAdminActionFailure("deleteCollectionImage", "collection_media", "missing_storage_path");
+    redirect(collectionResultUrl(collectionId, "error", "image", formData));
+  }
+  revalidateCollectionPages();
+  const { error: cleanupError } = await supabase.storage
+    .from("product-media")
+    .remove([storagePath]);
+  if (cleanupError) {
+    logAdminActionFailure("deleteCollectionImage.storage", "product-media", cleanupError.name);
+    redirect(collectionResultUrl(collectionId, "error", "storage_cleanup", formData));
+  }
+
+  redirect(collectionResultUrl(collectionId, "image", "deleted", formData));
+}
+
+export async function deleteCollection(formData: FormData): Promise<never> {
+  const rawCollectionId = formData.get("collection_id");
+  if (typeof rawCollectionId !== "string" || !validUuid(rawCollectionId)) {
+    redirect("/admin/collections?error=invalid");
+  }
+
+  const { supabase } = await requireStaff();
+  const { data: storagePaths, error } = await supabase.rpc("delete_collection", {
+    p_collection_id: rawCollectionId,
+  });
+  if (error) {
+    logAdminActionFailure("deleteCollection", "collections", error.code);
+    const result =
+      error.code === "23503"
+        ? "collection_in_use"
+        : error.code === "42883" || error.code === "PGRST202"
+          ? "database_update"
+          : "delete";
+    redirect(collectionListResultUrl(formData, "error", result));
   }
 
   revalidateCollectionPages();
-  redirect(collectionResultUrl(collectionId, "image", "archived"));
+  if (storagePaths?.length) {
+    const { error: cleanupError } = await supabase.storage
+      .from("product-media")
+      .remove(storagePaths);
+    if (cleanupError) {
+      logAdminActionFailure("deleteCollection.storage", "product-media", cleanupError.name);
+      redirect(collectionListResultUrl(formData, "error", "storage_cleanup"));
+    }
+  }
+
+  redirect(collectionListResultUrl(formData, "deleted", "1"));
 }
 
 export async function updateCollectionImage(formData: FormData): Promise<never> {
@@ -393,9 +450,26 @@ function collectionResultUrl(
   collectionId: string,
   parameter: "error" | "image" | "order" | "saved",
   value: string,
+  formData?: FormData,
 ): string {
   const query = new URLSearchParams({ open: collectionId, [parameter]: value });
+  if (formData) {
+    const search = formText(formData, "return_q", 64);
+    const page = formText(formData, "return_page", 5);
+    if (search) query.set("q", search);
+    if (page && /^[0-9]{1,5}$/.test(page) && Number(page) > 1) query.set("page", page);
+  }
   return "/admin/collections?" + query.toString() + "#collection-" + collectionId;
+}
+
+function collectionListResultUrl(formData: FormData, key: string, value: string): string {
+  const query = new URLSearchParams();
+  const search = formText(formData, "return_q", 64);
+  const page = formText(formData, "return_page", 5);
+  if (search) query.set("q", search);
+  if (page && /^[0-9]{1,5}$/.test(page) && Number(page) > 1) query.set("page", page);
+  query.set(key, value);
+  return "/admin/collections?" + query.toString();
 }
 
 function revalidateCollectionPages(): void {

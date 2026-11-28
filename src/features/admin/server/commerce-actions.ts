@@ -218,13 +218,14 @@ export async function uploadOfferBanner(formData: FormData): Promise<never> {
   const { supabase } = await requireStaff();
   const { data: offer, error: offerError } = await supabase
     .from("offers")
-    .select("id")
+    .select("id, is_enabled")
     .eq("id", offerId)
     .maybeSingle();
   if (offerError || !offer) {
     if (offerError) logAdminActionFailure("uploadOfferBanner.offer", "offers", offerError.code);
     redirect(offerResultUrl(offerId, "error", "banner_invalid"));
   }
+  if (offer.is_enabled) redirect(offerResultUrl(offerId, "error", "banner_active"));
 
   const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
   const detected = detectImageMime(signature);
@@ -277,7 +278,7 @@ export async function updateOfferBanner(formData: FormData): Promise<never> {
   const mediaId = formText(formData, "media_id", 36);
   const altText = formText(formData, "alt_text", 250);
   if (!validUuid(offerId) || !validUuid(mediaId) || !altText) {
-    redirect(offerActionUrl(offerId, "error", "banner_invalid"));
+    redirect(offerActionUrl(offerId, "error", "banner_invalid", formData));
   }
   const { supabase } = await requireStaff();
   const { data, error } = await supabase
@@ -318,41 +319,169 @@ export async function publishOfferBanner(formData: FormData): Promise<never> {
   redirect(offerResultUrl(offerId, "banner", "published"));
 }
 
-export async function archiveOfferBanner(formData: FormData): Promise<never> {
+export async function replaceOfferBanner(formData: FormData): Promise<never> {
   const offerId = formText(formData, "offer_id", 36);
-  const mediaId = formText(formData, "media_id", 36);
-  if (!validUuid(offerId) || !validUuid(mediaId)) {
-    redirect(offerActionUrl(offerId, "error", "banner_invalid"));
+  const altText = formText(formData, "alt_text", 250);
+  const file = formData.get("file");
+  if (
+    !validUuid(offerId) ||
+    !altText ||
+    !(file instanceof File) ||
+    file.size === 0 ||
+    file.size > MAX_OFFER_BANNER_BYTES
+  ) {
+    redirect(offerActionUrl(offerId, "error", "banner_invalid", formData));
   }
+
   const { supabase } = await requireStaff();
-  const { data, error } = await supabase
-    .from("offer_media")
-    .update({ status: "archived" })
-    .eq("id", mediaId)
-    .eq("offer_id", offerId)
-    .select("id")
+  const { data: offer, error: offerError } = await supabase
+    .from("offers")
+    .select("id, is_enabled")
+    .eq("id", offerId)
     .maybeSingle();
-  if (error || !data) {
-    logAdminActionFailure("archiveOfferBanner", "offer_media", error?.code);
+  if (offerError || !offer) {
+    if (offerError) logAdminActionFailure("replaceOfferBanner.offer", "offers", offerError.code);
+    redirect(offerResultUrl(offerId, "error", "missing_record", formData));
+  }
+  if (offer.is_enabled) redirect(offerResultUrl(offerId, "error", "banner_active", formData));
+
+  const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const detected = detectImageMime(signature);
+  if (!detected || detected !== file.type) {
+    redirect(offerResultUrl(offerId, "error", "banner_invalid", formData));
+  }
+
+  const extension = detected === "image/jpeg" ? "jpg" : detected.split("/")[1];
+  const storagePath = `offers/${offerId}/${crypto.randomUUID()}.${extension}`;
+  const { error: uploadError } = await supabase.storage
+    .from("product-media")
+    .upload(storagePath, file, { contentType: detected, upsert: false, cacheControl: "3600" });
+  if (uploadError) {
+    logAdminActionFailure("replaceOfferBanner.storage", "product-media", uploadError.name);
+    redirect(offerResultUrl(offerId, "error", "banner_upload", formData));
+  }
+
+  const { data: oldPaths, error } = await supabase.rpc("replace_offer_banner", {
+    p_offer_id: offerId,
+    p_storage_path: storagePath,
+    p_alt_text: altText,
+  });
+  if (error) {
+    logAdminActionFailure("replaceOfferBanner", "offer_media", error.code);
+    const { error: cleanupError } = await supabase.storage
+      .from("product-media")
+      .remove([storagePath]);
+    if (cleanupError)
+      logAdminActionFailure("replaceOfferBanner.cleanup", "product-media", cleanupError.name);
     redirect(
       offerResultUrl(
         offerId,
         "error",
-        error?.code === "23514" ? "banner_active" : "banner_archive",
+        error.code === "23514"
+          ? "banner_active"
+          : error.code === "42883" || error.code === "PGRST202"
+            ? "database_update"
+            : "banner_replace",
+        formData,
+      ),
+    );
+  }
+
+  revalidateOfferPages();
+  if (oldPaths?.length) {
+    const { error: cleanupError } = await supabase.storage.from("product-media").remove(oldPaths);
+    if (cleanupError) {
+      logAdminActionFailure("replaceOfferBanner.old_storage", "product-media", cleanupError.name);
+      redirect(offerResultUrl(offerId, "banner", "cleanup_pending", formData));
+    }
+  }
+  redirect(offerResultUrl(offerId, "banner", "replaced", formData));
+}
+
+export async function deleteOfferBanner(formData: FormData): Promise<never> {
+  const offerId = formText(formData, "offer_id", 36);
+  const mediaId = formText(formData, "media_id", 36);
+  if (!validUuid(offerId) || !validUuid(mediaId)) {
+    redirect(offerActionUrl(offerId, "error", "banner_invalid", formData));
+  }
+  const { supabase } = await requireStaff();
+  const { data: storagePath, error } = await supabase.rpc("delete_offer_media", {
+    p_offer_id: offerId,
+    p_media_id: mediaId,
+  });
+  if (error || !storagePath) {
+    logAdminActionFailure(
+      "deleteOfferBanner",
+      "offer_media",
+      error?.code ?? "missing_storage_path",
+    );
+    redirect(
+      offerResultUrl(
+        offerId,
+        "error",
+        error?.code === "23514"
+          ? "banner_active"
+          : error?.code === "P0002"
+            ? "missing_record"
+            : error?.code === "42883" || error?.code === "PGRST202"
+              ? "database_update"
+              : "banner_delete",
+        formData,
       ),
     );
   }
   revalidateOfferPages();
-  redirect(offerResultUrl(offerId, "banner", "archived"));
+  const { error: cleanupError } = await supabase.storage
+    .from("product-media")
+    .remove([storagePath]);
+  if (cleanupError) {
+    logAdminActionFailure("deleteOfferBanner.storage", "product-media", cleanupError.name);
+    redirect(offerResultUrl(offerId, "error", "storage_cleanup", formData));
+  }
+  redirect(offerResultUrl(offerId, "banner", "deleted", formData));
+}
+
+export async function deleteOffer(formData: FormData): Promise<never> {
+  const offerId = formText(formData, "offer_id", 36);
+  if (!validUuid(offerId)) redirect("/admin/offers?error=invalid");
+
+  const { supabase } = await requireStaff();
+  const { data: storagePaths, error } = await supabase.rpc("delete_offer", {
+    p_offer_id: offerId,
+  });
+  if (error) {
+    logAdminActionFailure("deleteOffer", "offers", error.code);
+    redirect(
+      offerListResultUrl(
+        formData,
+        "error",
+        error.code === "42883" || error.code === "PGRST202" ? "database_update" : "offer_delete",
+      ),
+    );
+  }
+
+  revalidateOfferPages();
+  if (storagePaths?.length) {
+    const { error: cleanupError } = await supabase.storage
+      .from("product-media")
+      .remove(storagePaths);
+    if (cleanupError) {
+      logAdminActionFailure("deleteOffer.storage", "product-media", cleanupError.name);
+      redirect(offerListResultUrl(formData, "error", "storage_cleanup"));
+    }
+  }
+
+  redirect(offerListResultUrl(formData, "deleted", "1"));
 }
 
 function offerActionUrl(
   offerId: string | null,
   parameter: "error" | "banner",
   value: string,
+  formData?: FormData,
 ): string {
   return validUuid(offerId)
-    ? offerResultUrl(offerId, parameter, value)
+    ? offerResultUrl(offerId, parameter, value, formData)
     : "/admin/offers?" + parameter + "=" + encodeURIComponent(value);
 }
 
@@ -360,9 +489,26 @@ function offerResultUrl(
   offerId: string,
   parameter: "banner" | "created" | "error" | "saved",
   value: string,
+  formData?: FormData,
 ): string {
   const query = new URLSearchParams({ offer: offerId, [parameter]: value });
+  if (formData) {
+    const search = formText(formData, "return_q", 64);
+    const page = formText(formData, "return_page", 5);
+    if (search) query.set("q", search);
+    if (page && /^[0-9]{1,5}$/.test(page) && Number(page) > 1) query.set("page", page);
+  }
   return "/admin/offers?" + query.toString() + "#offer-" + offerId;
+}
+
+function offerListResultUrl(formData: FormData, key: string, value: string): string {
+  const query = new URLSearchParams();
+  const search = formText(formData, "return_q", 64);
+  const page = formText(formData, "return_page", 5);
+  if (search) query.set("q", search);
+  if (page && /^[0-9]{1,5}$/.test(page) && Number(page) > 1) query.set("page", page);
+  query.set(key, value);
+  return "/admin/offers?" + query.toString();
 }
 
 function revalidateOfferPages(): void {

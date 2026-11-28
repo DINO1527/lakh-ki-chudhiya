@@ -8,6 +8,7 @@ import {
   Link2,
   ListOrdered,
   Tag,
+  Trash2,
 } from "lucide-react";
 import {
   AdminNotice,
@@ -24,7 +25,8 @@ import { AdminPagination } from "@/features/admin/components/admin-pagination";
 import { AdminSearchForm } from "@/features/admin/components/admin-search-form";
 import { AdminFieldLabel } from "@/features/admin/components/admin-field-label";
 import {
-  archiveCollectionImage,
+  deleteCollection,
+  deleteCollectionImage,
   moveCollectionImageOrder,
   moveCollectionOrder,
   saveCollection,
@@ -173,6 +175,9 @@ export default async function AdminCollectionsPage({
           same workspace.
         </AdminNotice>
       ) : null}
+      {params.deleted ? (
+        <AdminNotice tone="success">Collection and its private images were deleted.</AdminNotice>
+      ) : null}
       {params.saved && !createdId && !params.image && !params.order ? (
         <AdminNotice tone="success">Collection changes saved.</AdminNotice>
       ) : null}
@@ -180,19 +185,27 @@ export default async function AdminCollectionsPage({
         <AdminNotice tone="error">
           {params.error === "permission"
             ? "Your staff access does not allow this change. Ask the store owner to check your role."
-            : params.error === "missing_record"
-              ? "This collection is no longer available. Refresh the list."
-              : params.error === "image_required"
-                ? "Add at least one image before publishing this collection."
-                : params.error === "last_image"
-                  ? "Keep one published image on a published collection. Move the collection to draft or archive first to remove the last image."
-                  : params.error === "image_limit"
-                    ? "A collection can have up to 20 active images. Archive one before adding another."
-                    : params.error === "order"
-                      ? "Display order could not be updated. Refresh the list and try again."
-                      : params.error === "image"
-                        ? "Image could not be saved. Check the image type, size and required alternative text."
-                        : "Collection changes were not saved. Check the form values and retry. If the error continues, ask an owner to review database access."}
+            : params.error === "collection_in_use"
+              ? "This collection is used by one or more offers. Retarget or delete those offers before deleting the collection."
+              : params.error === "database_update"
+                ? "The database is missing an admin workflow update. Apply the current admin migrations, then retry."
+                : params.error === "storage_cleanup"
+                  ? "The collection was deleted, but one or more private image files could not be removed. Ask an owner to review storage cleanup."
+                  : params.error === "delete"
+                    ? "The collection could not be deleted. Refresh the list and try again."
+                    : params.error === "missing_record"
+                      ? "This collection is no longer available. Refresh the list."
+                      : params.error === "image_required"
+                        ? "Add at least one image before publishing this collection."
+                        : params.error === "last_image"
+                          ? "Keep one published image on a published collection. Move the collection to draft or archive first to remove the last image."
+                          : params.error === "image_limit"
+                            ? "A collection can have up to 20 active images. Delete an active image before adding another."
+                            : params.error === "order"
+                              ? "Display order could not be updated. Refresh the list and try again."
+                              : params.error === "image"
+                                ? "Image could not be saved. Check the image type, size and required alternative text."
+                                : "Collection changes were not saved. Check the form values and retry. If the error continues, ask an owner to review database access."}
         </AdminNotice>
       ) : null}
       {params.image === "uploaded" ? (
@@ -200,8 +213,8 @@ export default async function AdminCollectionsPage({
           Image added as a private draft. Publishing the collection makes its draft images public.
         </AdminNotice>
       ) : null}
-      {params.image === "archived" ? (
-        <AdminNotice tone="success">Collection image archived.</AdminNotice>
+      {params.image === "deleted" ? (
+        <AdminNotice tone="success">Collection image permanently deleted.</AdminNotice>
       ) : null}
       {params.image === "updated" ? (
         <AdminNotice tone="success">Collection image details saved.</AdminNotice>
@@ -438,6 +451,22 @@ export default async function AdminCollectionsPage({
                       </label>
                       <AdminSubmitButton>Save collection details</AdminSubmitButton>
                     </form>
+                    <form action={deleteCollection}>
+                      <input name="collection_id" type="hidden" value={collection.id} />
+                      <input name="return_q" type="hidden" value={search} />
+                      <input name="return_page" type="hidden" value={pageNumber} />
+                      <ConfirmButton
+                        className="admin-button admin-button--danger"
+                        formAction={deleteCollection}
+                        message={`Permanently delete “${collection.name}”, all of its photos, and product links? Offers using this collection must be retargeted or deleted first.`}
+                        submitLabel="Delete collection"
+                        triggerAriaLabel={`Delete collection: ${collection.name}`}
+                        triggerTitle="Delete collection permanently"
+                      >
+                        <Trash2 aria-hidden="true" size={16} />
+                        Delete collection
+                      </ConfirmButton>
+                    </form>
                     <form action={uploadCollectionImage} className="admin-form">
                       <input name="collection_id" type="hidden" value={collection.id} />
                       <input name="return_q" type="hidden" value={search} />
@@ -464,6 +493,11 @@ export default async function AdminCollectionsPage({
                           const activeIndex = activeImages.findIndex(
                             (image) => image.id === item.id,
                           );
+                          const isLastPublishedImage =
+                            collection.status === "published" &&
+                            item.status === "published" &&
+                            activeImages.filter((image) => image.status === "published").length <=
+                              1;
                           return (
                             <li className="admin-media-card" key={item.id}>
                               {signedUrlById.get(item.id) ? (
@@ -533,25 +567,35 @@ export default async function AdminCollectionsPage({
                                       </form>
                                     ))}
                                   </div>
-                                  <form action={archiveCollectionImage}>
-                                    <input
-                                      name="collection_id"
-                                      type="hidden"
-                                      value={collection.id}
-                                    />
-                                    <input name="media_id" type="hidden" value={item.id} />
-                                    <input name="return_q" type="hidden" value={search} />
-                                    <input name="return_page" type="hidden" value={pageNumber} />
-                                    <ConfirmButton
-                                      className="admin-button admin-button--quiet"
-                                      formAction={archiveCollectionImage}
-                                      message="Archive this image? It will stop being shown publicly."
-                                      triggerAriaLabel={`Archive a photo for ${collection.name}`}
-                                    >
-                                      Archive image
-                                    </ConfirmButton>
-                                  </form>
                                 </>
+                              ) : null}
+                              <form action={deleteCollectionImage}>
+                                <input name="collection_id" type="hidden" value={collection.id} />
+                                <input name="media_id" type="hidden" value={item.id} />
+                                <input name="return_q" type="hidden" value={search} />
+                                <input name="return_page" type="hidden" value={pageNumber} />
+                                <ConfirmButton
+                                  className="admin-button admin-button--quiet"
+                                  formAction={deleteCollectionImage}
+                                  message={`Permanently delete “${item.alt_text}”? This removes the image and its stored file.`}
+                                  submitLabel="Delete image"
+                                  triggerAriaLabel={`Delete photo from ${collection.name}`}
+                                  triggerDisabled={isLastPublishedImage}
+                                  triggerTitle={
+                                    isLastPublishedImage
+                                      ? "Publish another photo or move the collection to draft before deleting this one"
+                                      : "Delete this photo permanently"
+                                  }
+                                >
+                                  <Trash2 aria-hidden="true" size={16} />
+                                  Delete image
+                                </ConfirmButton>
+                              </form>
+                              {isLastPublishedImage ? (
+                                <small className="admin-muted">
+                                  Publish another photo or move the collection to draft before
+                                  deleting its last published image.
+                                </small>
                               ) : null}
                             </li>
                           );

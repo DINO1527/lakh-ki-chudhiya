@@ -427,7 +427,7 @@ async function uploadProductImageForm(
   redirectToProductEditor(productId, "product-images", "media=uploaded");
 }
 
-export async function archiveProductImage(formData: FormData): Promise<never> {
+export async function deleteProductImage(formData: FormData): Promise<never> {
   const productId = formData.get("product_id");
   const mediaId = formData.get("media_id");
   if (
@@ -442,17 +442,35 @@ export async function archiveProductImage(formData: FormData): Promise<never> {
     redirect("/admin/products?error=invalid");
   }
   const { supabase } = await requireStaff();
-  const { error } = await supabase.rpc("archive_product_media", {
+  const { data: storagePath, error } = await supabase.rpc("delete_product_media", {
     p_media_id: mediaId,
     p_product_id: productId,
   });
   if (error) {
-    logAdminActionFailure("archiveProductImage", "product_media", error.code);
-    const reason = error.code === "23514" ? "last_image" : "media";
+    logAdminActionFailure("deleteProductImage", "product_media", error.code);
+    const reason =
+      error.code === "23514"
+        ? "last_image"
+        : error.code === "P0002"
+          ? "missing_record"
+          : error.code === "42883" || error.code === "PGRST202"
+            ? "database_update"
+            : "media";
     redirectToProductEditor(productId, "product-images", `error=${reason}`);
   }
+  if (!storagePath) {
+    logAdminActionFailure("deleteProductImage", "product_media", "missing_storage_path");
+    redirectToProductEditor(productId, "product-images", "error=media");
+  }
   revalidateCatalogue(productId);
-  redirectToProductEditor(productId, "product-images", "media=archived");
+  const { error: cleanupError } = await supabase.storage
+    .from("product-media")
+    .remove([storagePath]);
+  if (cleanupError) {
+    logAdminActionFailure("deleteProductImage.storage", "product-media", cleanupError.name);
+    redirectToProductEditor(productId, "product-images", "error=storage_cleanup");
+  }
+  redirectToProductEditor(productId, "product-images", "media=deleted");
 }
 
 export async function updateProductImage(formData: FormData): Promise<never> {

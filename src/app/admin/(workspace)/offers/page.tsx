@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { Trash2 } from "lucide-react";
 import {
   AdminNotice,
   AdminPageHeader,
@@ -13,8 +14,10 @@ import { ImageUploadPreview } from "@/features/admin/components/image-upload-pre
 import { AdminPagination } from "@/features/admin/components/admin-pagination";
 import { AdminSearchForm } from "@/features/admin/components/admin-search-form";
 import {
-  archiveOfferBanner,
+  deleteOffer,
+  deleteOfferBanner,
   publishOfferBanner,
+  replaceOfferBanner,
   updateOfferBanner,
   toggleOfferPublication,
   uploadOfferBanner,
@@ -71,7 +74,6 @@ export default async function AdminOffersPage({
           "offer_id",
           offers.map((offer) => offer.id),
         )
-        .neq("status", "archived")
         .order("created_at")
     : { data: [], error: null };
   const bannerRows = bannerResult.data ?? [];
@@ -98,12 +100,15 @@ export default async function AdminOffersPage({
     logAdminQueryFailure("loadOfferBanners", "offer_media", bannerResult.error.code);
   if (signedBanners.error)
     logAdminQueryFailure("signOfferBanners", "product-media", signedBanners.error.name);
-  const bannerByOffer = new Map(
-    bannerRows.map((banner, index) => [
-      banner.offer_id,
-      { ...banner, signedUrl: signedBanners.data?.[index]?.signedUrl ?? null },
-    ]),
-  );
+  const bannersByOffer = new Map<
+    string,
+    Array<(typeof bannerRows)[number] & { signedUrl: string | null }>
+  >();
+  bannerRows.forEach((banner, index) => {
+    const list = bannersByOffer.get(banner.offer_id) ?? [];
+    list.push({ ...banner, signedUrl: signedBanners.data?.[index]?.signedUrl ?? null });
+    bannersByOffer.set(banner.offer_id, list);
+  });
   const productTargets = (productsResult.data ?? []).map((product) => ({
     id: product.id,
     label: `${product.title} · ${product.status}`,
@@ -138,15 +143,24 @@ export default async function AdminOffersPage({
       ) : saved ? (
         <AdminNotice tone="success">Offer saved. Its workspace is open below.</AdminNotice>
       ) : null}
-      {bannerFlash ? (
+      {params.deleted ? (
         <AdminNotice tone="success">
+          Offer, its banners, and private image files were deleted.
+        </AdminNotice>
+      ) : null}
+      {bannerFlash ? (
+        <AdminNotice tone={bannerFlash === "cleanup_pending" ? "error" : "success"}>
           {bannerFlash === "uploaded"
             ? "Offer banner uploaded privately. Publish the banner before enabling the offer."
             : bannerFlash === "published"
               ? "Offer banner published. It remains private until the offer is enabled and eligible."
-              : bannerFlash === "archived"
-                ? "Offer banner archived."
-                : "Offer banner details saved."}
+              : bannerFlash === "deleted"
+                ? "Offer banner and its private image file were deleted."
+                : bannerFlash === "replaced"
+                  ? "Banner replaced with a private draft. Publish it before enabling this offer."
+                  : bannerFlash === "cleanup_pending"
+                    ? "Banner replaced, but an older private image file could not be removed. Ask an owner to review storage cleanup."
+                    : "Offer banner details saved."}
         </AdminNotice>
       ) : null}
       {error ? (
@@ -162,20 +176,36 @@ export default async function AdminOffersPage({
                   : error === "invalid"
                     ? "Check the offer name, target, discount and schedule."
                     : error === "banner_active"
-                      ? "Disable the offer before archiving its only published banner."
+                      ? "Disable the offer before replacing or deleting its published banner."
                       : error === "banner_exists"
-                        ? "This offer already has a banner. Archive it before adding a replacement."
+                        ? "This offer already has a banner. Use Replace banner in its workspace."
                         : error === "missing_record"
                           ? "This offer is no longer available. Refresh the list."
-                          : error === "toggle"
-                            ? "Offer availability could not be changed. Refresh the list and retry."
-                            : error.startsWith("banner_")
-                              ? "Offer banner could not be saved. Check the image type, size and required text."
-                              : "Offer could not be saved. Check its target, discount and schedule."}
+                          : error === "storage_cleanup"
+                            ? "The database record was deleted, but a private image file could not be removed. Ask an owner to review storage cleanup."
+                            : error === "database_update"
+                              ? "The database is missing an admin workflow update. Apply the current admin migrations, then retry."
+                              : error === "offer_delete"
+                                ? "The offer could not be deleted. Refresh the list and try again."
+                                : error === "banner_delete"
+                                  ? "The banner could not be deleted. Refresh the list and try again."
+                                  : error === "banner_replace"
+                                    ? "The banner could not be replaced. Check the image and try again."
+                                    : error === "toggle"
+                                      ? "Offer availability could not be changed. Refresh the list and retry."
+                                      : error.startsWith("banner_")
+                                        ? "Offer banner could not be saved. Check the image type, size and required text."
+                                        : "Offer could not be saved. Check its target, discount and schedule."}
         </AdminNotice>
       ) : null}
       {queryError ? (
         <AdminNotice tone="error">Offers or catalogue targets could not be loaded.</AdminNotice>
+      ) : null}
+      {signedBanners.error ? (
+        <AdminNotice tone="error">
+          Offer image previews could not be loaded. Banner details and delete actions remain
+          available.
+        </AdminNotice>
       ) : null}
 
       <section aria-labelledby="new-offer-heading" className="admin-panel">
@@ -201,7 +231,7 @@ export default async function AdminOffersPage({
           placeholder="Offer name"
           query={search}
         />
-        {offersResult.error || bannerResult.error || signedBanners.error ? null : offers.length ? (
+        {offersResult.error || bannerResult.error ? null : offers.length ? (
           <div className="admin-offer-list">
             {offers.map((offer) => {
               const targetType = offer.target_type;
@@ -222,7 +252,9 @@ export default async function AdminOffersPage({
                 endsAt: utcToColomboDateTimeLocal(offer.ends_at),
                 isEnabled: offer.is_enabled,
               };
-              const banner = bannerByOffer.get(offer.id);
+              const banners = bannersByOffer.get(offer.id) ?? [];
+              const banner = banners.find((item) => item.status !== "archived");
+              const archivedBanners = banners.filter((item) => item.status === "archived");
               const targetIsPublished =
                 (targetType === "product" ? productTargets : collectionTargets).find(
                   (target) => target.id === targetId,
@@ -345,19 +377,58 @@ export default async function AdminOffersPage({
                               </AdminSubmitButton>
                             </form>
                           ) : null}
-                          <form action={archiveOfferBanner}>
+                          <form action={deleteOfferBanner}>
                             <input name="offer_id" type="hidden" value={offer.id} />
                             <input name="media_id" type="hidden" value={banner.id} />
                             <input name="return_q" type="hidden" value={search} />
                             <input name="return_page" type="hidden" value={pageNumber} />
                             <ConfirmButton
                               className="admin-button admin-button--danger"
-                              formAction={archiveOfferBanner}
-                              message="Archive this offer banner? It will no longer be available for signing."
+                              formAction={deleteOfferBanner}
+                              message="Permanently delete this banner and its stored image file?"
+                              submitLabel="Delete banner"
+                              triggerAriaLabel={`Delete banner for ${offer.name}`}
+                              triggerDisabled={offer.is_enabled && banner.status === "published"}
+                              triggerTitle={
+                                offer.is_enabled && banner.status === "published"
+                                  ? "Disable this offer before deleting its published banner"
+                                  : "Delete this banner permanently"
+                              }
                             >
-                              Archive banner
+                              <Trash2 aria-hidden="true" size={16} />
+                              Delete banner
                             </ConfirmButton>
                           </form>
+                          {offer.is_enabled ? (
+                            <p className="admin-muted">
+                              Disable this offer before replacing or deleting its published banner.
+                            </p>
+                          ) : (
+                            <form action={replaceOfferBanner} className="admin-form">
+                              <input name="offer_id" type="hidden" value={offer.id} />
+                              <input name="return_q" type="hidden" value={search} />
+                              <input name="return_page" type="hidden" value={pageNumber} />
+                              <p className="admin-eyebrow">Replace banner</p>
+                              <p className="admin-muted">
+                                The new image will be saved as a private draft. Publish it before
+                                enabling the offer.
+                              </p>
+                              <ImageUploadPreview aspectRatio={3} />
+                              <label className="admin-field">
+                                <span>Alternative text</span>
+                                <input
+                                  defaultValue={banner.alt_text}
+                                  maxLength={250}
+                                  minLength={1}
+                                  name="alt_text"
+                                  required
+                                />
+                              </label>
+                              <AdminSubmitButton pendingLabel="Replacing banner…">
+                                Replace banner
+                              </AdminSubmitButton>
+                            </form>
+                          )}
                         </>
                       ) : (
                         <form action={uploadOfferBanner} className="admin-form">
@@ -380,8 +451,65 @@ export default async function AdminOffersPage({
                           </AdminSubmitButton>
                         </form>
                       )}
+                      {archivedBanners.length ? (
+                        <div className="admin-form">
+                          <p className="admin-eyebrow">Archived banners</p>
+                          <p className="admin-muted">
+                            These older images are hidden. Delete them to remove their stored files.
+                          </p>
+                          <ul className="admin-media-grid">
+                            {archivedBanners.map((archivedBanner) => (
+                              <li className="admin-media-card" key={archivedBanner.id}>
+                                {archivedBanner.signedUrl ? (
+                                  <Image
+                                    alt={archivedBanner.alt_text}
+                                    height={120}
+                                    src={archivedBanner.signedUrl}
+                                    unoptimized
+                                    width={360}
+                                  />
+                                ) : null}
+                                <StatusBadge>archived</StatusBadge>
+                                <form action={deleteOfferBanner}>
+                                  <input name="offer_id" type="hidden" value={offer.id} />
+                                  <input name="media_id" type="hidden" value={archivedBanner.id} />
+                                  <input name="return_q" type="hidden" value={search} />
+                                  <input name="return_page" type="hidden" value={pageNumber} />
+                                  <ConfirmButton
+                                    className="admin-button admin-button--quiet"
+                                    formAction={deleteOfferBanner}
+                                    message="Permanently delete this archived banner and its stored image file?"
+                                    submitLabel="Delete banner"
+                                    triggerAriaLabel={`Delete archived banner for ${offer.name}`}
+                                    triggerTitle="Delete archived banner permanently"
+                                  >
+                                    <Trash2 aria-hidden="true" size={16} />
+                                    Delete archived banner
+                                  </ConfirmButton>
+                                </form>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
                     </section>
                   </div>
+                  <form action={deleteOffer} className="admin-form">
+                    <input name="offer_id" type="hidden" value={offer.id} />
+                    <input name="return_q" type="hidden" value={search} />
+                    <input name="return_page" type="hidden" value={pageNumber} />
+                    <ConfirmButton
+                      className="admin-button admin-button--danger"
+                      formAction={deleteOffer}
+                      message={`Permanently delete “${offer.name}” and its banners? Existing order records will keep their saved offer details.`}
+                      submitLabel="Delete offer"
+                      triggerAriaLabel={`Delete offer: ${offer.name}`}
+                      triggerTitle="Delete offer permanently"
+                    >
+                      <Trash2 aria-hidden="true" size={16} />
+                      Delete offer
+                    </ConfirmButton>
+                  </form>
                 </details>
               );
             })}
