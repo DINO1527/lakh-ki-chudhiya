@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireStaff } from "./access";
 import { logAdminActionFailure } from "./action-logger";
-import { formText, validRole, validUuid } from "./form-values";
+import { formText, validEmail, validRole } from "./form-values";
 
 export async function saveStaffMember(formData: FormData): Promise<never> {
-  const userId = formText(formData, "user_id", 36);
+  const email = formText(formData, "email", 254)?.toLowerCase() ?? null;
   const role = formText(formData, "role", 8);
   const isActiveValue = formData.get("is_active");
   if (
-    !validUuid(userId) ||
+    !validEmail(email) ||
     !validRole(role) ||
     (isActiveValue !== "active" && isActiveValue !== "inactive")
   ) {
@@ -19,8 +19,8 @@ export async function saveStaffMember(formData: FormData): Promise<never> {
   }
 
   const { supabase } = await requireStaff(["owner"]);
-  const { error } = await supabase.rpc("manage_staff_member", {
-    p_user_id: userId,
+  const { error } = await supabase.rpc("manage_staff_member_by_email", {
+    p_email: email,
     p_role: role,
     p_is_active: isActiveValue === "active",
   });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, type ReactNode } from "react";
+import { Pencil, X } from "lucide-react";
 import { AdminToastOutlet } from "./admin-toast-provider";
 
 export function AdminDialog({
@@ -9,6 +10,7 @@ export function AdminDialog({
   description,
   children,
   triggerClassName = "admin-button admin-button--secondary",
+  triggerAriaLabel,
   eyebrow = "Workspace action",
 }: Readonly<{
   triggerLabel: string;
@@ -16,6 +18,7 @@ export function AdminDialog({
   description?: string;
   children: ReactNode;
   triggerClassName?: string;
+  triggerAriaLabel?: string;
   eyebrow?: string;
 }>) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -24,20 +27,13 @@ export function AdminDialog({
   return (
     <>
       <button
+        aria-label={triggerAriaLabel}
         className={triggerClassName}
         onClick={() => dialogRef.current?.showModal()}
         type="button"
       >
         {triggerLabel.startsWith("Edit") ? (
-          <svg aria-hidden="true" className="admin-button__icon" fill="none" viewBox="0 0 20 20">
-            <path
-              d="m13.2 3.4 3.4 3.4M4 16l3.1-.6L16 6.5 13.5 4 4.6 12.9 4 16Z"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="1.6"
-            />
-          </svg>
+          <Pencil aria-hidden="true" className="admin-button__icon" size={16} strokeWidth={1.8} />
         ) : null}
         {triggerLabel}
       </button>
@@ -62,14 +58,7 @@ export function AdminDialog({
               onClick={() => dialogRef.current?.close()}
               type="button"
             >
-              <svg aria-hidden="true" fill="none" viewBox="0 0 20 20">
-                <path
-                  d="m5 5 10 10M15 5 5 15"
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeWidth="1.8"
-                />
-              </svg>
+              <X aria-hidden="true" size={18} strokeWidth={1.8} />
             </button>
           </header>
           <div className="admin-dialog__content">{children}</div>

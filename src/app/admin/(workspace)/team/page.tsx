@@ -1,32 +1,30 @@
-import { AdminNotice, AdminPageHeader, StatusBadge } from "@/features/admin/components/admin-ui";
+import {
+  AdminNotice,
+  AdminPageHeader,
+  AdminSectionHeading,
+  StatusBadge,
+} from "@/features/admin/components/admin-ui";
+import { AdminFieldLabel } from "@/features/admin/components/admin-field-label";
 import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { saveStaffMember } from "@/features/admin/server/staff-actions";
 import { requireStaff } from "@/features/admin/server/access";
 import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
+import { Mail, ShieldCheck, ToggleLeft } from "lucide-react";
 
 export default async function AdminTeamPage({
   searchParams,
 }: Readonly<{ searchParams: Promise<Record<string, string | string[] | undefined>> }>) {
   const [params, { supabase }] = await Promise.all([searchParams, requireStaff(["owner"])]);
-  const { data, error } = await supabase
-    .from("staff_members")
-    .select("user_id, role, is_active, created_at")
-    .order("created_at", { ascending: true })
-    .limit(100);
+  const { data, error } = await supabase.rpc("list_staff_members_with_email");
   if (error) logAdminQueryFailure("loadStaffMembers", "staff_members", error.code);
 
   return (
     <>
-      <AdminPageHeader
-        eyebrow="Access control · owner only"
-        title="Staff access"
-        description="Assign roles to existing Supabase Auth accounts. Public users cannot grant themselves staff access."
-      />
+      <AdminPageHeader eyebrow="Access control · owner only" title="Staff access" />
       {params.saved ? <AdminNotice tone="success">Staff membership saved.</AdminNotice> : null}
       {params.error ? (
         <AdminNotice tone="error">
-          Membership could not be changed. Verify the Auth user ID and keep at least one active
-          owner.
+          Staff access could not be changed. Check the email and keep at least one active owner.
         </AdminNotice>
       ) : null}
       {error ? (
@@ -34,33 +32,24 @@ export default async function AdminTeamPage({
       ) : null}
 
       <section className="admin-panel">
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">Current team</p>
-            <h2>Members</h2>
-          </div>
-        </div>
+        <AdminSectionHeading eyebrow="Current team" title="Members" />
         {error ? null : data?.length ? (
-          <div className="admin-table-wrap">
+          <div className="admin-table-wrap admin-table-wrap--cards">
             <table className="admin-table">
-              <caption className="admin-sr-only">
-                Staff account identifiers and access status
-              </caption>
+              <caption className="admin-sr-only">Staff members and access status</caption>
               <thead>
                 <tr>
-                  <th scope="col">Supabase Auth user ID</th>
+                  <th scope="col">Email address</th>
                   <th scope="col">Role</th>
                   <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {data.map((member) => (
-                  <tr key={member.user_id}>
-                    <th scope="row">
-                      <code>{member.user_id}</code>
-                    </th>
-                    <td>{member.role}</td>
-                    <td>
+                {data.map((member, index) => (
+                  <tr key={`${member.email ?? "email-unavailable"}-${member.created_at}-${index}`}>
+                    <th scope="row">{member.email ?? "Email unavailable"}</th>
+                    <td data-label="Role">{member.role}</td>
+                    <td data-label="Status">
                       <StatusBadge>{member.is_active ? "Active" : "Inactive"}</StatusBadge>
                     </td>
                   </tr>
@@ -69,45 +58,30 @@ export default async function AdminTeamPage({
             </table>
           </div>
         ) : (
-          <p className="admin-muted">
-            No staff membership rows were found. Create the initial owner through the documented
-            database-owner bootstrap step.
-          </p>
+          <p className="admin-muted">No staff members were found.</p>
         )}
       </section>
 
       <section className="admin-panel admin-panel--narrow">
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">Add or change access</p>
-            <h2>Save a staff member</h2>
-          </div>
-        </div>
+        <AdminSectionHeading eyebrow="Add or change access" title="Update staff access" />
         <p className="admin-muted">
-          Create or invite the user through Supabase Auth first, then paste their Auth user UUID. To
-          change an existing member, use the same UUID. You cannot edit your own membership here.
+          Create or invite the account first. You cannot change your own access.
         </p>
         <form action={saveStaffMember} className="admin-form">
           <label className="admin-field">
-            <span>Auth user UUID</span>
-            <input
-              autoComplete="off"
-              maxLength={36}
-              name="user_id"
-              pattern="[0-9a-fA-F-]{36}"
-              required
-            />
+            <AdminFieldLabel icon={Mail}>Staff email</AdminFieldLabel>
+            <input autoComplete="email" maxLength={254} name="email" required type="email" />
           </label>
           <div className="admin-form__row">
             <label className="admin-field">
-              <span>Role</span>
+              <AdminFieldLabel icon={ShieldCheck}>Role</AdminFieldLabel>
               <select defaultValue="staff" name="role">
-                <option value="staff">Staff · catalogue and inventory</option>
-                <option value="owner">Owner · all admin controls</option>
+                <option value="staff">Staff · catalogue</option>
+                <option value="owner">Owner · full access</option>
               </select>
             </label>
             <label className="admin-field">
-              <span>Access</span>
+              <AdminFieldLabel icon={ToggleLeft}>Access</AdminFieldLabel>
               <select defaultValue="active" name="is_active">
                 <option value="active">Active</option>
                 <option value="inactive">Inactive</option>

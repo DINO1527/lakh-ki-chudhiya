@@ -16,7 +16,12 @@ import {
   Sparkles,
   Truck,
 } from "lucide-react";
-import { AdminNotice, AdminPageHeader, StatusBadge } from "@/features/admin/components/admin-ui";
+import {
+  AdminNotice,
+  AdminPageHeader,
+  AdminSectionHeading,
+  StatusBadge,
+} from "@/features/admin/components/admin-ui";
 import { AdminDialog } from "@/features/admin/components/admin-dialog";
 import { AdminFieldLabel } from "@/features/admin/components/admin-field-label";
 import { AdminProductSectionTabs } from "@/features/admin/components/admin-product-section-tabs";
@@ -207,7 +212,6 @@ export default async function AdminProductEditorPage({
       <AdminPageHeader
         eyebrow={`Product · ${product.slug}`}
         title={product.title}
-        description="Edit the catalogue details, then manage sizes, collections and photos one focused task at a time."
         action={
           <Link
             className="admin-button admin-button--secondary"
@@ -252,10 +256,7 @@ export default async function AdminProductEditorPage({
             <p className="admin-eyebrow">Product status</p>
             <StatusBadge>{product.status}</StatusBadge>
           </div>
-          <p>
-            Only published products appear in the storefront. Save section changes before
-            publishing.
-          </p>
+          <p>Only published products appear in the storefront.</p>
         </div>
         <div className="admin-inline-actions">
           {product.status !== "published" ? (
@@ -306,7 +307,6 @@ export default async function AdminProductEditorPage({
               <li key={blocker}>{blocker}</li>
             ))}
           </ul>
-          <p>Use the product sections below to finish the checklist.</p>
         </div>
       ) : null}
 
@@ -321,12 +321,11 @@ export default async function AdminProductEditorPage({
           className="admin-panel"
           id="product-details"
         >
-          <div className="admin-section-heading">
-            <div>
-              <p className="admin-eyebrow">Catalogue copy</p>
-              <h2 id="product-details-heading">Product details</h2>
-            </div>
-          </div>
+          <AdminSectionHeading
+            eyebrow="Catalogue copy"
+            id="product-details-heading"
+            title="Product details"
+          />
           <form action={updateProduct} className="admin-form">
             <input name="product_id" type="hidden" value={id} />
             <div className="admin-form__row">
@@ -489,12 +488,11 @@ export default async function AdminProductEditorPage({
           className="admin-panel"
           id="product-collections"
         >
-          <div className="admin-section-heading">
-            <div>
-              <p className="admin-eyebrow">Discovery</p>
-              <h2 id="product-collections-heading">Collections</h2>
-            </div>
-          </div>
+          <AdminSectionHeading
+            eyebrow="Discovery"
+            id="product-collections-heading"
+            title="Collections"
+          />
           {collectionsResult.error ? null : collections.length ? (
             <div className="admin-section-actions">
               <p className="admin-muted">
@@ -526,7 +524,9 @@ export default async function AdminProductEditorPage({
                     ))}
                   </div>
                   <div className="admin-form__actions">
-                    <AdminSubmitButton>Save assignments</AdminSubmitButton>
+                    <AdminSubmitButton formAction={setProductCollections}>
+                      Save assignments
+                    </AdminSubmitButton>
                     <AdminSubmitButton
                       className="admin-button admin-button--secondary"
                       formAction={setProductCollectionsAndContinue}
@@ -547,18 +547,19 @@ export default async function AdminProductEditorPage({
           className="admin-panel"
           id="product-variants"
         >
-          <div className="admin-section-heading">
-            <div>
-              <p className="admin-eyebrow">Sellable SKUs</p>
-              <h2 id="product-variants-heading">Sizes and prices</h2>
-            </div>
-            <Link
-              className="admin-text-link"
-              href={`/admin/inventory?return_product_id=${encodeURIComponent(id)}`}
-            >
-              Open inventory
-            </Link>
-          </div>
+          <AdminSectionHeading
+            action={
+              <Link
+                className="admin-text-link"
+                href={`/admin/inventory?return_product_id=${encodeURIComponent(id)}`}
+              >
+                Open inventory
+              </Link>
+            }
+            eyebrow="Sellable SKUs"
+            id="product-variants-heading"
+            title="Sizes and prices"
+          />
           <p className="admin-muted">
             Each size is one SKU for this named product. Stock and price are for complete sets. New
             sizes start with zero stock; adjust quantities from Inventory with a reason.
@@ -593,7 +594,9 @@ export default async function AdminProductEditorPage({
                       <input name="variant_id" type="hidden" value={variant.id} />
                       <VariantFields variant={variant} />
                       <div className="admin-form__actions">
-                        <AdminSubmitButton>Save size and price</AdminSubmitButton>
+                        <AdminSubmitButton formAction={saveProductVariant}>
+                          Save size and price
+                        </AdminSubmitButton>
                         <AdminSubmitButton
                           className="admin-button admin-button--secondary"
                           formAction={saveProductVariantAndContinue}
@@ -622,7 +625,9 @@ export default async function AdminProductEditorPage({
               <input name="variant_id" type="hidden" value="" />
               <VariantFields />
               <div className="admin-form__actions">
-                <AdminSubmitButton>Add size and price</AdminSubmitButton>
+                <AdminSubmitButton formAction={saveProductVariant}>
+                  Add size and price
+                </AdminSubmitButton>
                 <AdminSubmitButton
                   className="admin-button admin-button--secondary"
                   formAction={saveProductVariantAndContinue}
@@ -639,12 +644,11 @@ export default async function AdminProductEditorPage({
           className="admin-panel"
           id="product-images"
         >
-          <div className="admin-section-heading">
-            <div>
-              <p className="admin-eyebrow">Private media</p>
-              <h2 id="product-images-heading">Product images</h2>
-            </div>
-          </div>
+          <AdminSectionHeading
+            eyebrow="Private media"
+            id="product-images-heading"
+            title="Product images"
+          />
           <p className="admin-muted">
             Add up to 20 angle photos. JPEG, PNG, WebP or AVIF, up to 5 MiB each. New uploads stay
             private until you publish the image or product.
@@ -682,7 +686,9 @@ export default async function AdminProductEditorPage({
                 />
               </label>
               <div className="admin-form__actions">
-                <AdminSubmitButton pendingLabel="Uploading…">Upload photo</AdminSubmitButton>
+                <AdminSubmitButton formAction={uploadProductImage} pendingLabel="Uploading…">
+                  Upload photo
+                </AdminSubmitButton>
                 <AdminSubmitButton
                   className="admin-button admin-button--secondary"
                   formAction={uploadProductImageAndFinish}
@@ -745,7 +751,9 @@ export default async function AdminProductEditorPage({
                           />
                         </label>
                         <div className="admin-form__actions">
-                          <AdminSubmitButton>Save photo details</AdminSubmitButton>
+                          <AdminSubmitButton formAction={updateProductImage}>
+                            Save photo details
+                          </AdminSubmitButton>
                           <AdminSubmitButton
                             className="admin-button admin-button--secondary"
                             formAction={updateProductImageAndFinish}

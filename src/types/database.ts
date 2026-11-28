@@ -388,6 +388,23 @@ export type Database = {
         Args: { p_user_id: string; p_role: "owner" | "staff"; p_is_active: boolean };
         Returns: undefined;
       };
+      list_staff_members_with_email: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          email: string | null;
+          role: string;
+          is_active: boolean;
+          created_at: string;
+        }[];
+      };
+      manage_staff_member_by_email: {
+        Args: { p_email: string; p_role: "owner" | "staff"; p_is_active: boolean };
+        Returns: undefined;
+      };
+      get_admin_actor_emails: {
+        Args: { p_user_ids: string[] };
+        Returns: { user_id: string; email: string | null }[];
+      };
       set_homepage_content: {
         Args: {
           p_eyebrow: string;

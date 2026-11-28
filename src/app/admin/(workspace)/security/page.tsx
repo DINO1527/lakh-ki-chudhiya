@@ -1,4 +1,8 @@
-import { AdminNotice, AdminPageHeader } from "@/features/admin/components/admin-ui";
+import {
+  AdminNotice,
+  AdminPageHeader,
+  AdminSectionHeading,
+} from "@/features/admin/components/admin-ui";
 import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { changeAdminPassword } from "@/features/admin/server/auth-actions";
 import { requireStaff } from "@/features/admin/server/access";
@@ -17,11 +21,7 @@ export default async function AdminSecurityPage({
 
   return (
     <>
-      <AdminPageHeader
-        eyebrow="Your account"
-        title="Account security"
-        description="Change your staff account password. Your current password is checked again before the change is saved."
-      />
+      <AdminPageHeader eyebrow="Your account" title="Account security" />
       {params.status === "updated" ? (
         <AdminNotice tone="success">Your password has been updated.</AdminNotice>
       ) : null}
@@ -33,12 +33,11 @@ export default async function AdminSecurityPage({
         aria-labelledby="change-password-heading"
         className="admin-panel admin-panel--narrow"
       >
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">Password</p>
-            <h2 id="change-password-heading">Set a new password</h2>
-          </div>
-        </div>
+        <AdminSectionHeading
+          eyebrow="Password"
+          id="change-password-heading"
+          title="Set a new password"
+        />
         <form action={changeAdminPassword} className="admin-form">
           <label className="admin-field">
             <span>Current password</span>

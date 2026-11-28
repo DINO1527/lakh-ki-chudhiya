@@ -1,4 +1,8 @@
-import { AdminNotice, AdminPageHeader } from "@/features/admin/components/admin-ui";
+import {
+  AdminNotice,
+  AdminPageHeader,
+  AdminSectionHeading,
+} from "@/features/admin/components/admin-ui";
 import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { requireStaff } from "@/features/admin/server/access";
 import { logAdminQueryFailure } from "@/features/admin/server/action-logger";
@@ -19,11 +23,7 @@ export default async function CommerceSettingsPage({
 
   return (
     <>
-      <AdminPageHeader
-        eyebrow="Store setup"
-        title="Checkout settings"
-        description="Set the verified store contact and decide whether cash on delivery can be offered. Online payments are not available yet."
-      />
+      <AdminPageHeader eyebrow="Store setup" title="Checkout settings" />
       {notice ? <AdminNotice tone="success">Commerce settings saved.</AdminNotice> : null}
       {errorCode ? (
         <AdminNotice tone="error">
@@ -41,12 +41,11 @@ export default async function CommerceSettingsPage({
           aria-labelledby="commerce-contact-heading"
           className="admin-panel admin-panel--narrow"
         >
-          <div className="admin-section-heading">
-            <div>
-              <p className="admin-eyebrow">Order contact and payment</p>
-              <h2 id="commerce-contact-heading">Customer checkout</h2>
-            </div>
-          </div>
+          <AdminSectionHeading
+            eyebrow="Order contact and payment"
+            id="commerce-contact-heading"
+            title="Customer checkout"
+          />
           <form action={saveCommerceSettings} className="admin-form">
             <label className="admin-field">
               <span>Verified WhatsApp number</span>

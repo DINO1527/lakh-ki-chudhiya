@@ -17,11 +17,7 @@ export default async function AdminContentPage({
 
   return (
     <>
-      <AdminPageHeader
-        eyebrow="Store content"
-        title="Homepage hero"
-        description="Edit the visible homepage headline, description and internal call to action."
-      />
+      <AdminPageHeader eyebrow="Store content" title="Homepage hero" />
       {params.saved ? <AdminNotice tone="success">Homepage content saved.</AdminNotice> : null}
       {params.error ? (
         <AdminNotice tone="error">

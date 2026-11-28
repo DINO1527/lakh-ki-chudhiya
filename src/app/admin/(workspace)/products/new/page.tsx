@@ -21,11 +21,7 @@ export default async function NewAdminProductPage({
   const error = Array.isArray(params.error) ? params.error[0] : params.error;
   return (
     <>
-      <AdminPageHeader
-        eyebrow="Catalogue"
-        title="Create a product"
-        description="Start with the product name and set size. Add prices, stock, photos and a collection in the next steps."
-      />
+      <AdminPageHeader eyebrow="Catalogue" title="Create a product" />
       {error ? (
         <AdminNotice tone="error">
           {error === "invalid"
@@ -60,9 +56,6 @@ export default async function NewAdminProductPage({
               This is the number of bangles in one sellable set. Stock counts complete sets.
             </small>
           </label>
-          <p className="admin-muted">
-            This creates a private draft. You can leave optional details for later.
-          </p>
           <details className="admin-form-details">
             <summary>Add optional product information now</summary>
             <div className="admin-form-details__content">

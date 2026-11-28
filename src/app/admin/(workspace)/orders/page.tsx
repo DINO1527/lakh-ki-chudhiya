@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AdminDialog } from "@/features/admin/components/admin-dialog";
+import { AdminNotice, AdminPageHeader } from "@/features/admin/components/admin-ui";
 import { AdminSubmitButton } from "@/features/admin/components/admin-submit-button";
 import { ConfirmButton } from "@/features/admin/components/confirm-button";
 import { AdminPagination } from "@/features/admin/components/admin-pagination";
@@ -33,20 +34,12 @@ export default async function AdminOrdersPage({
   const result = await getAdminOrders({ page: pageNumber, search });
   return (
     <div className="admin-page-stack">
-      <header className="admin-page-header">
-        <div>
-          <p className="admin-eyebrow">Commerce</p>
-          <h1 className="admin-page-title">Orders</h1>
-          <p className="admin-page-description">
-            Confirm stock, set delivery, and record fulfilment transitions.
-          </p>
-        </div>
-      </header>
-      {params.saved ? <p className="admin-notice admin-notice--success">Order updated.</p> : null}
+      <AdminPageHeader eyebrow="Commerce" title="Orders" />
+      {params.saved ? <AdminNotice tone="success">Order updated.</AdminNotice> : null}
       {params.error ? (
-        <p className="admin-notice admin-notice--error" role="alert">
+        <AdminNotice tone="error">
           The order action could not be saved. Check payment, status, fee or return quantities.
-        </p>
+        </AdminNotice>
       ) : null}
       <section aria-label="Search orders" className="admin-panel">
         <AdminSearchForm
@@ -57,9 +50,7 @@ export default async function AdminOrdersPage({
         />
       </section>
       {result.status === "error" ? (
-        <p className="admin-notice admin-notice--error" role="alert">
-          Orders could not be loaded.
-        </p>
+        <AdminNotice tone="error">Orders could not be loaded.</AdminNotice>
       ) : result.orders.length === 0 ? (
         <section className="admin-empty-state">
           <h2>{search ? "No matching orders" : "No order requests yet"}</h2>

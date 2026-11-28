@@ -111,7 +111,6 @@ export default async function AdminProductsPage({
       <AdminPageHeader
         eyebrow="Catalogue"
         title="Products"
-        description="Create drafts, complete product details, preview them privately, then publish or archive."
         action={
           <Link className="admin-button admin-button--primary" href="/admin/products/new">
             Create product
@@ -178,7 +177,7 @@ export default async function AdminProductsPage({
           </AdminSearchForm>
           {products.length ? (
             <>
-              <div className="admin-table-wrap">
+              <div className="admin-table-wrap admin-table-wrap--cards">
                 <table className="admin-table admin-product-table">
                   <caption className="admin-sr-only">Products in the catalogue</caption>
                   <thead>
@@ -220,7 +219,7 @@ export default async function AdminProductsPage({
                             </span>
                           </div>
                         </th>
-                        <td>
+                        <td data-label="Status">
                           <div className="admin-product-visibility">
                             <StatusBadge>{product.status}</StatusBadge>
                             {product.status === "archived" ? null : product.status === "draft" &&
@@ -304,20 +303,21 @@ export default async function AdminProductsPage({
                             )}
                           </div>
                         </td>
-                        <td>
+                        <td data-label="Last updated">
                           {new Intl.DateTimeFormat("en-LK", {
                             dateStyle: "medium",
                             timeZone: "Asia/Colombo",
                           }).format(new Date(product.updated_at))}
                         </td>
-                        <td className="admin-product-table__action-cell">
+                        <td className="admin-product-table__action-cell" data-label="Actions">
                           <Link
                             aria-label={`Edit ${product.title}`}
-                            className="admin-button admin-button--icon admin-button--quiet"
+                            className="admin-button admin-button--secondary"
                             href={`/admin/products/${product.id}`}
                             title={`Edit ${product.title}`}
                           >
                             <Pencil aria-hidden="true" size={16} strokeWidth={1.8} />
+                            Edit
                           </Link>
                         </td>
                       </tr>
