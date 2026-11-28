@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createHeroRingMotion, heroIntroDuration, HERO_RING_ORDER } from "./hero-motion";
+import {
+  createHeroRingMotion,
+  heroIntroDuration,
+  HERO_RING_ORDER,
+  heroRingSpacing,
+} from "./hero-motion";
 import type { HeroLayout } from "./hero-layout";
 
 const desktop: HeroLayout = {
@@ -18,6 +23,16 @@ const mobile: HeroLayout = {
 };
 
 describe("cinematic hero choreography", () => {
+  it("keeps clearance between the thickest bands throughout the breathing cycle", () => {
+    const thickestBandHeight = 2 * (0.058 + 0.009 + 0.005);
+    for (let time = 0; time <= 24; time += 0.1) {
+      expect(heroRingSpacing(time) - thickestBandHeight).toBeGreaterThan(0.08);
+    }
+    const rings = Object.values(createHeroRingMotion(desktop));
+    for (let index = 1; index < rings.length; index += 1) {
+      expect(rings[index - 1].dockY - rings[index].dockY).toBeGreaterThan(thickestBandHeight);
+    }
+  });
   it("uses the storyboard intro duration for measured desktop and mobile layouts", () => {
     expect(heroIntroDuration(desktop.mode)).toBe(6.4);
     expect(heroIntroDuration(mobile.mode)).toBe(5.4);

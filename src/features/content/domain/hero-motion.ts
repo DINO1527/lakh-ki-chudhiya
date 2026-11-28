@@ -28,7 +28,7 @@ export function createHeroRingMotion(layout: HeroLayout): Record<HeroRingId, Her
   const sx = stage.width / Math.max(layout.width, 1);
   const sy = stage.height / Math.max(layout.height, 1);
   const mobile = mode === "stacked";
-  const offsetsY = [0.222, 0.123, 0, -0.123, -0.222];
+  const offsetsY = [0.48, 0.24, 0, -0.24, -0.48];
   const centerIndex = 2;
   const innerIndices = new Set([1, 3]);
 
@@ -57,4 +57,9 @@ export function createHeroRingMotion(layout: HeroLayout): Record<HeroRingId, Her
       ];
     }),
   ) as Record<HeroRingId, HeroRingMotion>;
+}
+
+// The braided band half-height is below 0.08; preserve visible clearance.
+export function heroRingSpacing(time: number) {
+  return 0.24 + 0.04 * (1 - Math.cos((time * Math.PI) / 4)) * 0.5;
 }

@@ -1,198 +1,184 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { PublicHomeCatalogue } from "@/features/products/domain/catalogue";
-import type { PublicQueryResult as PublicServiceResult } from "@/features/products/server/public-catalogue";
-import { CatalogueNotice } from "@/features/products/components/catalogue-notice";
+import { ArrowUpRight, Sparkles, ShoppingBag, Ruler, Layers } from "lucide-react";
 import { ProductGrid } from "@/features/products/components/product-card";
-import { OfferCarousel } from "@/features/promotions/components/offer-carousel";
+import type { PublicProduct, PublicHomeCatalogue } from "@/features/products/domain/catalogue";
+import type { PublicQueryResult } from "@/features/products/server/public-catalogue";
+import { CatalogueNotice } from "@/features/products/components/catalogue-notice";
 import { ScrollReveal } from "@/components/shared/scroll-reveal";
-import { BangleFallback } from "./bangle-experience";
+import { HomeRail } from "./home-rail";
+import { HomeMotion } from "./home-motion";
+import { HomeOffers } from "./home-offers";
 import styles from "./home-page-sections.module.css";
 
 export function HomePageSections({
   catalogueResult,
+  arrivals,
 }: {
-  catalogueResult: PublicServiceResult<PublicHomeCatalogue>;
+  arrivals: PublicQueryResult<readonly PublicProduct[]>;
+  catalogueResult: PublicQueryResult<PublicHomeCatalogue>;
 }) {
   const catalogue = catalogueResult.status === "ready" ? catalogueResult.data : null;
-
+  const benefits = [
+    {
+      icon: Sparkles,
+      title: "Handcrafted designs",
+      href: "#craftsmanship",
+    },
+    {
+      icon: ShoppingBag,
+      title: "Shop online",
+      href: "/shop",
+    },
+    {
+      icon: Ruler,
+      title: "Find your size",
+      href: "/size-guide",
+    },
+    {
+      icon: Layers,
+      title: "Browse collections",
+      href: "/collections",
+    },
+  ];
   return (
-    <>
-      {catalogue ? <OfferCarousel offers={catalogue.offers} /> : null}
-      <BenefitsStrip />
-      <CollectionProductShelves result={catalogueResult} />
-      <ScrollReveal>
-        <CraftsmanshipSection />
-      </ScrollReveal>
-    </>
-  );
-}
-
-function BenefitsStrip() {
-  return (
-    <div aria-label="Shopping information" className={styles.benefits}>
-      <ul className={styles.benefits__inner}>
-        <li className={styles.benefit}>
-          <span className={styles.benefitIconBadge}>
-            <BenefitIcon kind="sparkle" />
-          </span>
-          <span>Handcrafted designs</span>
-        </li>
-        <li className={styles.benefit}>
-          <span className={styles.benefitIconBadge}>
-            <BenefitIcon kind="ruler" />
-          </span>
-          <Link href="/size-guide">Find your size</Link>
-        </li>
-        <li className={styles.benefit}>
-          <span className={styles.benefitIconBadge}>
-            <BenefitIcon kind="grid" />
-          </span>
-          <Link href="/shop#catalogue-collection">Browse by collection</Link>
-        </li>
-      </ul>
-    </div>
-  );
-}
-
-function BenefitIcon({ kind }: { kind: "sparkle" | "ruler" | "grid" }) {
-  const common = {
-    "aria-hidden": true as const,
-    className: styles.benefitIcon,
-    fill: "none",
-    stroke: "currentColor",
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    strokeWidth: 1.6,
-    viewBox: "0 0 24 24",
-  };
-
-  if (kind === "sparkle") {
-    return (
-      <svg {...common}>
-        <path d="M12 3.5 14 9.8l6.5 2.2-6.5 2.1-2 6.4-2.1-6.4L3.5 12l6.4-2.2L12 3.5Z" />
-        <path d="m19.4 3.5.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7.7-2.1Z" />
-      </svg>
-    );
-  }
-
-  if (kind === "ruler") {
-    return (
-      <svg {...common}>
-        <path d="m4.2 15.8 11.6-11.6a1.8 1.8 0 0 1 2.5 0l1.5 1.5a1.8 1.8 0 0 1 0 2.5L8.2 19.8a1.8 1.8 0 0 1-2.5 0l-1.5-1.5a1.8 1.8 0 0 1 0-2.5Z" />
-        <path d="m14.2 7.3 2.5 2.5m-5.2 0 1.7 1.7m-4.4.8 2.5 2.5m-5.2 0 1.7 1.7" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...common}>
-      <rect height="7" rx="1.2" width="7" x="3.5" y="3.5" />
-      <rect height="7" rx="1.2" width="7" x="13.5" y="3.5" />
-      <rect height="7" rx="1.2" width="7" x="3.5" y="13.5" />
-      <rect height="7" rx="1.2" width="7" x="13.5" y="13.5" />
-    </svg>
-  );
-}
-
-function CollectionProductShelves({
-  result,
-}: {
-  result: PublicServiceResult<PublicHomeCatalogue>;
-}) {
-  if (result.status !== "ready") {
-    return (
+    <HomeMotion>
       <section
-        aria-labelledby="home-catalogue-title"
-        className={styles.shelves}
+        className={styles.collections}
+        data-home-tone="light"
         id="home-catalogue"
+        aria-labelledby="collections-title"
       >
-        <h2 className={styles.visuallyHidden} id="home-catalogue-title">
-          Shop by collection
-        </h2>
-        <CatalogueNotice state={result.status} />
-      </section>
-    );
-  }
-
-  const shelves = result.data.shelves;
-  if (shelves.length === 0) {
-    return (
-      <section
-        aria-labelledby="home-catalogue-title"
-        className={styles.shelves}
-        id="home-catalogue"
-      >
-        <div className={styles.catalogueEmpty}>
-          <span aria-hidden="true" className={styles.emptyMark}>
-            <BangleFallback />
-          </span>
-          <div>
-            <p className={styles.shelfEyebrow}>The Lacora catalogue</p>
-            <h2 id="home-catalogue-title">A collection for every little moment.</h2>
-            <p>Browse the shop for published designs and their available sizes.</p>
+        <ScrollReveal>
+          <p className={styles.eyebrow}>FIND YOUR COLOUR</p>
+          <h2 id="collections-title">Our collections.</h2>
+        </ScrollReveal>
+        {catalogueResult.status !== "ready" ? (
+          <CatalogueNotice state={catalogueResult.status} />
+        ) : catalogue?.collections.length ? (
+          <HomeRail label="collections">
+            {catalogue.collections.map((collection, index) => (
+              <ScrollReveal delayMs={Math.min(index, 3) * 70} key={collection.id}>
+                <Link
+                  className={styles.collectionCard}
+                  href={`/collections/${encodeURIComponent(collection.slug)}`}
+                >
+                  <div className={styles.collectionImage}>
+                    {collection.images[0] ? (
+                      <Image
+                        src={collection.images[0].url}
+                        alt={collection.images[0].altText}
+                        fill
+                        unoptimized
+                        sizes="(max-width: 600px) 85vw, 33vw"
+                      />
+                    ) : (
+                      <span className={styles.monogram} aria-hidden="true">
+                        L
+                      </span>
+                    )}
+                  </div>
+                  <h3>
+                    {collection.name}
+                    <ArrowUpRight aria-hidden="true" size={20} />
+                  </h3>
+                </Link>
+              </ScrollReveal>
+            ))}
+          </HomeRail>
+        ) : (
+          <p className={styles.empty}>
+            New collections will appear here when published.{" "}
             <Link href="/shop">
-              Explore all designs <span aria-hidden="true">↗</span>
+              Explore the shop <ArrowUpRight size={16} />
             </Link>
+          </p>
+        )}
+      </section>
+      <section className={styles.arrivals} data-home-tone="light" aria-labelledby="arrivals-title">
+        <ScrollReveal>
+          <h2 id="arrivals-title">Latest arrivals.</h2>
+        </ScrollReveal>
+        {arrivals.status !== "ready" ? (
+          <CatalogueNotice state={arrivals.status} />
+        ) : arrivals.data.length ? (
+          <ScrollReveal>
+            <ProductGrid products={arrivals.data} ariaLabel="Latest arrivals" />
+          </ScrollReveal>
+        ) : (
+          <p className={styles.empty}>New designs will appear here when published.</p>
+        )}
+      </section>
+      {catalogue && <HomeOffers offers={catalogue.offers} />}
+      <section
+        className={styles.story}
+        data-home-tone="dark"
+        id="craftsmanship"
+        aria-labelledby="craftsmanship-title"
+      >
+        <ScrollReveal className={styles.storyImages}>
+          <div className={styles.storyLarge}>
+            <Image
+              src="/images/home/handcrafted-lac-bangle-workshop.webp"
+              alt="Illustration of traditional lac bangle craftsmanship at a workbench."
+              fill
+              unoptimized
+              sizes="(max-width: 768px) 90vw, 50vw"
+            />
           </div>
+          <div className={styles.storyDetail}>
+            <Image src="/brand/lacora-colour-teal.webp" alt="" fill unoptimized sizes="35vw" />
+          </div>
+          <div className={styles.storySwatch}>
+            <Image src="/brand/lacora-colour-rose.webp" fill sizes="25vw" alt="" />
+          </div>
+        </ScrollReveal>
+        <ScrollReveal className={styles.storyCopy}>
+          <p className={styles.eyebrow}>COLOUR. CRAFT. CHARACTER.</p>
+          <h2 id="craftsmanship-title">
+            Made with
+            <br />
+            <em>intention.</em>
+          </h2>
+          <p>
+            From shaping coloured lac to finishing intricate details, discover the artistry behind
+            traditional lac bangles. A celebration of colour, texture and the beauty in small
+            things.
+          </p>
+          <Link href="/shop">
+            Find your own story <ArrowUpRight size={19} />
+          </Link>
+          <small>
+            Craft imagery is illustrative and does not depict a verified Lacora supplier.
+          </small>
+        </ScrollReveal>
+      </section>
+      <section className={styles.closing} data-home-tone="light">
+        <ScrollReveal>
+          <p className={styles.eyebrow}>A ROMANCE IN THE CIRCLES</p>
+          <h2>
+            A little colour.
+            <br />
+            <em>A little more you.</em>
+          </h2>
+          <Link className="button" href="/shop">
+            Explore the collection <ArrowUpRight aria-hidden="true" size={18} />
+          </Link>
+        </ScrollReveal>
+        <span aria-hidden="true" className={styles.closingCircle} />
+      </section>
+      <section className={styles.features} data-home-tone="light" aria-label="The Lacora way">
+        <div className={styles.featureGrid}>
+          {benefits.map(({ icon: Icon, title, href }, index) => (
+            <ScrollReveal key={title} delayMs={index * 80}>
+              <Link href={href} className={styles.featureCard}>
+                <Icon aria-hidden="true" size={28} strokeWidth={1.2} />
+                <h3>{title}</h3>
+              </Link>
+            </ScrollReveal>
+          ))}
         </div>
       </section>
-    );
-  }
-
-  return (
-    <div aria-label="Shop by collection" className={styles.shelves} id="home-catalogue">
-      {shelves.map(({ collection, products }) => (
-        <section className={styles.collectionShelf} key={collection.id}>
-          <div className={styles.shelfHeading}>
-            <div>
-              <p className={styles.shelfEyebrow}>Shop by collection</p>
-              <h2>{collection.name}</h2>
-            </div>
-            <Link href={`/shop?collection=${encodeURIComponent(collection.slug)}`}>
-              View collection <span aria-hidden="true">↗</span>
-            </Link>
-          </div>
-          <ProductGrid ariaLabel={`${collection.name} products`} products={products} />
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function CraftsmanshipSection() {
-  return (
-    <section aria-labelledby="craftsmanship-title" className={styles.craft} id="craftsmanship">
-      <div className={styles.craft__image}>
-        <picture>
-          <source
-            media="(max-width: 767px)"
-            srcSet="/images/home/handcrafted-lac-bangle-workshop-mobile.webp"
-            type="image/webp"
-          />
-          <Image
-            alt="Hands working coloured lac bangles around a wooden shaping tool on an artisan workbench."
-            className={styles.craft__photo}
-            height={810}
-            priority={false}
-            sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 640px"
-            src="/images/home/handcrafted-lac-bangle-workshop.webp"
-            unoptimized
-            width={1440}
-          />
-        </picture>
-      </div>
-      <div className={styles.craft__copy}>
-        <p className={styles.craft__eyebrow}>Our craftsmanship</p>
-        <h2 id="craftsmanship-title">Made with intention.</h2>
-        <p>
-          From shaping coloured lac to finishing intricate details, discover the artistry behind
-          traditional lac bangles.
-        </p>
-        <p className={styles.craft__caption}>
-          This image is an illustration and does not depict a verified Lacora supplier.
-        </p>
-      </div>
-    </section>
+    </HomeMotion>
   );
 }

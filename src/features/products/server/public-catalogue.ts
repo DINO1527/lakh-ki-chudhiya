@@ -12,7 +12,6 @@ import {
   type PublicStorefrontOffer,
 } from "../domain/catalogue";
 import type { ProductVariant } from "../domain/product-variant";
-import { buildHomeCollectionShelves, prioritizeHomeProducts } from "../domain/merchandising";
 
 type ProductRow = Pick<
   Database["public"]["Tables"]["products"]["Row"],
@@ -98,10 +97,7 @@ const COLLECTION_IMAGES_PER_COLLECTION = 20;
 const PRODUCT_SELECT =
   "id, slug, title, description, material, care_instructions, set_count, delivery_fee_minor, sort_order";
 const LATEST_PRODUCTS_LIMIT = 12;
-const LATEST_PRODUCT_SCAN_LIMIT = 48;
-const HOME_COLLECTION_LIMIT = 12;
-const HOME_PRODUCT_SCAN_LIMIT = 48;
-const HOME_PRODUCTS_PER_COLLECTION = 4;
+
 const COLLECTION_SELECT = "id, slug, name, description, sort_order";
 const VARIANT_SELECT = "id, product_id, size_code, inner_diameter_mm, price_minor, is_available";
 
@@ -142,51 +138,12 @@ export async function getPublicHomeCatalogue(): Promise<PublicQueryResult<Public
   if (!isSupabaseServerConfigured()) return { status: "unconfigured" };
 
   const supabase = await createSupabaseServerClient();
-  const [collectionsResult, productsResult, offersResult] = await Promise.all([
-    supabase
-      .from("collections")
-      .select(COLLECTION_SELECT)
-      .eq("status", "published")
-      .order("sort_order", { ascending: true })
-      .order("name", { ascending: true })
-      .limit(HOME_COLLECTION_LIMIT),
-    supabase
-      .from("products")
-      .select(`${PRODUCT_SELECT}, published_at`)
-      .eq("status", "published")
-      .order("published_at", { ascending: false, nullsFirst: false })
-      .order("id", { ascending: true })
-      .limit(HOME_PRODUCT_SCAN_LIMIT),
+  const [collections, offers] = await Promise.all([
+    getPublicCollections(),
     loadActiveStorefrontOffers(supabase, 12),
   ]);
-
-  if (collectionsResult.error || productsResult.error || offersResult.status !== "ready") {
-    return { status: "error" };
-  }
-
-  const loadedProducts = await loadPublicProducts(
-    supabase,
-    (productsResult.data ?? []) as ProductRow[],
-    offersResult.data,
-    1,
-  );
-  if (loadedProducts.status === "error") return { status: "error" };
-
-  const collections = (collectionsResult.data ?? []).map((row) =>
-    toPublicCollection(row as CollectionRow),
-  );
-
-  return {
-    status: "ready",
-    data: {
-      offers: offersResult.data,
-      shelves: buildHomeCollectionShelves(
-        collections,
-        loadedProducts.data,
-        HOME_PRODUCTS_PER_COLLECTION,
-      ),
-    },
-  };
+  if (collections.status !== "ready" || offers.status !== "ready") return { status: "error" };
+  return { status: "ready", data: { collections: collections.data, offers: offers.data } };
 }
 
 export async function getLatestPublicProducts(
@@ -205,7 +162,7 @@ export async function getLatestPublicProducts(
       .eq("status", "published")
       .order("published_at", { ascending: false, nullsFirst: false })
       .order("id", { ascending: true })
-      .limit(Math.min(LATEST_PRODUCT_SCAN_LIMIT, limit * 4)),
+      .limit(limit),
     loadActiveStorefrontOffers(supabase, 12),
   ]);
 
@@ -216,7 +173,7 @@ export async function getLatestPublicProducts(
 
   return {
     status: "ready",
-    data: prioritizeHomeProducts(result.data).slice(0, limit),
+    data: result.data,
   };
 }
 
