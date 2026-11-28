@@ -13,11 +13,7 @@ import {
   Vector3,
 } from "three";
 import { LACORA_BANGLE_PALETTE } from "./bangle-palette";
-import {
-  createHeroRingMotion,
-  heroIntroDuration,
-  heroRingSpacing,
-} from "../domain/hero-motion";
+import { createHeroRingMotion, heroIntroDuration, heroRingSpacing } from "../domain/hero-motion";
 import type { HeroLayout } from "../domain/hero-layout";
 
 const OUTER_RADIUS = 0.82;
