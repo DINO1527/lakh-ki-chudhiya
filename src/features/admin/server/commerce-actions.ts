@@ -195,7 +195,7 @@ function offerListLocation(
     query.set("page", rawPage);
   }
   const rawOfferId = formData.get("offer_id");
-  if (validUuid(rawOfferId)) query.set("offer", rawOfferId);
+  if (typeof rawOfferId === "string" && validUuid(rawOfferId)) query.set("offer", rawOfferId);
   query.set(resultKey, result);
   return `/admin/offers?${query.toString()}`;
 }
