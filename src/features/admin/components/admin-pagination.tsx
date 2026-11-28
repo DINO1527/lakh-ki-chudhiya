@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 type QueryValue = string | readonly string[] | undefined;
 
@@ -44,10 +45,14 @@ export function AdminPagination({
       <div className="admin-pager__controls">
         {page > 1 ? (
           <Link href={hrefFor(page - 1)} rel="prev">
+            <ChevronLeft aria-hidden="true" size={16} strokeWidth={1.8} />
             Previous
           </Link>
         ) : (
-          <span aria-disabled="true">Previous</span>
+          <span aria-disabled="true">
+            <ChevronLeft aria-hidden="true" size={16} strokeWidth={1.8} />
+            Previous
+          </span>
         )}
         <span>
           Page {page} of {pageCount}
@@ -55,9 +60,13 @@ export function AdminPagination({
         {page < pageCount ? (
           <Link href={hrefFor(page + 1)} rel="next">
             Next
+            <ChevronRight aria-hidden="true" size={16} strokeWidth={1.8} />
           </Link>
         ) : (
-          <span aria-disabled="true">Next</span>
+          <span aria-disabled="true">
+            Next
+            <ChevronRight aria-hidden="true" size={16} strokeWidth={1.8} />
+          </span>
         )}
       </div>
     </nav>

@@ -28,6 +28,10 @@ export function validUuid(value: string | null): value is string {
   return value !== null && UUID_PATTERN.test(value);
 }
 
+export function validEmail(value: string | null): value is string {
+  return value !== null && value.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
 export function positiveInteger(value: string | null, max = 2_147_483_647): number | null {
   if (!value || !/^[0-9]{1,10}$/.test(value)) return null;
   const number = Number(value);

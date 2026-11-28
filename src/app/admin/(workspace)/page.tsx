@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { AdminNotice, AdminPageHeader } from "@/features/admin/components/admin-ui";
+import {
+  AdminNotice,
+  AdminPageHeader,
+  AdminSectionHeading,
+} from "@/features/admin/components/admin-ui";
 import { getAdminOverview } from "@/features/admin/server/dashboard-data";
 
 export default async function AdminDashboard({
@@ -10,11 +14,7 @@ export default async function AdminDashboard({
 
   return (
     <>
-      <AdminPageHeader
-        eyebrow="Store desk"
-        title="Overview"
-        description="Manage the catalogue, keep variant stock accurate, and prepare public content."
-      />
+      <AdminPageHeader eyebrow="Store desk" title="Overview" />
       {forbidden ? (
         <AdminNotice tone="error">Your staff role does not have access to that page.</AdminNotice>
       ) : null}
@@ -57,12 +57,7 @@ export default async function AdminDashboard({
         </section>
       )}
       <section aria-labelledby="admin-quick-actions" className="admin-panel">
-        <div className="admin-section-heading">
-          <div>
-            <p className="admin-eyebrow">Next steps</p>
-            <h2 id="admin-quick-actions">Store controls</h2>
-          </div>
-        </div>
+        <AdminSectionHeading eyebrow="Next steps" id="admin-quick-actions" title="Store controls" />
         <div className="admin-quick-links">
           <Link href="/admin/products/new">Create a product</Link>
           <Link href="/admin/collections">Manage collections</Link>

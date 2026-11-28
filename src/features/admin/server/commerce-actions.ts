@@ -66,6 +66,23 @@ export async function saveOffer(formData: FormData): Promise<never> {
   }
 
   const { supabase } = await requireStaff();
+  if (isEnabled) {
+    const targetResult =
+      targetType === "product"
+        ? await supabase.from("products").select("status").eq("id", targetId).maybeSingle()
+        : await supabase.from("collections").select("status").eq("id", targetId).maybeSingle();
+    if (targetResult.error) {
+      logAdminActionFailure(
+        "saveOffer.target",
+        targetType === "product" ? "products" : "collections",
+        targetResult.error.code,
+      );
+      redirect("/admin/offers?error=target_check");
+    }
+    if (targetResult.data?.status !== "published") {
+      redirect("/admin/offers?error=target_required");
+    }
+  }
   const { error } = await supabase.rpc("save_offer", {
     p_offer_id: offerId,
     p_name: name,
@@ -85,6 +102,92 @@ export async function saveOffer(formData: FormData): Promise<never> {
   revalidatePath("/cart");
   revalidatePath("/checkout");
   redirect("/admin/offers?saved=1");
+}
+
+export async function toggleOfferPublication(formData: FormData): Promise<never> {
+  const offerId = formText(formData, "offer_id", 36);
+  const nextEnabled = formData.get("next_enabled");
+  if (!validUuid(offerId) || (nextEnabled !== "true" && nextEnabled !== "false")) {
+    redirect(offerListLocation(formData, "error", "invalid"));
+  }
+
+  const { supabase } = await requireStaff();
+  const { data: offer, error: readError } = await supabase
+    .from("offers")
+    .select(
+      "id, name, target_type, target_product_id, target_collection_id, minimum_sets, discount_basis_points, starts_at, ends_at",
+    )
+    .eq("id", offerId)
+    .maybeSingle();
+  if (readError || !offer) {
+    if (readError) logAdminActionFailure("toggleOfferPublication.read", "offers", readError.code);
+    redirect(offerListLocation(formData, "error", "missing_record"));
+  }
+
+  const targetId =
+    offer.target_type === "product" ? offer.target_product_id : offer.target_collection_id;
+  if (!targetId) redirect(offerListLocation(formData, "error", "invalid"));
+  if (nextEnabled === "true") {
+    const targetResult =
+      offer.target_type === "product"
+        ? await supabase.from("products").select("status").eq("id", targetId).maybeSingle()
+        : await supabase.from("collections").select("status").eq("id", targetId).maybeSingle();
+    if (targetResult.error) {
+      logAdminActionFailure(
+        "toggleOfferPublication.target",
+        offer.target_type === "product" ? "products" : "collections",
+        targetResult.error.code,
+      );
+      redirect(offerListLocation(formData, "error", "target_check"));
+    }
+    if (targetResult.data?.status !== "published") {
+      redirect(offerListLocation(formData, "error", "target_required"));
+    }
+  }
+
+  const { error } = await supabase.rpc("save_offer", {
+    p_offer_id: offer.id,
+    p_name: offer.name,
+    p_target_type: offer.target_type,
+    p_target_id: targetId,
+    p_minimum_sets: offer.minimum_sets,
+    p_discount_basis_points: offer.discount_basis_points,
+    p_starts_at: offer.starts_at,
+    p_ends_at: offer.ends_at,
+    p_is_enabled: nextEnabled === "true",
+  });
+  if (error) {
+    logAdminActionFailure("toggleOfferPublication", "offers", error.code);
+    const errorType = error.code === "23514" ? "banner_required" : "toggle";
+    redirect(offerListLocation(formData, "error", errorType));
+  }
+
+  revalidateOfferPages();
+  redirect(offerListLocation(formData, "changed", nextEnabled === "true" ? "enabled" : "disabled"));
+}
+
+function offerListLocation(
+  formData: FormData,
+  resultKey: "changed" | "error",
+  result: string,
+): string {
+  const query = new URLSearchParams();
+  const rawSearch = formData.get("return_q");
+  const search =
+    typeof rawSearch === "string"
+      ? rawSearch
+          .normalize("NFKC")
+          .replace(/[^\p{L}\p{N}\s-]/gu, "")
+          .slice(0, 64)
+          .trim()
+      : "";
+  const rawPage = formData.get("return_page");
+  if (search) query.set("q", search);
+  if (typeof rawPage === "string" && /^[0-9]{1,5}$/.test(rawPage) && Number(rawPage) > 1) {
+    query.set("page", rawPage);
+  }
+  query.set(resultKey, result);
+  return `/admin/offers?${query.toString()}`;
 }
 
 export async function uploadOfferBanner(formData: FormData): Promise<never> {

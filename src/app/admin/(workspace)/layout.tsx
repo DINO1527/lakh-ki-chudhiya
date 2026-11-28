@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import { AdminShell } from "@/features/admin/components/admin-shell";
 import { requireStaff } from "@/features/admin/server/access";
@@ -11,9 +12,13 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const { user, role } = await requireStaff();
+  const [{ user, role }, cookieStore] = await Promise.all([requireStaff(), cookies()]);
   return (
-    <AdminShell email={user.email ?? "Staff account"} role={role}>
+    <AdminShell
+      defaultSidebarCollapsed={cookieStore.get("admin_sidebar_collapsed")?.value === "true"}
+      email={user.email ?? "Staff account"}
+      role={role}
+    >
       {children}
     </AdminShell>
   );

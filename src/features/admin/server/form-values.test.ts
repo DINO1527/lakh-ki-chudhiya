@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { formText, integer, lkrToMinor, productSlug, validRole, validUuid } from "./form-values";
+import {
+  formText,
+  integer,
+  lkrToMinor,
+  productSlug,
+  validEmail,
+  validRole,
+  validUuid,
+} from "./form-values";
 
 describe("admin form parsing", () => {
   it("normalizes bounded text before saving", () => {
@@ -41,5 +49,14 @@ describe("admin form parsing", () => {
     expect(validUuid("not-a-uuid")).toBe(false);
     expect(validRole("owner")).toBe(true);
     expect(validRole("customer")).toBe(false);
+  });
+
+  it("accepts valid staff email addresses and rejects malformed input", () => {
+    expect(validEmail("owner@example.com")).toBe(true);
+    expect(validEmail("name+team@example.co.uk")).toBe(true);
+    expect(validEmail("missing-at.example.com")).toBe(false);
+    expect(validEmail("name@localhost")).toBe(false);
+    expect(validEmail("no spaces@example.com")).toBe(false);
+    expect(validEmail(null)).toBe(false);
   });
 });
